@@ -79,17 +79,23 @@ chore/upgrade-unity-6.2
 
 ---
 
-## Branch Strategy
+## Branch Strategy (Solo Developer — Trunk-Based)
 
-| Branch | Purpose | Merges Into |
-|--------|---------|-------------|
-| `main` | Production-ready releases | — |
-| `develop` | Integration branch | `main` |
-| `feat/*` | Feature work | `develop` |
-| `fix/*` | Bug fixes | `develop` or `main` (hotfix) |
+Dự án được tối ưu hóa cho **Lập trình viên độc lập (Solo Dev)** theo mô hình **Trunk-Based Development** tinh gọn:
 
-### PR Rules
-- **Squash merge** feature branches into `develop`
-- **Merge commit** `develop` into `main` (preserves history)
-- PR title follows commit format: `feat(board): add gem spawning`
-- Delete branch after merge
+| Branch / Tag | Mục đích | Cách sử dụng |
+|---|---|---|
+| `main` | **Nhánh chính duy nhất** chứa toàn bộ source code | Commit trực tiếp và đẩy code đều đặn |
+| `tag: vX.Y.Z` | Đánh dấu các cột mốc playable / nộp bài / release | Gắn tag tại commit ổn định (`git tag v0.1.0-mvp`) |
+| `exp/*` | Thử nghiệm mạo hiểm (Optional) | Nhánh tạm khi đập đi xây lại hệ thống lớn, xong thì merge hoặc xóa |
+
+### Quy tắc làm việc nhanh:
+1. **Không duy trì nhánh develop**: Toàn bộ quá trình code, refactor và docs diễn ra trên `main`.
+2. **Commit nhỏ, rõ ràng**: Mỗi commit giải quyết trọn vẹn một việc theo chuẩn Conventional Commits bên trên.
+3. **Đóng mốc bằng Git Tag**:
+   ```bash
+   # Gắn tag cho cột mốc quan trọng (ví dụ hoàn thành MVP)
+   git tag -a v0.1.0-mvp -m "milestone: complete playable mvp"
+   git push origin v0.1.0-mvp
+   ```
+

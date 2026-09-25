@@ -250,3 +250,7 @@ các cái dòng enchant em nghĩ là nên cho vào trang bị nó sẽ hợp lí
 **Tóm tắt (Summary):** Khởi tạo Git repository tại thư mục gốc, cấu hình remote `origin` trỏ về `https://github.com/Tsuna1357/MineMart.git`. Đồng bộ credential helper qua GitHub CLI (`gh auth setup-git`), rebase sạch sẽ với commit khởi tạo `README.md` từ GitHub, tạo commit chuẩn Conventional Commit `chore(project): initial repository setup with docs and asmdefs`, và đã push thành công cả hai nhánh `main` và `develop` lên GitHub.
 ---
 
+## [2026-09-25 19:44] — Tinh Gọn Git Workflow: Xóa Nhánh Develop, Chuyển Sang Trunk-Based (Solo Dev)
+**Yêu cầu (Prompt):** nhưng dự án này có một mình em làm thì cần gì hai nhánh? -> được, hãy thực hiện đi
+**Tóm tắt (Summary):** Người dùng nhận định chính xác rằng dự án solo không cần duy trì 2 nhánh `main` và `develop` gây rườm rà. AI đã chuyển về nhánh `main`, xóa hoàn toàn nhánh `develop` ở cả local và remote GitHub. Đồng thời cập nhật `docs/GIT_CONVENTIONS.md` sang mô hình Trunk-Based Development tinh gọn dành cho solo dev (commit trực tiếp trên `main`, đóng gói mốc release/playable bằng Git Tags).
+---
