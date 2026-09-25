@@ -245,3 +245,8 @@ các cái dòng enchant em nghĩ là nên cho vào trang bị nó sẽ hợp lí
 **Tóm tắt (Summary):** Khởi tạo file `.gitignore` tại thư mục gốc của repository. Bỏ qua các mục theo yêu cầu cụ thể của người dùng (`templates/`, `Assignment.md`, `.obsidian/`, `.notes/`, `.agent/`, `MineMart/Library/`, `MineMart/Logs/`, `MineMart/Temp/`). Đồng thời hỏi ý kiến và tích hợp thêm các quy chuẩn bỏ qua rác Unity/IDE/OS đã được người dùng phê duyệt: `MineMart/UserSettings/`, file Solution/Project (`*.csproj`, `*.sln`, `*.slnx`, `.vs/`, `.vscode/`, `.idea/`), build artifacts, và file rác hệ điều hành.
 ---
 
+## [2026-09-25 19:40] — Khởi Tạo Git Repository & Đẩy Toàn Bộ Dự Án Lên GitHub
+**Yêu cầu (Prompt):** https://github.com/Tsuna1357/MineMart đây là repositories em mới tạo, hãy push git đi
+**Tóm tắt (Summary):** Khởi tạo Git repository tại thư mục gốc, cấu hình remote `origin` trỏ về `https://github.com/Tsuna1357/MineMart.git`. Đồng bộ credential helper qua GitHub CLI (`gh auth setup-git`), rebase sạch sẽ với commit khởi tạo `README.md` từ GitHub, tạo commit chuẩn Conventional Commit `chore(project): initial repository setup with docs and asmdefs`, và đã push thành công cả hai nhánh `main` và `develop` lên GitHub.
+---
+
