@@ -1,0 +1,58 @@
+# ==============================================================================
+# MineMart Root .gitignore
+# ==============================================================================
+
+# --- Yêu cầu riêng từ dự án ---
+/templates/
+/Assignment.md
+/.obsidian/
+/.notes/
+/.agent/
+
+# --- Unity Project (MineMart) ---
+MineMart/[Ll]ibrary/
+MineMart/[Tt]emp/
+MineMart/[Oo]bj/
+MineMart/[Bb]uild/
+MineMart/[Bb]uilds/
+MineMart/[Ll]ogs/
+MineMart/[Uu]ser[Ss]ettings/
+MineMart/[Mm]emoryCaptures/
+MineMart/[Rr]ecordings/
+
+# Unity crash logs / sysinfo
+sysinfo.txt
+*.stackdump
+
+# --- IDE & Solution Files (Tự động sinh bởi Unity & IDEs) ---
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# IDE directories & config
+.vs/
+.idea/
+.vscode/
+*.vsconfig
+
+# --- File rác hệ điều hành (OS generated) ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+[Tt]humbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/

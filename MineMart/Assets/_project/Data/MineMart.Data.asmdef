@@ -1,0 +1,16 @@
+{
+    "name": "MineMart.Data",
+    "rootNamespace": "MineMart.Data",
+    "references": [
+        "MineMart.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

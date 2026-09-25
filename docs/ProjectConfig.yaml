@@ -1,0 +1,50 @@
+# Cấu Hình Dự Án (ProjectConfig)
+# Dự án: MineMart (Idle Block Tycoon)
+
+project_name: "MineMart"
+genre: "Idle Tycoon / Arcade Idle"
+target_platforms: ["Android", "PC"]
+screen_orientation: "Portrait"       # Màn hình dọc tối ưu thao tác một tay
+
+# Unity
+unity_version: "6.2.0f1"
+render_pipeline: "URP"              # Universal Render Pipeline
+scripting_backend: "IL2CPP"         # IL2CPP
+ui_system: "UIToolkit"              # UI Toolkit cho HUD và Menu
+folder_strategy: "feature-based"    # Tổ chức thư mục theo tính năng
+networking: "none"                  # Game Singleplayer Offline
+async_pattern: "Awaitable"         # Awaitable Unity 6+
+use_ecs_dots: false
+
+# Kiến Trúc (Architecture)
+architecture_pattern: "so-first"    # ScriptableObject Architecture (Event Channels, Data Containers)
+di_framework: "none"
+
+# Packages
+packages:
+  com.unity.inputsystem: "1.11.0"
+  com.unity.cinemachine: "3.1.0"
+
+# Thư Viện Cảm Giác Game (Game Feel Middleware)
+feel_tools:
+  tweening: "DOTween"               # DOTween cho UI nảy, tiền bay, popup
+  feedback_system: "Custom"         # Custom C# Event feedback
+  audio: "Unity"                    # Unity Audio Source Pool
+  camera: "Cinemachine"             # Cinemachine Isometric Camera
+
+# Tích Hợp MCP
+mcp:
+  unity_mcp: false
+  github_mcp: false
+  linear_mcp: false
+  notion_mcp: false
+
+# Quản Lý Công Việc & Tài Liệu
+task_management: "None"
+documentation: "Markdown"
+
+# Hành Vi Của AI (Behavior)
+ai_mode: "mix"
+auto_confirm: false
+prototype_mode: false
+prompt_logging: true

@@ -1,0 +1,17 @@
+{
+    "name": "MineMart.Economy",
+    "rootNamespace": "MineMart.Economy",
+    "references": [
+        "MineMart.Core",
+        "MineMart.Data"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

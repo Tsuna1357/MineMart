@@ -1,0 +1,18 @@
+{
+    "name": "MineMart.UI",
+    "rootNamespace": "MineMart.UI",
+    "references": [
+        "MineMart.Core",
+        "MineMart.Data",
+        "MineMart.Economy"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

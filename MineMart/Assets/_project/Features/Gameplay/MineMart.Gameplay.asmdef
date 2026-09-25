@@ -1,0 +1,20 @@
+{
+    "name": "MineMart.Gameplay",
+    "rootNamespace": "MineMart.Gameplay",
+    "references": [
+        "MineMart.Core",
+        "MineMart.Data",
+        "MineMart.Economy",
+        "MineMart.Feel",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
