@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 312c9d370bd83fe41a4ff2af64a3e5cc, type: 3}
+  m_Name: Stall_Wood
+  m_EditorClassIdentifier: MineMart.Data::MineMart.Data.StallDataSO
+  _stallId: 0001
+  _stallName: Wood_Stall
+  _producedBlock: {fileID: 11400000, guid: f2f36c6ea4ad26746a29be1e447bfdc0, type: 2}
+  _buyPrice: 0
+  _baseUpgradePrice: 6
+  _priceMultiplier: 0
+  _milestoneRules:
+  - {fileID: 11400000, guid: c25f742da4c690c4b81cc7abce02c195, type: 2}
+  - {fileID: 11400000, guid: 727a0c73c6fe0884cb9f7bb4a693c162, type: 2}
+  - {fileID: 11400000, guid: 6e2014f84af6d264ca0c742bba39745b, type: 2}
+  - {fileID: 11400000, guid: 5d53dc1b6a688394eaab286e6becff16, type: 2}

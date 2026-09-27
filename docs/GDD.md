@@ -30,8 +30,8 @@ monetization_model: "Free-to-Play (Ethical Rewarded Ads & Cosmetic/Convenience I
 
 | STT | Điểm Bán Hàng Độc Nhất (USP) | Giá Trị Khác Biệt Cạnh Tranh So Với Thị Trường |
 |---|---|---|
-| **USP 1** | **Điều Khiển Lai Linh Hoạt (Hybrid Control & Settings Toggle)** | Người chơi có thể tự do chuyển đổi giữa **Pure-Idle** (Tắt Joystick, nhân vật chính tự động làm việc như một siêu thợ) và **Arcade Active** (Bật Joystick nổi, tự tay chạy việc, có cơ chế hút êm *Soft Magnetic Snap* vào quầy). |
-| **USP 2** | **Bộ Đệm Xếp Chồng Block 3D Chống Nghẽn (Anti-Deadlock Vertical Stacking Buffer)** | Giải quyết triệt để khuyết điểm "đĩa phẳng" của *Eatventure*. Block thành phẩm được dàn đều ô trống trước; khi kín chỗ sẽ tự động **xếp chồng thẳng đứng thành các cột khối 3D (3–5 tầng)**. Vừa chống kẹt chuyền sản xuất, vừa tạo thị giác xưởng buôn bán tấp nập. |
+| **USP 1** | **Điều Khiển Lai Linh Hoạt & Khai Thác Theo Đơn (Hybrid Control & Order-Driven Mining)** | Người chơi có thể tự do chuyển đổi giữa **Pure-Idle** (Tắt Joystick, nhân vật chính tự động làm việc như một siêu thợ) và **Arcade Active** (Bật Joystick nổi, tự tay chạy việc; mỏ chỉ hút dứt khoát *Magnet Pop-Snap* và khóa chân khi có đơn hàng, chạy ngang tự do khi không có order). |
+| **USP 2** | **Chuỗi Cung Ứng Hai Quầy & Giao Trực Tiếp (Two-Counter Logistics & Direct Handover)** | Đột phá luồng vận hành: Tách riêng **Quầy Trung Chuyển** (chứa các ô `CounterSlot` kim tự tháp tam giác 4 block đồng nhất loại) và **Quầy Tiếp Khách** (mặt tiền giao dịch). Tích hợp cơ chế **Giao hàng trực tiếp (Direct Handover)**: trao thẳng tay nhận tiền ngay cho khách đang đợi, chống nghẽn chuyền tuyệt đối. |
 | **USP 3** | **Trang Bị RPG Tự Do Chỉ Số & Thú Cưng Nhặt Tip (Freeform RPG Gear & Tip Pet)** | Hệ thống 7 slot trang bị chuẩn Minecraft (Mũ, Áo, Quần, Giày, Tay chính, Tay phụ, Pet). Các slot **không bị khóa chết chỉ số** mà có thể chứa bất kỳ dòng buff nào, mở ra vô số trường phái build đồ độc lạ. Thú cưng có AI riêng tự lon ton đi nhặt tiền boa rơi trên sàn. |
 | **USP 4** | **Trang Phục Dân Làng Tự Động Biến Đổi Theo Quần Xã (Biome-Adaptive Villagers - No Grind)** | **Không biến ngoại hình dân làng thành cơ chế cày cuốc**. Khi bước sang Biome mới (Đồng Bằng, Hang Đá, Sa Mạc, Nether), toàn bộ thợ và khách hàng tự động khoác lên mình trang phục truyền thống của vùng đất đó, mang lại phần thưởng thị giác khám phá tự nhiên ngay đầu game. |
 
@@ -39,42 +39,44 @@ monetization_model: "Free-to-Play (Ethical Rewarded Ads & Cosmetic/Convenience I
 
 ## 2. Vòng Lặp Trò Chơi (Core Loop & Macro Systems)
 
-### 2.1 Sơ Đồ Vòng Lặp Khép Kín (Closed-Loop Architecture)
+### 2.1 Sơ Đồ Vòng Lặp Khép Kín Dây Chuyền Chuỗi Cung Ứng (Supply-Chain Pipeline)
 
 ```mermaid
-graph TD
-    subgraph CoreLoop["1. VÒNG LẶP SẢN XUẤT & PHỤC VỤ (Core Operational Loop)"]
-        C1["Khách Dân Làng Đến & Gọi Món"] --> C2["Hàng Đợi Đơn Hàng (OrderQueue Trung Tâm)"]
-        C2 --> C3["Thợ Tự Động Tiếp Nhận & Đi Chế Tác"]
-        C3 --> C4["Bộ Đệm Quầy & Xếp Chồng Block 3D"]
-        C4 --> C5["Khách Nhận Block & Trả Tiền Vàng"]
-        C5 --> C6["Pet Tự Động Nhặt Tiền Boa (Tips)"]
+graph LR
+    subgraph KhuKhaiThac["1. KHU KHAI THÁC (Hậu Trường / Xưởng Mỏ)"]
+        M["Trạm Mỏ: Đất, Gỗ, Đá"]
+        M -->|"Order-Driven: Chỉ đào khi có đơn"| W1["Thợ Mỏ Dân Làng / Người Chơi"]
     end
 
-    subgraph ProgressionLoop["2. VÒNG LẶP TIẾN TRÌNH KINH TẾ (Economic Progression)"]
-        C5 --> P1["Nâng Cấp Level Quầy (Mốc x2, x4 Doanh Thu)"]
-        C5 --> P2["Cây Nâng Cấp Xưởng Từng Màn Bằng Vàng (Thêm Giường, Lát Đường)"]
-        C6 --> P3["Mở Khóa Quần Xã Mới (Biomes)"]
-        P1 --> C3
-        P2 --> C3
+    subgraph BoDieuPhoi["2. BỘ ĐIỀU PHỐI ĐƠN HÀNG TRUNG TÂM (OrderManager)"]
+        OM["OrderManager (Bucketed FIFO Queue - O(1))"]
     end
 
-    subgraph MetaLoop["3. VÒNG LẶP DÀI HẠN & RPG (Meta-Game Loop)"]
-        M1["Nhiệm Vụ & Khách VIP Boa Ngọc Lục Bảo (Emeralds)"] --> M2["Quay Rương Trang Bị (Lootbox RPG 7 Slot)"]
-        M1 --> M3["Cây Nâng Cấp Vĩnh Viễn The Vault (Emerald Tech Tree)"]
-        M2 --> M4["Bàn Phù Phép Cường Hóa Đồ (Enchanting Table)"]
-        M3 --> CoreLoop
-        M4 --> CoreLoop
+    subgraph QuayTrungChuyen["3. QUẦY TRUNG CHUYỂN (The Pass-through Counter)"]
+        PC["Bàn Tập Kết Hàng (CounterSlot 4-block Pyramid)"]
+        W1 -->|"Đặt block lên ô bàn"| PC
+    end
+
+    subgraph CuaHangMatTien["4. CỬA HÀNG & TIẾP KHÁCH (Front Shop)"]
+        PC -->|"Rút đúng block khách cần"| W2["Nhân Viên Shop / Bồi Bàn"]
+        W2 -->|"Giao thẳng tay tại ServerAnchor"| CC["Quầy Phục Vụ Khách (CustomerCounter / CustomerSlot)"]
+        CUST["Khách Dân Làng"] -->|"Đến ô trống gọi món"| CC
+        CC -->|"Đẩy đơn vào hàng đợi"| OM
+        OM -.->|"Điều phối việc tức thời O(1)"| M
+        CC -->|"Thanh toán tiền gốc"| ECO["Ví Vàng (EconomyManager)"]
+        CC -->|"Để lại tiền boa trên TipAnchor"| TIP["Tiền Tip (Player/Pet nhặt)"]
+        TIP -->|"Cộng thêm tiền thưởng"| ECO
+        ECO -->|"Nâng cấp trạm & Thuê thợ"| M
     end
 ```
 
-### 2.2 Máy Trạng Thái Đơn Hàng (Order Lifecycle State Machine)
-Mọi đơn hàng vận hành theo một quy trình 5 bước được giám sát bởi `OrderManager`:
-1. `ORDER_PLACED`: Khách đứng trước quầy hoặc ngồi vào bàn $\rightarrow$ Đơn hàng ghi nhận vào `OrderQueue`.
-2. `DISPATCHED_TO_CRAFTER`: `TaskDispatcher` tìm Thợ rảnh gần nhất $\rightarrow$ Thợ nhận việc và di chuyển đến quầy. Lễ tân/Bồi bàn **không cần chạy đi báo việc**.
-3. `CRAFTING_IN_PROGRESS`: Thợ thao tác tại quầy nghề (`CraftTimer`). Người chơi đứng gần sẽ tăng 50% tốc độ.
-4. `BUFFER_STACKED`: Block hoàn thành được đưa lên quầy (Ưu tiên ô trống $\rightarrow$ Hết chỗ kích hoạt Xếp chồng cột thẳng đứng).
-5. `DELIVERED_AND_PAID`: Khách nhận block $\rightarrow$ Bắn sự kiện `OnOrderDelivered` để `EconomyManager` cộng tiền và `JuiceManager` phát hiệu ứng nổ hạt.
+### 2.2 Máy Trạng Thái Đơn Hàng Dây Chuyền (Order Lifecycle Pipeline)
+Mọi đơn hàng vận hành theo một quy trình 5 bước được giám sát chặt chẽ:
+1. `CUSTOMER_ORDER`: Khách Dân làng tự tìm ô trống bước tới `CustomerAnchor` tại **Quầy Phục Vụ Khách (`CustomerCounter`)** $\rightarrow$ Đẩy đơn hàng (`OrderTicket`) vào **Bộ Điều Phối Trung Tâm (`OrderManager`)**.
+2. `MINING_DISPATCH`: `OrderManager` phân loại đơn vào ngăn FIFO của loại block đó ($O(1)$). Trạm Mỏ tương ứng phát hiện có đơn cần đào (`HasOrderInQueue = true` $\rightarrow$ `NeedsMining = true`). Thợ mỏ / người chơi di chuyển đến mỏ nhận đơn (`ClaimNextOrder`) và đào đúng số lượng được order. Khi không có order, mỏ ở trạng thái IDLE và người chơi di chuyển tự do không bị hút dính.
+3. `PASS_THROUGH_DROP`: Thợ mang block đào xong lên **Quầy Trung Chuyển (`CheckoutCounter`)**, đứng ở `PlaceAnchor` đặt vào ô `CounterSlot` phù hợp (xếp kim tự tháp tam giác 4 block đồng nhất loại).
+4. `SHOP_RUNNER_PICKUP`: Nhân viên cửa hàng đến đứng ở `TakeAnchor` quầy trung chuyển rút đúng loại block mà khách đang chờ.
+5. `DIRECT_HANDOVER_AND_TIP`: Nhân viên mang block ra đứng ở `ServerAnchor` phía sau ô khách của **Quầy Phục Vụ Khách** trao thẳng tay cho khách $\rightarrow$ `OrderManager` hoàn tất đơn hàng (`CompleteOrder`), bắn sự kiện `OnOrderDelivered` để `EconomyManager` cộng tiền vàng gốc và `JuiceManager` phát hiệu ứng nổ hạt. Khách để lại **Tiền Tip** tại `TipAnchor` trên mặt bàn rồi rời đi, giải phóng ô cho khách tiếp theo. Người chơi hoặc Thú cưng (Pet) chạy qua chạm vào để thu gom tiền tip.
 
 ---
 
@@ -86,37 +88,80 @@ Mọi đơn hàng vận hành theo một quy trình 5 bước được giám sá
 - **Chế độ Điều Khiển Tay (Manual Active Arcade)**:
   - Chạm và kéo ngón tay trên màn hình: Xuất hiện **Dynamic Floating Joystick** (Cần gạt nổi sinh ra ngay vị trí chạm, không bắt người chơi với tay).
   - Tốc độ di chuyển: $4.5\text{ m/s}$ (tăng thêm khi mặc trang bị có chỉ số `WalkSpeed`).
-  - **Hút êm ái (Soft Magnetic Snap)**: Khi chạy đến gần quầy trong bán kính $1.2\text{m}$, nhân vật tự động hút nhẹ vào vị trí làm việc và bắt đầu gõ búa tăng tốc độ quầy lên x2.
+  - **Khai Thác Theo Đơn Hàng & Hút Dứt Khoát (Order-Driven Mining & Magnet Pop-Snap)**:
+    - **Chỉ đào khi có Order**: Trạm mỏ chỉ mở tương tác và kích hoạt hút khi khách hàng đang có đơn hàng chờ loại block đó (`NeedsMining = true`). Khi không có ai order, mỏ ở trạng thái IDLE và người chơi di chuyển tự do ngang qua mỏ mà **tuyệt đối không bị hút dính hay khóa chân**.
+    - **Hút Dứt Khoát (Pop Snap)**: Khi tiếp cận mỏ đang có order ($R \le 1.6\text{m}$), nhân vật lập tức bị hút dứt khoát "póc" vào điểm neo `MinerAnchor`, kích hoạt hiệu ứng Squash & Stretch ($0.16\text{s}$) đàn hồi như nam châm dính cộp và **khóa cứng di chuyển** không cho đi lung tung cho đến khi khai thác xong block. Khi block đã lên đầu thì tự động mở khóa và trừ 1 đơn hàng pending.
 - **Cài đặt Bật/Tắt Joystick**:
   - Người chơi có thể gạt tắt Joystick trong menu Cài Đặt để thưởng thức phong cách Pure-Idle màn hình dọc truyền thống.
 
 ```gherkin
-Feature: Hybrid Control & Magnetic Snapping
-  Scenario: Nhân vật tự động hút vào quầy khi đến gần
-    Given người chơi đang điều khiển nhân vật bằng Joystick
-    When nhân vật di chuyển vào bán kính 1.2m của Quầy Gỗ
-    Then nhân vật tự động hút êm vào vị trí thao tác của quầy
-    And tốc độ chế tác của Quầy Gỗ được tăng gấp đôi (x2 Speed)
+Feature: Order-Driven Mining & Magnet Pop-Snap with Action Lock
+  Scenario: Chạy ngang qua mỏ tự do khi không có Order
+    Given trạm Mỏ Đất đã mở khóa nhưng hiện không có khách nào order Đất
+    When người chơi điều khiển nhân vật chạy ngang qua Mỏ Đất
+    Then nhân vật không bị hút dính vào mỏ và tiếp tục di chuyển tự do
+
+  Scenario: Hút dứt khoát và khóa cứng di chuyển khi có Order cần đào
+    Given có khách hàng đang chờ đơn Block Đất tại Quầy Tiếp Khách
+    When nhân vật bước vào bán kính tương tác của Mỏ Đất
+    Then nhân vật bị hút dứt khoát "póc" vào đúng điểm neo MinerAnchor
+    And input di chuyển bị khóa cứng hoàn toàn trong suốt thời gian đào
+    And khi đào xong, block được nhấc lên đầu, 1 order được tiêu thụ và mở khóa di chuyển
 ```
 
 ---
 
-### 3.2 Bộ Đệm Quầy Hàng & Thuật Toán Xếp Chồng Block (Counter Stacking Buffer)
-- **Quy tắc ưu tiên 2 tầng (Two-Tier Placement Rules)**:
-  1. **Tầng 1 — Ưu tiên ô trống (Empty-Slot First)**: Mỗi quầy có từ 3–5 ô đệm. Block làm xong bắt buộc phải điền vào ô trống trước để trưng bày dàn đều mặt tiền cửa hàng.
-  2. **Tầng 2 — Xếp chồng thẳng đứng (Vertical Stacking)**: Chỉ khi toàn bộ các ô đệm đều đã có hàng, hệ thống mới kích hoạt xếp chồng lên đỉnh các cọc hàng hiện có.
-     - Chiều cao tối đa: $5\text{ block/cột}$.
-     - Hỗ trợ xếp chồng cả block cùng loại lẫn khác loại (Anti-Deadlock), đảm bảo thợ chế tác luôn có chỗ xả hàng, không bao giờ bị nghẽn thời gian chờ.
-- **Cảm giác thị giác (Voxel Juice)**:
-  - Khi block rơi xuống cọc, cọc hàng hơi nhún xuống 5% rồi nảy lại (Squash Elastic). Khi khách lấy hàng, các block phía trên rơi xuống êm ái kèm tiếng gõ gỗ vui tai.
+### 3.2 Hệ Thống Hai Quầy Chuyên Biệt (Pass-through Counter & Customer Counter)
+
+Hệ thống phân tách rạch ròi giữa 2 loại quầy trong tiệm:
+
+#### A. Quầy Trung Chuyển Tiếp Nhận Hàng (The Pass-through Counter — `CheckoutCounter`)
+- **Vị trí**: Đặt tại ranh giới ngăn cách giữa Khu Khai Thác (hậu trường) và Khu Cửa Hàng (mặt tiền).
+- **Kiến trúc Ô Độc Lập (`CounterSlot`)**:
+  - Mỗi ô sở hữu: Điểm neo mặt bàn (`TableAnchor`), Điểm đặt hàng phía sau (`PlaceAnchor` - Phía Mỏ) và Điểm lấy hàng phía trước (`TakeAnchor` - Phía Shop).
+  - **Quản lý phân loại hàng hóa**: Mỗi ô chỉ chứa đồng nhất 1 loại `BlockDataSO` (không lẫn lộn Đất với Gỗ).
+  - **Sức chứa Kim Tự Tháp Tam Giác**: Tối đa 4 block $0.4\text{m}$ / ô (3 block đáy tam giác phẳng + 1 block đỉnh chóp).
+- **Luồng thao tác nghiêm ngặt 2 phía**:
+  - Phía Mỏ: Thợ mỏ / Người chơi CHỈ được đặt block khi đứng tại `PlaceAnchor` trước mặt ô đó (`GetSlotAtPlacePosition`).
+  - Phía Shop: Nhân viên cửa hàng / Người chơi phục vụ CHỈ được nhấc block khi đứng tại `TakeAnchor` trước mặt ô đó (`TryTakeBlockAtTakeAnchor`). Đứng sai phía sẽ bị từ chối tương tác $100\%$.
+
+#### B. Quầy Phục Vụ Khách Hàng (Customer Service Counter — `CustomerCounter` & `CustomerSlot`)
+- **Vị trí**: Đặt tại mặt tiền tiệm tiếp xúc trực tiếp với người mua.
+- **Kiến trúc Bàn Dài Nhiều Ô Đón Khách (`CustomerSlot`)**:
+  - Hỗ trợ cả bàn đơn lẻ 1 khách lẫn bàn dài mở rộng nhiều vị trí đón khách độc lập (`CustomerSlot[]`).
+  - Mỗi ô tiếp khách sở hữu bộ ba điểm neo chuẩn hóa:
+    1. **`CustomerAnchor`**: Điểm neo dưới sàn phía trước quầy nơi khách đứng chờ đặt món và nhận hàng.
+    2. **`ServerAnchor`**: Điểm neo dưới sàn phía sau quầy nơi nhân viên / người chơi đứng phục vụ riêng cho ô đó. *(Bắt buộc người phục vụ phải đứng ở phía sau quầy, khoảng cách $\le 0.85\text{m}$ tới `ServerAnchor` và gần `ServerAnchor` hơn `CustomerAnchor`. Tuyệt đối không được giao hàng khi đứng ở vị trí của khách).*
+    3. **`TipAnchor`**: Điểm neo trên mặt bàn tương ứng với ô đó, nơi tiền tip (tiền boa) xuất hiện sau khi phục vụ xong.
+- **Cơ Chế Giao Hàng Thẳng & Sinh Tiền Tip (Direct Handover & Tip Mechanics)**:
+  - **Khách hàng (NPC Customer AI)**: Tự động tìm đến ô tiếp khách còn trống (`GetAvailableSlot` / `GetClosestAvailableSlot`) để vào vị trí gọi món.
+  - **Giao hàng thẳng**: Nhân viên/Người chơi mang block đúng loại đến đứng tại `ServerAnchor` của ô đó và trao thẳng tay cho khách (`TryDeliverOrderAtPosition`).
+  - **Thanh toán tức thì & Sinh Tiền Tip**:
+    - Hệ thống bắn sự kiện `OrderDeliveredEventChannelSO` thanh toán tiền giá gốc đơn hàng vào ngân sách.
+    - Đồng thời, khách hàng để lại **Tiền Tip (vàng/tiền boa)** xuất hiện ngay tại `TipAnchor` trên mặt bàn của ô đó.
+    - Tiền tip nằm chờ trên mặt bàn cho đến khi người chơi hoặc Thú cưng (Pet Collector AI) chạy qua chạm vào để thu gom (Collect-on-touch), kích hoạt âm thanh leng keng và cộng thêm tiền thưởng vào ví.
 
 ```gherkin
-Feature: Counter Stacking Buffer & Anti-Deadlock
-  Scenario: Chống nghẽn chuyền bằng xếp chồng thẳng đứng
-    Given toàn bộ các ô đệm tại quầy đều đã kín hàng
-    When Thợ hoàn thành thêm 1 block mới
-    Then block mới được xếp chồng lên đỉnh cọc hàng thấp nhất
-    And Thợ ngay lập tức quay lại làm chu kỳ tiếp theo, không bị đứng chờ
+Feature: Two-Counter Logistics Pipeline, Direct Handover & Tip Drop
+  Scenario: Đặt block phân loại lên Quầy Trung Chuyển từ Phía Đặt
+    Given thợ mỏ vừa đào xong 1 Block Đất
+    When thợ đứng ở PlaceAnchor (Phía Mỏ) của ô CounterSlot
+    Then block được xếp vào ô CounterSlot đang chứa Đất hoặc ô hoàn toàn trống
+    And block được xếp theo hình học kim tự tháp tam giác 4 khối
+
+  Scenario: Lấy block từ Quầy Trung Chuyển từ Phía Lấy
+    Given ô CounterSlot đang chứa ít nhất 1 Block Đất
+    When nhân viên cửa hàng đứng ở TakeAnchor (Phía Shop) của ô đó
+    Then 1 block được nhấc lên đầu nhân viên để mang đi phục vụ
+    And người đứng ở PlaceAnchor không thể nhấc block
+
+  Scenario: Giao hàng thẳng và sinh Tiền Tip tại Quầy Tiếp Khách
+    Given một Khách Dân làng đang đứng chờ nhận Block Đất tại ô CustomerSlot
+    When nhân viên mang Block Đất tới đứng đúng ServerAnchor phía sau quầy của ô đó
+    Then block được trao thẳng tay cho khách hàng mà không cần đặt lên bàn
+    And hệ thống cộng tiền vàng giá gốc đơn hàng vào ví tức thì
+    And một bọc Tiền Tip xuất hiện tại TipAnchor trên mặt bàn của ô đó
+    And khách hàng rời khỏi ô, giải phóng ô cho khách tiếp theo
 ```
 
 ---
@@ -125,8 +170,8 @@ Feature: Counter Stacking Buffer & Anti-Deadlock
 Game hỗ trợ 3 kiểu cấu trúc mặt bằng tiệm để đổi mới trải nghiệm qua từng màn chơi:
 1. **Kiểu 1 — Quầy Trực Tiếp (Street Stall / Kiosk)**:
    - Khách đứng trước quầy, Thợ đứng sau quầy giao tận tay, khách nhận đồ rồi rời đi ngay.
-2. **Kiểu 2 — Thu Ngân Trung Tâm (Central Checkout Mart)**:
-   - Khách tập trung tại quầy thu ngân trung tâm. Dân làng bưng block từ các quầy chế tác ra quầy thu ngân để thanh toán.
+2. **Kiểu 2 — Quầy Tiếp Khách Tập Trung & Quầy Trung Chuyển (Central Service Counter Mart)**:
+   - Khách tập trung tại Quầy Tiếp Khách mặt tiền. Thợ mỏ tập kết block lên Quầy Trung Chuyển, nhân viên shop bưng block ra quầy tiếp khách giao tận tay.
 3. **Kiểu 3 — Khu Bàn Ghế & Bồi Bàn (Dine-in Workshop with Waiters)**:
    - Khách bước vào ngồi tại các Bàn ghế trong tiệm.
    - **Bồi bàn (Waiter)**: Chạy lại bàn nhận order $\rightarrow$ đẩy vào `OrderQueue` $\rightarrow$ Thợ tự động chế tác $\rightarrow$ Bồi bàn bưng ra bàn cho khách $\rightarrow$ Khách ăn xong để lại tiền vàng và tiền boa.
@@ -261,19 +306,24 @@ $\rightarrow$ Vừa chống ngợp, vừa biến các slot trang bị thành ph�
 (Dùng Vàng - Reset theo Biome)   (Dùng Vàng - Reset theo Biome)    (Dùng Emerald - Bền vững)
 ```
 
-#### Tầng 1: Cột Mốc Quầy Lẻ (Stall Milestones)
-- Công thức giá nâng cấp: $\text{Cost}(L) = \text{BaseCost} \times (1.15)^{L - 1}$
-- Các mốc đột phá:
-  - **Lv 10**: Tốc độ chế tác $+25\%$.
-  - **Lv 25**: Giá trị block $\times 2$.
-  - **Lv 50**: Giá trị block $\times 2$ (Cộng dồn thành $\times 4$).
-  - **Lv 100**: Tốc độ chế tác $\times 2$ + Giá trị block $\times 3$.
+#### Tầng 1: Cột Mốc Quầy Lẻ (Stall Milestones & FTUE Onboarding)
+- **Cơ Chế Khởi Động Tân Thủ & Mở Khóa Quầy (First-Time User Onboarding)**:
+  - Toàn bộ các quầy trong màn chơi đều khởi đầu ở trạng thái **Chưa Mở Khóa (`Level = 0`)**.
+  - **Quầy khởi đầu (Quầy Đất / Khối bậc 1)**: Có giá mở khóa quy định là **$0\text{ Vàng}$**. Người chơi bắt buộc phải tự tay thực hiện thao tác tương tác đầu tiên: **Bấm nút Mở Khóa ($0 Vàng)** để quầy trồi lên từ mặt đất, kích hoạt **Cấp độ 1 (`Level = 1`)** và bắt đầu chu kỳ sản xuất. Thao tác này kích hoạt hiệu ứng tâm lý sở hữu (Ikea Effect) và dạy luật chơi trực quan: *"Muốn có quầy thì phải đầu tư mở khóa"*.
+  - **Các quầy kế tiếp**: Mở khóa tuần tự khi người chơi tích lũy đủ số Vàng tương ứng (`buyPrice`). Khi chưa đủ tiền, nút bấm ở trạng thái khóa xám.
+  - **Chu kỳ nâng cấp**: Sau khi mở khóa thành công (Level $\ge 1$), nút bấm chuyển đổi chức năng sang **Nâng Cấp (Level Up)** với chi phí tăng dần.
+- **Công thức giá nâng cấp**: $\text{Cost}(L) = \text{BaseCost} \times (1.15)^{L - 1}$
+- **Các mốc đột phá doanh thu (Milestones)**:
+  - **Lv 10**: Giá trị doanh thu $\times 2$.
+  - **Lv 25**: Giá trị doanh thu $\times 2$ (Cộng dồn thành $\times 4$).
+  - **Lv 50**: Giá trị doanh thu $\times 2$ (Cộng dồn thành $\times 8$).
+  - **Lv 100**: Giá trị doanh thu $\times 3$ (Cộng dồn thành $\times 24$).
 
 #### Tầng 2: Cây Nâng Cấp Xưởng Màn Chơi (In-Stage Upgrades bằng Vàng)
 - Mua thêm Giường ngủ (Triệu hồi thêm Thợ dân làng, tối đa 4 thợ).
 - Lát sàn đá mịn (Tăng 30% tốc độ chạy toàn xưởng).
 - Biển hiệu cửa hàng (Tăng 50% tần suất khách ghé tiệm).
-- Quầy thu ngân phụ (Phục vụ 2 khách song song).
+- Mua thêm Quầy Tiếp Khách phụ (Phục vụ 2 khách song song) & Mở rộng thêm ô Quầy Trung Chuyển.
 
 #### Tầng 3: Cây Nâng Cấp Vĩnh Viễn The Vault & Cơ Chế "Hạ Cánh Mềm" (Soft Landing)
 *Trị dứt điểm "Hố sâu Cú sốc mất trắng khi reset Biome"*:

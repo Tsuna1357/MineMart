@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d3d127184b5d69428b2cdb3b9ea1d35, type: 3}
+  m_Name: Block_Dirt
+  m_EditorClassIdentifier: MineMart.Data::MineMart.Data.BlockDataSO
+  _blockId: 0002
+  _displayName: Dirt
+  _baseValue: 3
+  _baseCraftTime: 5
+  _icon: {fileID: 0}
+  _prefab3D: {fileID: 8745002447856875285, guid: 678b4f8f15ac48e4480d60ebbdd85507, type: 3}
