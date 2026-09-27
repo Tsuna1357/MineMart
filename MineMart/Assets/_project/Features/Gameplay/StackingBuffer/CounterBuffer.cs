@@ -1,16 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace MineMart.Gameplay.StackingBuffer
-{
+namespace MineMart.Gameplay.StackingBuffer {
     /// <summary>
     /// Quản lý bộ đệm mặt bàn và thuật toán xếp đống Kim Tự Tháp Tam Giác (Triangle Pyramid) 3D tại quầy thu ngân.
     /// Số lượng ô đệm (Slots) co giãn động theo số điểm neo Transform gắn trên Prefab.
     /// Mỗi ô chứa tối đa 4 block chuẩn 0.4x0.4x0.4m: 3 block tạo đáy tam giác phẳng + 1 block ngự trên đỉnh.
     /// Thuật toán 2 tầng: Ưu tiên ô hoàn toàn trống -> Xếp vào ô ít block nhất (tối đa 4 block / ô).
     /// </summary>
-    public class CounterBuffer : MonoBehaviour
-    {
+    public class CounterBuffer : MonoBehaviour {
         [Header("Dynamic Slot Anchors")]
         [Tooltip("Kéo thả các Transform điểm neo của từng ô trên mặt bàn quầy vào đây")]
         [SerializeField] private Transform[] _slotAnchors;
@@ -38,14 +36,11 @@ namespace MineMart.Gameplay.StackingBuffer
         public int BlocksPerSlot => BLOCKS_PER_SLOT;
         public int MaxCapacity => SlotCount * BLOCKS_PER_SLOT;
 
-        public int TotalBlockCount
-        {
-            get
-            {
+        public int TotalBlockCount {
+            get {
                 if (_slotStacks == null) return 0;
                 int total = 0;
-                for (int i = 0; i < _slotStacks.Length; i++)
-                {
+                for (int i = 0; i < _slotStacks.Length; i++) {
                     total += _slotStacks[i].Count;
                 }
                 return total;
@@ -55,21 +50,17 @@ namespace MineMart.Gameplay.StackingBuffer
         public bool IsFull => TotalBlockCount >= MaxCapacity;
         public bool IsEmpty => TotalBlockCount == 0;
 
-        private void Awake()
-        {
+        private void Awake() {
             InitializeSlots();
         }
 
-        private void InitializeSlots()
-        {
-            if (_slotAnchors == null || _slotAnchors.Length == 0)
-            {
+        private void InitializeSlots() {
+            if (_slotAnchors == null || _slotAnchors.Length == 0) {
                 _slotAnchors = new Transform[] { transform };
             }
 
             _slotStacks = new List<GameObject>[_slotAnchors.Length];
-            for (int i = 0; i < _slotAnchors.Length; i++)
-            {
+            for (int i = 0; i < _slotAnchors.Length; i++) {
                 _slotStacks[i] = new List<GameObject>(BLOCKS_PER_SLOT);
             }
         }
@@ -78,10 +69,8 @@ namespace MineMart.Gameplay.StackingBuffer
         /// Đặt một block mới lên quầy thu ngân theo mô hình Kim Tự Tháp Tam Giác.
         /// Ưu tiên ô trống -> sau đó đến ô có ít block nhất (< 4).
         /// </summary>
-        public bool TryPlaceBlock(GameObject blockInstance, out Vector3 targetPosition)
-        {
-            if (blockInstance == null)
-            {
+        public bool TryPlaceBlock(GameObject blockInstance, out Vector3 targetPosition) {
+            if (blockInstance == null) {
                 targetPosition = Vector3.zero;
                 return false;
             }
@@ -89,10 +78,8 @@ namespace MineMart.Gameplay.StackingBuffer
             if (_slotStacks == null) InitializeSlots();
 
             // Bước 1: Ưu tiên ô hoàn toàn trống để dàn đều mặt bàn
-            for (int i = 0; i < _slotStacks.Length; i++)
-            {
-                if (_slotStacks[i].Count == 0)
-                {
+            for (int i = 0; i < _slotStacks.Length; i++) {
+                if (_slotStacks[i].Count == 0) {
                     _slotStacks[i].Add(blockInstance);
                     targetPosition = GetSlotWorldPosition(i, 0);
                     return true;
@@ -103,18 +90,15 @@ namespace MineMart.Gameplay.StackingBuffer
             int lowestSlot = -1;
             int minCount = BLOCKS_PER_SLOT;
 
-            for (int i = 0; i < _slotStacks.Length; i++)
-            {
+            for (int i = 0; i < _slotStacks.Length; i++) {
                 int count = _slotStacks[i].Count;
-                if (count < minCount)
-                {
+                if (count < minCount) {
                     minCount = count;
                     lowestSlot = i;
                 }
             }
 
-            if (lowestSlot != -1)
-            {
+            if (lowestSlot != -1) {
                 int currentCount = _slotStacks[lowestSlot].Count;
                 _slotStacks[lowestSlot].Add(blockInstance);
                 targetPosition = GetSlotWorldPosition(lowestSlot, currentCount);
@@ -129,8 +113,7 @@ namespace MineMart.Gameplay.StackingBuffer
         /// <summary>
         /// Lấy một block từ đỉnh kim tự tháp của ô nhiều hàng nhất để giao cho khách hàng.
         /// </summary>
-        public bool TryTakeBlock(out GameObject blockInstance)
-        {
+        public bool TryTakeBlock(out GameObject blockInstance) {
             blockInstance = null;
             if (IsEmpty) return false;
 
@@ -138,18 +121,15 @@ namespace MineMart.Gameplay.StackingBuffer
             int highestSlot = -1;
             int maxCount = 0;
 
-            for (int i = 0; i < _slotStacks.Length; i++)
-            {
+            for (int i = 0; i < _slotStacks.Length; i++) {
                 int count = _slotStacks[i].Count;
-                if (count > maxCount)
-                {
+                if (count > maxCount) {
                     maxCount = count;
                     highestSlot = i;
                 }
             }
 
-            if (highestSlot != -1 && _slotStacks[highestSlot].Count > 0)
-            {
+            if (highestSlot != -1 && _slotStacks[highestSlot].Count > 0) {
                 int topIndex = _slotStacks[highestSlot].Count - 1;
                 blockInstance = _slotStacks[highestSlot][topIndex];
                 _slotStacks[highestSlot].RemoveAt(topIndex);
@@ -162,8 +142,7 @@ namespace MineMart.Gameplay.StackingBuffer
         /// <summary>
         /// Tính toán vị trí thế giới 3D của block thứ blockIndex trong ô slotIndex theo tọa độ Kim Tự Tháp.
         /// </summary>
-        public Vector3 GetSlotWorldPosition(int slotIndex, int blockIndexInSlot)
-        {
+        public Vector3 GetSlotWorldPosition(int slotIndex, int blockIndexInSlot) {
             if (slotIndex < 0 || slotIndex >= _slotAnchors.Length) return transform.position;
             Transform anchor = _slotAnchors[slotIndex];
             if (anchor == null) return transform.position;
@@ -174,8 +153,7 @@ namespace MineMart.Gameplay.StackingBuffer
             return anchor.position + (anchor.rotation * localOffset);
         }
 
-        private void OnDrawGizmosSelected()
-        {
+        private void OnDrawGizmosSelected() {
             // Vẽ mô phỏng khung dây 3D màu xanh lá cây của 4 khối block kim tự tháp (size 0.4m)
             if (_slotAnchors == null) return;
 
@@ -183,13 +161,11 @@ namespace MineMart.Gameplay.StackingBuffer
             Vector3 cubeSize = Vector3.one * _blockSize;
 
             Matrix4x4 oldMat = Gizmos.matrix;
-            for (int i = 0; i < _slotAnchors.Length; i++)
-            {
+            for (int i = 0; i < _slotAnchors.Length; i++) {
                 if (_slotAnchors[i] == null) continue;
                 Transform anchor = _slotAnchors[i];
 
-                for (int b = 0; b < BLOCKS_PER_SLOT; b++)
-                {
+                for (int b = 0; b < BLOCKS_PER_SLOT; b++) {
                     Vector3 blockCenter = anchor.position + (anchor.rotation * PyramidOffsets[b]);
                     Gizmos.matrix = Matrix4x4.TRS(blockCenter, anchor.rotation, cubeSize);
                     Gizmos.DrawWireCube(Vector3.zero, Vector3.one);

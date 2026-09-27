@@ -1,14 +1,12 @@
 using System;
-using UnityEngine;
 using MineMart.Data;
+using UnityEngine;
 
-namespace MineMart.Gameplay.Orders
-{
+namespace MineMart.Gameplay.Orders {
     /// <summary>
     /// Các trạng thái vòng đời của một đơn hàng trong xưởng.
     /// </summary>
-    public enum OrderState
-    {
+    public enum OrderState {
         /// <summary>Đơn hàng mới tạo, đang chờ thợ mỏ nhận làm</summary>
         Pending,
 
@@ -30,8 +28,7 @@ namespace MineMart.Gameplay.Orders
     /// Mang đầy đủ thông tin về khách yêu cầu, loại block cần, giá trị thanh toán và trạng thái xử lý.
     /// </summary>
     [System.Serializable]
-    public class OrderTicket
-    {
+    public class OrderTicket {
         [SerializeField] private string _orderId;
         [SerializeField] private BlockDataSO _requiredBlock;
         [SerializeField] private double _price;
@@ -57,8 +54,7 @@ namespace MineMart.Gameplay.Orders
         public bool IsCancelled => _state == OrderState.Cancelled;
         public bool IsActive => _state == OrderState.Pending || _state == OrderState.InCrafting || _state == OrderState.Delivering;
 
-        public OrderTicket(string orderId, object requesterSlot, BlockDataSO requiredBlock, double price)
-        {
+        public OrderTicket(string orderId, object requesterSlot, BlockDataSO requiredBlock, double price) {
             _orderId = orderId;
             _requesterSlot = requesterSlot;
             _requiredBlock = requiredBlock;
@@ -68,22 +64,18 @@ namespace MineMart.Gameplay.Orders
             _claimedWorker = null;
         }
 
-        public void SetState(OrderState newState)
-        {
+        public void SetState(OrderState newState) {
             _state = newState;
         }
 
-        public void Claim(object worker)
-        {
+        public void Claim(object worker) {
             _claimedWorker = worker;
             _state = OrderState.InCrafting;
         }
 
-        public void ReleaseClaim()
-        {
+        public void ReleaseClaim() {
             _claimedWorker = null;
-            if (_state == OrderState.InCrafting)
-            {
+            if (_state == OrderState.InCrafting) {
                 _state = OrderState.Pending;
             }
         }

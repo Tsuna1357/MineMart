@@ -2,15 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace MineMart.Data
-{
+namespace MineMart.Data {
     /// <summary>
     /// Schema định nghĩa hồ sơ kinh doanh và công thức nâng cấp của một Quầy Nghề.
     /// Toàn bộ các trường dữ liệu đều là ô trống để nhà thiết kế điền thông tin trong Unity Inspector.
     /// </summary>
     [CreateAssetMenu(fileName = "Stall_", menuName = "MineMart/Data/Stall Data")]
-    public class StallDataSO : ScriptableObject
-    {
+    public class StallDataSO : ScriptableObject {
         [Header("Identity")]
         [SerializeField] private string _stallId;
         [SerializeField] private string _stallName;
@@ -35,8 +33,7 @@ namespace MineMart.Data
         /// <summary>
         /// Tính toán giá nâng cấp theo cấp độ: BasePrice * Multiplier^(Level - 1)
         /// </summary>
-        public double CalculateUpgradeCost(int currentLevel)
-        {
+        public double CalculateUpgradeCost(int currentLevel) {
             if (currentLevel <= 0) return _baseUpgradePrice;
             float multiplier = _priceMultiplier > 0 ? _priceMultiplier : 1.15f;
             return _baseUpgradePrice * Math.Pow(multiplier, currentLevel - 1);

@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 using MineMart.Data;
+using UnityEngine;
 
-namespace MineMart.Gameplay.Orders
-{
+namespace MineMart.Gameplay.Orders {
     /// <summary>
     /// Bộ Điều Phối Đơn Hàng Trung Tâm (Central Order Dispatcher & Manager).
     /// Áp dụng mô hình "Bảng Phân Ngăn Hàng Đợi" (Bucketed FIFO Queue) kết hợp "Kế Toán Hạn Mức Đơn Hàng" (Order Quota Accounting):
@@ -15,18 +14,13 @@ namespace MineMart.Gameplay.Orders
     ///    - InCraftingCount: Số đơn đã có người/thợ nhận đào (Khóa mỏ lại không cho đào thừa).
     ///    - DeliveringCount: Số đơn đã đào xong thành phẩm đang trên đường bưng đi giao.
     /// </summary>
-    public class OrderManager : MonoBehaviour
-    {
+    public class OrderManager : MonoBehaviour {
         private static OrderManager s_instance;
-        public static OrderManager Instance
-        {
-            get
-            {
-                if (s_instance == null)
-                {
+        public static OrderManager Instance {
+            get {
+                if (s_instance == null) {
                     s_instance = FindAnyObjectByType<OrderManager>();
-                    if (s_instance == null)
-                    {
+                    if (s_instance == null) {
                         GameObject go = new GameObject("OrderManager");
                         s_instance = go.AddComponent<OrderManager>();
                     }
@@ -56,22 +50,16 @@ namespace MineMart.Gameplay.Orders
         public IReadOnlyList<OrderTicket> AllActiveOrders => _allActiveOrders;
         public int TotalActiveOrdersCount => _totalActiveOrdersCount;
 
-        private void Awake()
-        {
-            if (s_instance == null)
-            {
+        private void Awake() {
+            if (s_instance == null) {
                 s_instance = this;
-            }
-            else if (s_instance != this)
-            {
+            } else if (s_instance != this) {
                 Destroy(gameObject);
             }
         }
 
-        private void OnDestroy()
-        {
-            if (s_instance == this)
-            {
+        private void OnDestroy() {
+            if (s_instance == this) {
                 s_instance = null;
             }
         }
@@ -79,8 +67,7 @@ namespace MineMart.Gameplay.Orders
         /// <summary>
         /// Tạo đơn hàng mới từ Quầy Tiếp Khách (CustomerSlot) và đưa vào hàng đợi phân ngăn.
         /// </summary>
-        public OrderTicket CreateOrder(object requesterSlot, BlockDataSO block, double price)
-        {
+        public OrderTicket CreateOrder(object requesterSlot, BlockDataSO block, double price) {
             if (block == null) return null;
 
             _orderIdCounter++;
@@ -93,8 +80,7 @@ namespace MineMart.Gameplay.Orders
             _totalActiveOrdersCount = _allActiveOrders.Count;
 
             // 2. Thêm vào ngăn FIFO riêng của loại block này (Tốc độ O(1))
-            if (!_pendingBuckets.TryGetValue(block, out Queue<OrderTicket> bucket))
-            {
+            if (!_pendingBuckets.TryGetValue(block, out Queue<OrderTicket> bucket)) {
                 bucket = new Queue<OrderTicket>();
                 _pendingBuckets[block] = bucket;
             }
@@ -110,12 +96,10 @@ namespace MineMart.Gameplay.Orders
         /// Lấy số lượng đơn hàng ĐANG CHỜ KHAI THÁC (Pending) của loại block này.
         /// CHỈ khi số lượng này > 0 thì trạm mỏ mới mở khóa cho phép đào đúng bấy nhiêu khối!
         /// </summary>
-        public int GetPendingCount(BlockDataSO block)
-        {
+        public int GetPendingCount(BlockDataSO block) {
             if (block == null) return 0;
 
-            if (_pendingBuckets.TryGetValue(block, out Queue<OrderTicket> bucket))
-            {
+            if (_pendingBuckets.TryGetValue(block, out Queue<OrderTicket> bucket)) {
                 CleanBucket(bucket);
                 return bucket.Count;
             }
@@ -126,23 +110,19 @@ namespace MineMart.Gameplay.Orders
         /// <summary>
         /// Kiểm tra xem có đơn hàng nào đang chờ khai thác cho loại block này không (Tốc độ O(1)).
         /// </summary>
-        public bool HasPendingOrder(BlockDataSO block)
-        {
+        public bool HasPendingOrder(BlockDataSO block) {
             return GetPendingCount(block) > 0;
         }
 
         /// <summary>
         /// Tổng số lượng đơn của loại block này đang hoạt động trong tiệm (Pending + InCrafting + Delivering).
         /// </summary>
-        public int GetTotalActiveCount(BlockDataSO block)
-        {
+        public int GetTotalActiveCount(BlockDataSO block) {
             if (block == null) return 0;
 
             int count = 0;
-            for (int i = 0; i < _allActiveOrders.Count; i++)
-            {
-                if (_allActiveOrders[i] != null && _allActiveOrders[i].RequiredBlock == block && _allActiveOrders[i].IsActive)
-                {
+            for (int i = 0; i < _allActiveOrders.Count; i++) {
+                if (_allActiveOrders[i] != null && _allActiveOrders[i].RequiredBlock == block && _allActiveOrders[i].IsActive) {
                     count++;
                 }
             }
@@ -153,16 +133,13 @@ namespace MineMart.Gameplay.Orders
         /// Khi Người chơi hoặc Thợ bắt đầu đào mỏ: Lập tức "đặt gạch" nhận 1 đơn Pending chuyển sang InCrafting.
         /// Thao tác này ngay lập tức giảm PendingCount đi 1, giúp mỏ không bị đào thừa block khi khách chỉ gọi 1!
         /// </summary>
-        public OrderTicket ClaimNextPendingOrder(BlockDataSO block, object worker)
-        {
+        public OrderTicket ClaimNextPendingOrder(BlockDataSO block, object worker) {
             if (block == null) return null;
 
-            if (_pendingBuckets.TryGetValue(block, out Queue<OrderTicket> bucket))
-            {
+            if (_pendingBuckets.TryGetValue(block, out Queue<OrderTicket> bucket)) {
                 CleanBucket(bucket);
 
-                if (bucket.Count > 0)
-                {
+                if (bucket.Count > 0) {
                     OrderTicket ticket = bucket.Dequeue();
                     ticket.Claim(worker);
 
@@ -178,15 +155,13 @@ namespace MineMart.Gameplay.Orders
         /// <summary>
         /// Nếu người chơi hoặc thợ rời khỏi mỏ khi chưa đào xong: Trả lại đơn về trạng thái Pending.
         /// </summary>
-        public void ReleaseClaim(OrderTicket ticket)
-        {
+        public void ReleaseClaim(OrderTicket ticket) {
             if (ticket == null || !ticket.IsInCrafting) return;
 
             ticket.ReleaseClaim();
 
             // Đưa lại vào đầu hàng đợi của loại block đó
-            if (_pendingBuckets.TryGetValue(ticket.RequiredBlock, out Queue<OrderTicket> bucket))
-            {
+            if (_pendingBuckets.TryGetValue(ticket.RequiredBlock, out Queue<OrderTicket> bucket)) {
                 // Để đơn vừa trả lại lên đầu, ta dùng danh sách tạm hoặc enqueue
                 bucket.Enqueue(ticket);
             }
@@ -197,8 +172,7 @@ namespace MineMart.Gameplay.Orders
         /// <summary>
         /// Đánh dấu đơn hàng đã khai thác xong thành block trên tay và đang trên đường mang đi phục vụ.
         /// </summary>
-        public void MarkDelivering(OrderTicket ticket)
-        {
+        public void MarkDelivering(OrderTicket ticket) {
             if (ticket == null || !ticket.IsActive) return;
             ticket.SetState(OrderState.Delivering);
             Debug.Log($"[OrderManager] 🚚 Đơn [{ticket.OrderId}] đã chế tác xong, đang vận chuyển!");
@@ -207,23 +181,19 @@ namespace MineMart.Gameplay.Orders
         /// <summary>
         /// Hoàn tất đơn hàng khi khách đã nhận đồ và thanh toán.
         /// </summary>
-        public void CompleteOrder(OrderTicket ticket)
-        {
+        public void CompleteOrder(OrderTicket ticket) {
             if (ticket == null) return;
 
             // Bù trừ Quota: Nếu vé này chưa ở trạng thái Delivering (do người chơi lấy block của vé khác để giao)
             // thì ta phải tìm 1 vé khác đang Delivering (vé của block vừa bị cướp) và trả nó về Pending
             // để mỏ có thể cho phép đào bù lại khối lượng đã mất!
-            if (ticket.IsPending || ticket.IsInCrafting)
-            {
+            if (ticket.IsPending || ticket.IsInCrafting) {
                 OrderTicket ghostTicket = FindDeliveringTicket(ticket.RequiredBlock);
-                if (ghostTicket != null)
-                {
+                if (ghostTicket != null) {
                     ghostTicket.SetState(OrderState.Pending);
                     ghostTicket.ReleaseClaim();
-                    
-                    if (_pendingBuckets.TryGetValue(ticket.RequiredBlock, out Queue<OrderTicket> bucket))
-                    {
+
+                    if (_pendingBuckets.TryGetValue(ticket.RequiredBlock, out Queue<OrderTicket> bucket)) {
                         bucket.Enqueue(ghostTicket);
                     }
                     Debug.Log($"[OrderManager] 🔄 Quota Reclaimed! Vé [{ghostTicket.OrderId}] được chuyển về Pending do block của nó bị giao cho đơn khác.");
@@ -238,13 +208,10 @@ namespace MineMart.Gameplay.Orders
             Debug.Log($"[OrderManager] ✅ Hoàn tất đơn hàng [{ticket.OrderId}]! (Tổng active còn lại: {_totalActiveOrdersCount})");
         }
 
-        private OrderTicket FindDeliveringTicket(BlockDataSO block)
-        {
-            for (int i = 0; i < _allActiveOrders.Count; i++)
-            {
+        private OrderTicket FindDeliveringTicket(BlockDataSO block) {
+            for (int i = 0; i < _allActiveOrders.Count; i++) {
                 OrderTicket t = _allActiveOrders[i];
-                if (t != null && t.RequiredBlock == block && t.State == OrderState.Delivering)
-                {
+                if (t != null && t.RequiredBlock == block && t.State == OrderState.Delivering) {
                     return t;
                 }
             }
@@ -254,8 +221,7 @@ namespace MineMart.Gameplay.Orders
         /// <summary>
         /// Hủy đơn hàng (khi khách rời quầy do chờ lâu).
         /// </summary>
-        public void CancelOrder(OrderTicket ticket)
-        {
+        public void CancelOrder(OrderTicket ticket) {
             if (ticket == null) return;
 
             ticket.SetState(OrderState.Cancelled);
@@ -269,15 +235,12 @@ namespace MineMart.Gameplay.Orders
         /// <summary>
         /// Hủy toàn bộ đơn hàng phát sinh từ một CustomerSlot cụ thể.
         /// </summary>
-        public void CancelOrdersFromRequester(object requesterSlot)
-        {
+        public void CancelOrdersFromRequester(object requesterSlot) {
             if (requesterSlot == null) return;
 
-            for (int i = _allActiveOrders.Count - 1; i >= 0; i--)
-            {
+            for (int i = _allActiveOrders.Count - 1; i >= 0; i--) {
                 OrderTicket ticket = _allActiveOrders[i];
-                if (ticket != null && ticket.RequesterSlot == requesterSlot)
-                {
+                if (ticket != null && ticket.RequesterSlot == requesterSlot) {
                     CancelOrder(ticket);
                 }
             }
@@ -286,17 +249,12 @@ namespace MineMart.Gameplay.Orders
         /// <summary>
         /// Dọn dẹp các đơn đã bị Hủy hoặc Hoàn Tất còn sót lại ở đầu hàng đợi (Lazy Cleanup).
         /// </summary>
-        private void CleanBucket(Queue<OrderTicket> bucket)
-        {
-            while (bucket.Count > 0)
-            {
+        private void CleanBucket(Queue<OrderTicket> bucket) {
+            while (bucket.Count > 0) {
                 OrderTicket head = bucket.Peek();
-                if (head == null || !head.IsPending)
-                {
+                if (head == null || !head.IsPending) {
                     bucket.Dequeue();
-                }
-                else
-                {
+                } else {
                     break;
                 }
             }
@@ -304,11 +262,9 @@ namespace MineMart.Gameplay.Orders
 
 #if UNITY_EDITOR
         [ContextMenu("Debug: Add Test Order (Dirt)")]
-        private void DebugAddDirtOrder()
-        {
+        private void DebugAddDirtOrder() {
             string[] guids = UnityEditor.AssetDatabase.FindAssets("t:BlockDataSO Block_Dirt");
-            if (guids != null && guids.Length > 0)
-            {
+            if (guids != null && guids.Length > 0) {
                 string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
                 BlockDataSO dirt = UnityEditor.AssetDatabase.LoadAssetAtPath<BlockDataSO>(path);
                 CreateOrder(this, dirt, 3);
@@ -316,11 +272,9 @@ namespace MineMart.Gameplay.Orders
         }
 
         [ContextMenu("Debug: Add Test Order (Stone)")]
-        private void DebugAddStoneOrder()
-        {
+        private void DebugAddStoneOrder() {
             string[] guids = UnityEditor.AssetDatabase.FindAssets("t:BlockDataSO Block_Stone");
-            if (guids != null && guids.Length > 0)
-            {
+            if (guids != null && guids.Length > 0) {
                 string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
                 BlockDataSO stone = UnityEditor.AssetDatabase.LoadAssetAtPath<BlockDataSO>(path);
                 CreateOrder(this, stone, 5);
@@ -328,8 +282,7 @@ namespace MineMart.Gameplay.Orders
         }
 
         [ContextMenu("Debug: Clear All Orders")]
-        private void DebugClearAllOrders()
-        {
+        private void DebugClearAllOrders() {
             _allActiveOrders.Clear();
             _pendingBuckets.Clear();
             _totalActiveOrdersCount = 0;

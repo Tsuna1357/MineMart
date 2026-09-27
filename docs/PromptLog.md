@@ -417,3 +417,64 @@ các cái dòng enchant em nghĩ là nên cho vào trang bị nó sẽ hợp lí
 **Yêu cầu (Prompt):** hãy lập cho em một bản TDD dựa trên bản MVP
 **Tóm tắt (Summary):** Người dùng yêu cầu tạo bản TDD riêng dựa trên GDD MVP. Đã trích xuất các thành phần kỹ thuật cốt lõi (không bao gồm hệ thống mở rộng Phase 2, 3) từ TDD Master và GDD MVP để tạo file TDD_MVP.md, bao gồm: Data-Driven Schemas, Hệ thống 2 quầy & Buffer xếp chồng, Dân làng AI, Joystick lai, và AFK Save Engine.
 ---
+## [2026-09-27 17:40] — Khởi tạo hệ thống AI Khách hàng (CustomerManager & CustomerAgent) (Lập trình Gameplay)
+**Yêu cầu (Prompt):** ở bước 2, bây giờ map em có đúng cái terain với các block test lần trước thì thực hiện bước 2 như nào
+**Tóm tắt (Summary):** Triển khai toàn bộ khung AI cho Khách hàng dựa trên TDD MVP (Bước 2): (1) Tạo `CustomerManager.cs` quản lý danh sách các Block đã mở khóa và điều phối vòng lặp sinh khách hàng mới (Spawn Loop) theo MaxCustomers; (2) Tạo `CustomerAgent.cs` sử dụng `NavMeshAgent` để điều khiển khách hàng đi từ SpawnPoint đến CustomerCounter, nhận Order, sau đó tự động rời đi và despawn; (3) Cập nhật scene cơ bản với SpawnPoint.
+
+---
+## [2026-09-27 18:30] — Cập nhật logic Khách hàng (Di chuyển 8 hướng & Quay mặt) (Logic / Hệ thống Gameplay)
+**Yêu cầu (Prompt):** lỗi sau: sau khi nhận hàng khách không rời đi... em muốn khách chỉ đi được tám hướng, theo tọa độ 1:1 chứ không được lẻ và khi đứng vào quầy khách sẽ quay thẳng vào quầy chứ không phải quay theo góc khi khách đi vào...
+**Tóm tắt (Summary):** Fix lỗi khách đứng im sau khi nhận hàng bằng cách hủy agent khi khách ra khỏi bản đồ. Cập nhật di chuyển cho khách: chỉ đi theo 8 hướng trên lưới (giả lập grid) và ép hướng xoay vuông góc úp mặt vào quầy (`ServerAnchor`) khi đến vị trí mua hàng, loại bỏ góc xoay chéo.
+
+---
+## [2026-09-27 19:15] — Cơ chế Nhân viên AI và Cải tiến Nhận Order (Kiến trúc / Logic)
+**Yêu cầu (Prompt):** có 3 loại nhân viên 1 là thợ, 2 là tạp vụ, 3 là thợ bán... khách hàng vào không tự nhận order nữa mà phải có tạp vụ hoặc thợ bán ra nhận order... cho póc vào nhận order 1-2s, giảm tầm hút của quặng xuống 70%...
+**Tóm tắt (Summary):** Thay đổi logic Order: Khách đến quầy sẽ chờ (`NeedsOrderTake`), yêu cầu Nhân viên (Runner/DirectSeller) hoặc Player phải ra tương tác để chốt đơn. Bổ sung cơ chế "póc" (SnapToAnchor) và thời gian chờ (1.5s) cho Player khi nhận Order. Giảm tầm tương tác thu thập quặng của Player xuống còn 70%.
+
+---
+## [2026-09-27 19:50] — Triển khai logic AI Nhân viên - WorkerAgent (Lập trình Gameplay)
+**Yêu cầu (Prompt):** được rồi, giờ đến các nhân viên... em muốn thợ bán cũng có thể nhận order, thợ bán là dành cho map chỉ có mỗi 1 loại thợ... unity báo lỗi rồi
+**Tóm tắt (Summary):** Khởi tạo `WorkerAgent.cs` dựa trên State Machine cho 3 vai trò: `Miner` (Thợ - chỉ đào và để lên bàn), `Runner` (Tạp vụ - nhận order và bưng bê từ bàn ra khách), `DirectSeller` (Thợ bán - làm mọi khâu từ nhận order, tự đào, và giao tận tay khách). Đã xử lý các lỗi compile liên quan đến thiếu thư viện `CustomerManager` và sai tên thuộc tính `Prefab3D`.
+
+---
+## [2026-09-27 20:20] — Sửa lỗi AI tranh mỏ với Player và cản đường (Logic / Hệ thống Gameplay)
+**Yêu cầu (Prompt):** Lỗi thứ nhất: khi di chuyển em với nó chặn nhau được, lỗi thứ 2: block nghề em đang khai thác nó đi xuyên vào em để khai thác cùng
+**Tóm tắt (Summary):** Bổ sung thuộc tính `_isOccupied` vào `MiningStation.cs` và điều kiện `!_isOccupied` vào cờ `NeedsMining`. Cập nhật `PlayerController` và `WorkerAgent` để lập tức set cờ `SetOccupied(true)` khi có người / AI claim mỏ, và nhả cờ khi xong. Đề xuất người dùng xoá `CapsuleCollider` trên prefab AI hoặc thiết lập Layer Collision Matrix để giải quyết triệt để lỗi va chạm vật lý CharacterController.
+
+---
+## [2026-09-27 20:25] — Sửa lỗi AI Worker khi đặt/lấy quặng và tối ưu khoảng cách (Logic / Hệ thống Gameplay)
+**Yêu cầu (Prompt):** lỗi thứ nhất, con miner vẫn không đặt được block lên bàn (mà có con runner lại lấy được block trực tiếp trên tay của minner khi 2 đứa đứng đối diện nhau ở bàn) Lỗi thứ 2: con minner và ruuner đều không quay mặt vào khách hay quay mặt vào block khai thác khi vào vị trí
+**Tóm tắt (Summary):** Sửa lỗi Miner kẹt tại `WaitingForTableSpace` do gọi sai overload của `TryPlaceBlock` (không truyền `BlockDataSO`). Sửa lỗi thiếu Animation bay của cục quặng (thêm thư viện `DG.Tweening` và gọi `DOJump`) từ Miner sang quầy và từ quầy sang Runner, giải quyết dứt điểm ảo giác Runner "giật đồ" từ tay Miner. Bổ sung ép hướng nhìn `transform.rotation` về phía `MinerAnchor` (với Miner) và `ServerAnchor` (với Runner/DirectSeller) để AI có tư thế làm việc hợp lý.
+---
+## [2026-09-27 23:15] — Nhắc nhở tuân thủ quy tắc ghi Log (Meta / Quy trình làm việc)
+**Yêu cầu (Prompt):** từ giờ tuyệt đối tuân thủ luật, dù là nói về bất kì điều gì không làm gì cũng phải ghi vào log (bao gồm các nhắc nhở trước đó về việc ghi thiếu log).
+**Tóm tắt (Summary):** Người dùng nhắc nhở nghiêm ngặt về việc Agent đã bỏ sót thao tác cập nhật `PromptLog.md` trong nhiều lượt làm việc (đặc biệt là giai đoạn đầu làm AI Khách hàng). Agent đã rà soát lại và bổ sung toàn bộ các mục bị thiếu. Đã xác nhận lại cam kết: Mọi yêu cầu dù là giao tiếp thuần túy, fix lỗi hay làm tính năng mới đều phải được ghi log đầy đủ ở cuối mỗi lượt theo đúng Step 6 trong `AGENTS.md`.
+---
+## [2026-09-27 23:25] — Sửa lỗi biên dịch WorkerAgent do thiếu DOTween (Lập trình Gameplay / Debugging)
+**Yêu cầu (Prompt):** unity báo lỗi rồi
+**Tóm tắt (Summary):** Người dùng báo lỗi compile từ Unity. Phân tích file log phát hiện lỗi `CS0246` do gọi `DG.Tweening` (DOTween) trong `WorkerAgent.cs` nhưng project không cài thư viện này (code `PlayerController` trước đó tự viết Animation chay bằng hàm Update chứ không dùng `DOJump` như nhầm lẫn). Đã khắc phục bằng cách xóa thư viện `DG.Tweening`, thay `DOJump` bằng các lệnh gán vị trí (`transform.position`) và xoay (`transform.rotation`) trực tiếp để vẫn giải quyết được logic trực quan "bốc / đặt" block mà không gây lỗi biên dịch.
+---
+## [2026-09-27 23:30] — Sửa lỗi tỷ lệ Scale của quặng và góc nhìn nhân viên (Logic / Hệ thống Gameplay)
+**Yêu cầu (Prompt):** Sảy ra lỗi tiếp, khi miner đăt block lên bàn, block bị kéo giãn ra. thứ 2 là runner vẫn không quay mặt vào khách
+**Tóm tắt (Summary):** Người dùng báo 2 lỗi: Quặng bị méo khi đặt lên bàn và Runner (Tạp vụ) không quay mặt khi giao hàng. Đã phân tích và sửa thành công: (1) Đổi lệnh `SetParent(_targetCheckoutCounter)` thành `SetParent(null)` trong `WorkerAgent` để tránh việc block kế thừa scale không đồng đều (non-uniform scale) của quầy cha, gây ra hiện tượng kéo giãn; (2) Góc quay của Runner bị lỗi do dùng `LookRotation` trong khi trục tọa độ trùng nhau và bị NavMeshAgent ghi đè. Khắc phục bằng cách khóa `updateRotation = false` và ép góc quay lấy trực tiếp từ `ServerAnchor.rotation` do người dùng cấu hình sẵn trong editor, đảm bảo hướng mặt luôn vuông góc với quầy.
+---
+## [2026-09-27 23:35] — Sửa lỗi nhân viên giao hàng nhưng không cộng tiền (Logic / Hệ thống Gameplay)
+**Yêu cầu (Prompt):** worker đưa hàng cho khách nhưng không được cộng tiền
+**Tóm tắt (Summary):** Người dùng báo lỗi giao hàng xong nhưng hệ thống không cộng tiền vàng. Nguyên nhân do hàm `TryDeliverOrder` của `CustomerSlot` cần truyền tham số `OrderDeliveredEventChannelSO` để kích hoạt sự kiện cộng tiền cho `EconomyManager`, nhưng `WorkerAgent` lại truyền `null` (trong khi `PlayerController` lấy channel từ `CustomerCounter`). Đã khắc phục bằng cách viết thêm hàm tiện ích `FindParentCounter` trong `WorkerAgent` để truy xuất đúng quầy chứa slot tương ứng, từ đó lấy được `OrderDeliveredChannel` của quầy và truyền vào cho giao dịch thành công.
+---
+## [2026-09-27 23:45] — Khắc phục lỗi thiếu reference EventChannelSO (Logic / Hệ thống Gameplay)
+**Yêu cầu (Prompt):** có thể làm ơn thực hiến đối chiếu các code khác trước khi chỉnh code được không? unity lại báo lỗi kìa
+**Tóm tắt (Summary):** Người dùng báo lỗi compile và yêu cầu đối chiếu code cẩn thận trước khi sửa. Lỗi xảy ra do ở lượt trước, khai báo `OrderDeliveredEventChannelSO` trong `WorkerAgent` nhưng lại quên using namespace `MineMart.Core.Events`. Đã khắc phục bằng cách chạy dò `dotnet build`, tìm đúng namespace chứa object và bổ sung `using MineMart.Core.Events;` lên đầu file `WorkerAgent.cs`. Đã xác nhận code compile thành công.
+---
+## [2026-09-27 23:53] — Sửa lỗi kẹt đường và độ trễ giao hàng của AI (Logic / Hệ thống Gameplay)
+**Yêu cầu (Prompt):** có lỗi: các nhân viên không đi xuyên qua nhau được, và khi giao block ra cho khách nó bị delay chứ không instane như người chơi
+**Tóm tắt (Summary):** Người dùng phản hồi AI bị kẹt đường khi đi qua nhau và hành vi giao hàng cho khách chậm hơn người chơi (bị khựng lại 1 giây). Đã khắc phục thành công: (1) Đặt `_agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;` trong `Awake()` của `WorkerAgent` để AI vô hiệu hóa việc tự né tránh NavMesh, cho phép chúng đi xuyên qua nhau tự do; (2) Xóa bỏ đoạn code đếm ngược `_timer >= 1.0f` trong `UpdateDeliveringToCustomer()`, giúp nhân viên giao hàng lập tức khi vừa bước tới bàn giống hệt người chơi.
+---
+
+
+
+
+## [2026-09-28 00:05] — Đánh giá Code & Tối ưu (Code Review & Optimization)
+**Yêu cầu (Prompt):** @[g:\Projects\Project_1\MineMart\Assets\_project] tối ưu và dọn dẹp toàn bộ code có trong foder này và ghi lại vào log
+**Tóm tắt (Summary):** Đã khởi tạo file .editorconfig với cấu hình chuẩn (dùng K&R braces, 4 spaces) theo CODING_STANDARDS.md. Sau đó tiến hành chạy dotnet format trên toàn bộ các project trong thư mục _project để tự động chuẩn hóa cú pháp. Tiến hành refactor thủ công: Đưa các chỉ số hardcode về dạng [SerializeField] trong WorkerAgent.cs và sửa cách gọi hàm FindObjectsByType bằng cách bổ sung tham số FindObjectsSortMode.None trong SaveManager.cs để đúng với chuẩn Unity 6.
+---

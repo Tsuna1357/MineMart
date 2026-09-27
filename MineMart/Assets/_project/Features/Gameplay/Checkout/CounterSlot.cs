@@ -1,9 +1,8 @@
 using System.Collections.Generic;
-using UnityEngine;
 using MineMart.Data;
+using UnityEngine;
 
-namespace MineMart.Gameplay.Checkout
-{
+namespace MineMart.Gameplay.Checkout {
     /// <summary>
     /// Đại diện cho MỘT Ô ĐẶT HÀNG ĐỘC LẬP trên quầy thu ngân.
     /// Mỗi ô có:
@@ -13,8 +12,7 @@ namespace MineMart.Gameplay.Checkout
     /// - Người chơi tự do đặt vào ô mình đang đứng trước mặt.
     /// - NPC AI tự tìm ô còn trống gần nhất để đến đúng vị trí tương tác của ô đó.
     /// </summary>
-    public class CounterSlot : MonoBehaviour
-    {
+    public class CounterSlot : MonoBehaviour {
         [Header("Anchors")]
         [Tooltip("Điểm neo trên mặt bàn quầy nơi các khối block được xếp")]
         [SerializeField] private Transform _tableAnchor;
@@ -48,7 +46,7 @@ namespace MineMart.Gameplay.Checkout
         public Transform TableAnchor => _tableAnchor != null ? _tableAnchor : transform;
         public Transform PlaceAnchor => _placeAnchor != null ? _placeAnchor : transform;
         public Transform TakeAnchor => _takeAnchor != null ? _takeAnchor : transform;
-        
+
         // Tương thích ngược: InteractionAnchor mặc định trỏ về PlaceAnchor
         public Transform InteractionAnchor => PlaceAnchor;
 
@@ -60,30 +58,26 @@ namespace MineMart.Gameplay.Checkout
         public BlockDataSO CurrentBlockType => _currentBlockType;
         public IReadOnlyList<GameObject> PlacedBlocks => _placedBlocks;
 
-        private void Awake()
-        {
+        private void Awake() {
             if (_tableAnchor == null) _tableAnchor = transform;
             if (_placeAnchor == null) _placeAnchor = transform.Find("PlacePoint") ?? transform.Find("PlaceAnchor");
             if (_takeAnchor == null) _takeAnchor = transform.Find("TakePoint") ?? transform.Find("TakeAnchor");
         }
 
-        public void ConfigureAnchors(Transform tableAnchor, Transform placeAnchor, Transform takeAnchor)
-        {
+        public void ConfigureAnchors(Transform tableAnchor, Transform placeAnchor, Transform takeAnchor) {
             _tableAnchor = tableAnchor;
             _placeAnchor = placeAnchor;
             _takeAnchor = takeAnchor;
         }
 
-        public void ConfigureAnchors(Transform tableAnchor, Transform interactionAnchor)
-        {
+        public void ConfigureAnchors(Transform tableAnchor, Transform interactionAnchor) {
             ConfigureAnchors(tableAnchor, interactionAnchor, interactionAnchor);
         }
 
         /// <summary>
         /// Kiểm tra ô có thể tiếp nhận loại block này không (Phải trống hoặc cùng loại block và chưa đầy).
         /// </summary>
-        public bool CanAcceptBlockType(BlockDataSO blockData)
-        {
+        public bool CanAcceptBlockType(BlockDataSO blockData) {
             if (IsFull) return false;
             if (IsEmpty || _currentBlockType == null) return true;
             return _currentBlockType == blockData;
@@ -92,16 +86,13 @@ namespace MineMart.Gameplay.Checkout
         /// <summary>
         /// Thử đặt một block vào ô này theo hình học Kim Tự Tháp Tam Giác.
         /// </summary>
-        public bool TryPlaceBlock(GameObject blockInstance, BlockDataSO blockData, out Vector3 targetWorldPos)
-        {
-            if (blockInstance == null || !CanAcceptBlockType(blockData))
-            {
+        public bool TryPlaceBlock(GameObject blockInstance, BlockDataSO blockData, out Vector3 targetWorldPos) {
+            if (blockInstance == null || !CanAcceptBlockType(blockData)) {
                 targetWorldPos = Vector3.zero;
                 return false;
             }
 
-            if (IsEmpty)
-            {
+            if (IsEmpty) {
                 _currentBlockType = blockData;
             }
 
@@ -117,18 +108,15 @@ namespace MineMart.Gameplay.Checkout
         /// <summary>
         /// Overload tương thích ngược cho TryPlaceBlock khi chưa truyền blockData.
         /// </summary>
-        public bool TryPlaceBlock(GameObject blockInstance, out Vector3 targetWorldPos)
-        {
+        public bool TryPlaceBlock(GameObject blockInstance, out Vector3 targetWorldPos) {
             return TryPlaceBlock(blockInstance, null, out targetWorldPos);
         }
 
         /// <summary>
         /// Lấy một block trên đỉnh kim tự tháp của ô này để giao cho khách hàng.
         /// </summary>
-        public bool TryTakeBlock(out GameObject blockInstance, out BlockDataSO blockData)
-        {
-            if (IsEmpty)
-            {
+        public bool TryTakeBlock(out GameObject blockInstance, out BlockDataSO blockData) {
+            if (IsEmpty) {
                 blockInstance = null;
                 blockData = null;
                 return false;
@@ -139,8 +127,7 @@ namespace MineMart.Gameplay.Checkout
             blockData = _currentBlockType;
             _placedBlocks.RemoveAt(lastIndex);
 
-            if (_placedBlocks.Count == 0)
-            {
+            if (_placedBlocks.Count == 0) {
                 _currentBlockType = null;
             }
 
@@ -150,28 +137,23 @@ namespace MineMart.Gameplay.Checkout
         /// <summary>
         /// Overload tương thích ngược cho TryTakeBlock.
         /// </summary>
-        public bool TryTakeBlock(out GameObject blockInstance)
-        {
+        public bool TryTakeBlock(out GameObject blockInstance) {
             return TryTakeBlock(out blockInstance, out _);
         }
 
         /// <summary>
         /// Xóa sạch danh sách block (dùng khi reset scene hoặc clear quầy).
         /// </summary>
-        public void ClearBlocks()
-        {
-            for (int i = 0; i < _placedBlocks.Count; i++)
-            {
-                if (_placedBlocks[i] != null)
-                {
+        public void ClearBlocks() {
+            for (int i = 0; i < _placedBlocks.Count; i++) {
+                if (_placedBlocks[i] != null) {
                     Destroy(_placedBlocks[i]);
                 }
             }
             _placedBlocks.Clear();
         }
 
-        private void OnDrawGizmos()
-        {
+        private void OnDrawGizmos() {
             Vector3 tablePos = TableAnchor.position;
             Vector3 placePos = PlaceAnchor.position;
             Vector3 takePos = TakeAnchor.position;
@@ -190,19 +172,15 @@ namespace MineMart.Gameplay.Checkout
 
             // 3. Vẽ khung 4 vị trí kim tự tháp chuẩn xác trên mặt bàn
             Matrix4x4 oldMatrix = Gizmos.matrix;
-            for (int i = 0; i < MAX_CAPACITY; i++)
-            {
+            for (int i = 0; i < MAX_CAPACITY; i++) {
                 Vector3 blockWorldPos = TableAnchor.position + TableAnchor.rotation * PyramidOffsets[i];
                 Gizmos.matrix = Matrix4x4.TRS(blockWorldPos, TableAnchor.rotation, Vector3.one * _blockSize);
 
                 bool isOccupied = i < _placedBlocks.Count;
-                if (isOccupied)
-                {
+                if (isOccupied) {
                     Gizmos.color = new Color(0.2f, 0.85f, 0.3f, 0.75f); // Đã có block (Xanh lá)
                     Gizmos.DrawCube(Vector3.zero, Vector3.one * 0.95f);
-                }
-                else
-                {
+                } else {
                     Gizmos.color = new Color(1f, 0.8f, 0.2f, 0.45f); // Ô chờ đặt block (Vàng cam)
                     Gizmos.DrawWireCube(Vector3.zero, Vector3.one);
                 }

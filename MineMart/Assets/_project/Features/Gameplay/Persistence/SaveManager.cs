@@ -1,19 +1,17 @@
 using System;
-using System.IO;
 using System.Collections.Generic;
-using UnityEngine;
+using System.IO;
 using MineMart.Economy;
 using MineMart.Gameplay.Mining;
+using UnityEngine;
 
-namespace MineMart.Gameplay.Persistence
-{
+namespace MineMart.Gameplay.Persistence {
     /// <summary>
     /// Bộ não điều hành lưu trữ và khôi phục dữ liệu game dạng JSON Offline.
     /// Tự động lưu định kỳ mỗi 30 giây, khi ẩn hoặc thoát game.
     /// Tự động tính toán thu nhập ngoại tuyến (AFK Welcome-Back) khi khởi động lại game.
     /// </summary>
-    public class SaveManager : MonoBehaviour
-    {
+    public class SaveManager : MonoBehaviour {
         public static SaveManager Instance { get; private set; }
 
         private const string SAVE_FILE_NAME = "savegame.json";
@@ -33,14 +31,10 @@ namespace MineMart.Gameplay.Persistence
         // Sự kiện thông báo khi nhận thưởng tiền AFK: (số tiền thưởng, số giây vắng mặt hợp lệ)
         public event Action<double, float> OnAfkEarningsGranted;
 
-        private void Awake()
-        {
-            if (Instance == null)
-            {
+        private void Awake() {
+            if (Instance == null) {
                 Instance = this;
-            }
-            else
-            {
+            } else {
                 Destroy(gameObject);
                 return;
             }
@@ -48,41 +42,33 @@ namespace MineMart.Gameplay.Persistence
             _saveFilePath = Path.Combine(Application.persistentDataPath, SAVE_FILE_NAME);
         }
 
-        private void Start()
-        {
+        private void Start() {
             ScanMiningStationsIfEmpty();
             LoadGame();
         }
 
-        private void Update()
-        {
+        private void Update() {
             if (!_autoSaveEnabled) return;
 
             _autoSaveTimer += Time.deltaTime;
-            if (_autoSaveTimer >= AUTO_SAVE_INTERVAL)
-            {
+            if (_autoSaveTimer >= AUTO_SAVE_INTERVAL) {
                 _autoSaveTimer = 0f;
                 SaveGame();
             }
         }
 
-        private void OnApplicationPause(bool pauseStatus)
-        {
-            if (pauseStatus)
-            {
+        private void OnApplicationPause(bool pauseStatus) {
+            if (pauseStatus) {
                 SaveGame();
             }
         }
 
-        private void OnApplicationQuit()
-        {
+        private void OnApplicationQuit() {
             SaveGame();
         }
 
-        private void ScanMiningStationsIfEmpty()
-        {
-            if (_miningStations == null || _miningStations.Count == 0)
-            {
+        private void ScanMiningStationsIfEmpty() {
+            if (_miningStations == null || _miningStations.Count == 0) {
                 MiningStation[] foundStations = FindObjectsByType<MiningStation>();
                 _miningStations = new List<MiningStation>(foundStations);
             }
@@ -91,23 +77,19 @@ namespace MineMart.Gameplay.Persistence
         /// <summary>
         /// Thu thập toàn bộ trạng thái hiện tại và ghi xuống file JSON.
         /// </summary>
-        public void SaveGame()
-        {
-            try
-            {
+        public void SaveGame() {
+            try {
                 ScanMiningStationsIfEmpty();
 
                 GameSaveData saveData = new GameSaveData();
 
                 // 1. Lưu số dư ví tiền
-                if (EconomyManager.Instance != null)
-                {
+                if (EconomyManager.Instance != null) {
                     saveData.gold = EconomyManager.Instance.CurrentGold;
                 }
 
                 // 2. Lưu cấp độ từng trạm mỏ
-                for (int i = 0; i < _miningStations.Count; i++)
-                {
+                for (int i = 0; i < _miningStations.Count; i++) {
                     MiningStation station = _miningStations[i];
                     if (station == null) continue;
 
@@ -124,9 +106,7 @@ namespace MineMart.Gameplay.Persistence
                 // 4. Tuần tự hóa JSON và ghi đĩa
                 string json = JsonUtility.ToJson(saveData, prettyPrint: true);
                 File.WriteAllText(_saveFilePath, json);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 Debug.LogError($"[SaveManager] Lỗi khi lưu game: {ex.Message}");
             }
         }
@@ -134,43 +114,35 @@ namespace MineMart.Gameplay.Persistence
         /// <summary>
         /// Đọc file JSON và nạp lại trạng thái cho toàn bộ hệ thống.
         /// </summary>
-        public void LoadGame()
-        {
-            if (!File.Exists(_saveFilePath))
-            {
+        public void LoadGame() {
+            if (!File.Exists(_saveFilePath)) {
                 // Chưa có file save (Người chơi mới chơi lần đầu)
                 return;
             }
 
-            try
-            {
+            try {
                 string json = File.ReadAllText(_saveFilePath);
                 GameSaveData saveData = JsonUtility.FromJson<GameSaveData>(json);
 
                 if (saveData == null) return;
 
                 // 1. Nạp lại số dư ví tiền
-                if (EconomyManager.Instance != null)
-                {
+                if (EconomyManager.Instance != null) {
                     EconomyManager.Instance.SetGold(saveData.gold);
                 }
 
                 // 2. Nạp lại cấp độ từng trạm mỏ
                 Dictionary<string, int> stationLevelMap = new Dictionary<string, int>();
-                if (saveData.stations != null)
-                {
-                    for (int i = 0; i < saveData.stations.Count; i++)
-                    {
+                if (saveData.stations != null) {
+                    for (int i = 0; i < saveData.stations.Count; i++) {
                         StationSaveEntry entry = saveData.stations[i];
-                        if (entry != null && !string.IsNullOrEmpty(entry.stationId))
-                        {
+                        if (entry != null && !string.IsNullOrEmpty(entry.stationId)) {
                             stationLevelMap[entry.stationId] = entry.level;
                         }
                     }
                 }
 
-                for (int i = 0; i < _miningStations.Count; i++)
-                {
+                for (int i = 0; i < _miningStations.Count; i++) {
                     MiningStation station = _miningStations[i];
                     if (station == null) continue;
 
@@ -178,17 +150,14 @@ namespace MineMart.Gameplay.Persistence
                         ? station.StationData.StallId
                         : station.gameObject.name;
 
-                    if (stationLevelMap.TryGetValue(stationId, out int savedLevel))
-                    {
+                    if (stationLevelMap.TryGetValue(stationId, out int savedLevel)) {
                         station.SetLevel(savedLevel);
                     }
                 }
 
                 // 3. Tính toán tiền tích lũy ngoại tuyến (AFK Earnings)
                 ProcessAfkEarnings(saveData.lastSaveTimestamp);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 Debug.LogError($"[SaveManager] Lỗi khi tải game: {ex.Message}");
             }
         }
@@ -196,8 +165,7 @@ namespace MineMart.Gameplay.Persistence
         /// <summary>
         /// Tính toán và cộng thưởng tiền vắng mặt theo công thức trong GDD Mục 4.3.
         /// </summary>
-        private void ProcessAfkEarnings(long lastSaveTimestamp)
-        {
+        private void ProcessAfkEarnings(long lastSaveTimestamp) {
             if (lastSaveTimestamp <= 0) return;
 
             long currentTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -210,14 +178,11 @@ namespace MineMart.Gameplay.Persistence
 
             // Tính tổng công suất tạo tiền mỗi giây của tất cả các mỏ đang mở khóa: Revenue / CraftTime
             double totalPerSecondProduction = 0;
-            for (int i = 0; i < _miningStations.Count; i++)
-            {
+            for (int i = 0; i < _miningStations.Count; i++) {
                 MiningStation station = _miningStations[i];
-                if (station != null && station.IsUnlocked)
-                {
+                if (station != null && station.IsUnlocked) {
                     float craftTime = station.GetBaseCraftTime();
-                    if (craftTime > 0)
-                    {
+                    if (craftTime > 0) {
                         totalPerSecondProduction += (station.GetFinalSellPrice() / craftTime);
                     }
                 }
@@ -228,8 +193,7 @@ namespace MineMart.Gameplay.Persistence
             // Áp dụng hệ số 0.5 theo công thức cân bằng GDD Mục 4.3
             double afkEarnings = validOfflineSeconds * totalPerSecondProduction * 0.5;
 
-            if (afkEarnings > 0 && EconomyManager.Instance != null)
-            {
+            if (afkEarnings > 0 && EconomyManager.Instance != null) {
                 EconomyManager.Instance.AddGold(afkEarnings);
                 OnAfkEarningsGranted?.Invoke(afkEarnings, validOfflineSeconds);
             }
@@ -238,25 +202,18 @@ namespace MineMart.Gameplay.Persistence
         /// <summary>
         /// Xóa file savegame để khôi phục trạng thái ban đầu phục vụ kiểm thử.
         /// </summary>
-        public void DeleteSave()
-        {
-            try
-            {
-                if (File.Exists(_saveFilePath))
-                {
+        public void DeleteSave() {
+            try {
+                if (File.Exists(_saveFilePath)) {
                     File.Delete(_saveFilePath);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 Debug.LogError($"[SaveManager] Lỗi khi xóa file save: {ex.Message}");
             }
         }
 
-        private void OnDestroy()
-        {
-            if (Instance == this)
-            {
+        private void OnDestroy() {
+            if (Instance == this) {
                 Instance = null;
             }
         }
