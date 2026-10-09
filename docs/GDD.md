@@ -42,7 +42,7 @@ monetization_model: "Free-to-Play (Ethical Rewarded Ads & Cosmetic/Convenience I
 ### 2.1 Sơ Đồ Vòng Lặp Khép Kín Dây Chuyền Chuỗi Cung Ứng (Supply-Chain Pipeline)
 
 ```mermaid
-graph LR
+graph TD
     subgraph KhuKhaiThac["1. KHU KHAI THÁC (Hậu Trường / Xưởng Mỏ)"]
         M["Trạm Mỏ: Đất, Gỗ, Đá"]
         M -->|"Order-Driven: Chỉ đào khi có đơn"| W1["Thợ Mỏ Dân Làng / Người Chơi"]

@@ -10,7 +10,7 @@ screen_orientation: "Portrait"       # Màn hình dọc tối ưu thao tác mộ
 unity_version: "6.2.0f1"
 render_pipeline: "URP"              # Universal Render Pipeline
 scripting_backend: "IL2CPP"         # IL2CPP
-ui_system: "UIToolkit"              # UI Toolkit cho HUD và Menu
+ui_system: "UGUI"                   # UGUI Canvas + TextMeshPro cho HUD và Menu
 folder_strategy: "feature-based"    # Tổ chức thư mục theo tính năng
 networking: "none"                  # Game Singleplayer Offline
 async_pattern: "Awaitable"         # Awaitable Unity 6+

@@ -14,7 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: MineMart.Data::MineMart.Data.BlockDataSO
   _blockId: 0003
   _displayName: Stone
-  _baseValue: 15
-  _baseCraftTime: 12
-  _icon: {fileID: 0}
-  _prefab3D: {fileID: 0}
+  _prefab3D: {fileID: 5314010664421399146, guid: 5056f4d2f27f56348a094199ff0cc438, type: 3}

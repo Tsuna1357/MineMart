@@ -14,7 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: MineMart.Data::MineMart.Data.BlockDataSO
   _blockId: 0002
   _displayName: Dirt
-  _baseValue: 3
-  _baseCraftTime: 5
-  _icon: {fileID: 0}
-  _prefab3D: {fileID: 8745002447856875285, guid: 678b4f8f15ac48e4480d60ebbdd85507, type: 3}
+  _prefab3D: {fileID: 5314010664421399146, guid: 60f530ef91fdb4148abbe3048522ce28, type: 3}

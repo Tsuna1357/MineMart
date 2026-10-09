@@ -1,0 +1,109 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab104441a6f389d4d97dcdd4f7154f7a, type: 3}
+  m_Name: Plain01
+  m_EditorClassIdentifier: MineMart.Data::MineMart.Data.MapDataSO
+  _mapId: Plain01
+  _mapName: "\u0110\u1ED3ng B\u1EB1ng Kh\u1EDFi Nguy\xEAn"
+  _stalls:
+  - _stallData: {fileID: 11400000, guid: 36b8ef9772412dc4a95b86da504682dc, type: 2}
+    _stallPrefab: {fileID: 3628066050344421151, guid: 53d5e8698433c7d4285cd53fcdfa6554, type: 3}
+    _buyPrice: 0
+    _blockBaseValue: 6
+    _baseCraftTime: 5
+    _baseUpgradePrice: 2
+    _maxLevel: 100
+  - _stallData: {fileID: 11400000, guid: 7eb0f2b7ec5414c4ca69b2b1a162e382, type: 2}
+    _stallPrefab: {fileID: 3628066050344421151, guid: 1b07a31e697a1ae4a952ecd20361f29f, type: 3}
+    _buyPrice: 100
+    _blockBaseValue: 50
+    _baseCraftTime: 10
+    _baseUpgradePrice: 40
+    _maxLevel: 100
+  - _stallData: {fileID: 11400000, guid: fbd9d544395271a408a80a3f4491e199, type: 2}
+    _stallPrefab: {fileID: 3628066050344421151, guid: 759e356a23bfb2d4f8ff21b067accc6a, type: 3}
+    _buyPrice: 1500
+    _blockBaseValue: 900
+    _baseCraftTime: 15
+    _baseUpgradePrice: 450
+    _maxLevel: 100
+  _upgrades:
+  - _upgradeId: 02
+    _displayName: Better Dirt
+    _icon: {fileID: 0}
+    _description: x2 profit dirt
+    _upgradeType: 2
+    _targetScope: 0
+    _targetStall: {fileID: 11400000, guid: 36b8ef9772412dc4a95b86da504682dc, type: 2}
+    _workerRole: 0
+    _workersAddedPerLevel: 1
+    _customerBonusPerLevel: 1
+    _priceMultiplierValue: 2
+    _speedBonusPercent: 20
+    _miningTimeReduction: 0.2
+    _price: 100
+  - _upgradeId: 04
+    _displayName: Better Wood
+    _icon: {fileID: 0}
+    _description: x2 profit wood
+    _upgradeType: 2
+    _targetScope: 0
+    _targetStall: {fileID: 11400000, guid: 7eb0f2b7ec5414c4ca69b2b1a162e382, type: 2}
+    _workerRole: 0
+    _workersAddedPerLevel: 1
+    _customerBonusPerLevel: 1
+    _priceMultiplierValue: 2
+    _speedBonusPercent: 20
+    _miningTimeReduction: 0.2
+    _price: 1000
+  - _upgradeId: 03
+    _displayName: Hired Villager
+    _icon: {fileID: 0}
+    _description: +1 worker
+    _upgradeType: 0
+    _targetScope: 1
+    _targetStall: {fileID: 11400000, guid: 7eb0f2b7ec5414c4ca69b2b1a162e382, type: 2}
+    _workerRole: 2
+    _workersAddedPerLevel: 1
+    _customerBonusPerLevel: 1
+    _priceMultiplierValue: 5
+    _speedBonusPercent: 20
+    _miningTimeReduction: 0.2
+    _price: 150
+  - _upgradeId: 01
+    _displayName: Talk to friends
+    _icon: {fileID: 0}
+    _description: +1 customer
+    _upgradeType: 1
+    _targetScope: 1
+    _targetStall: {fileID: 11400000, guid: 7eb0f2b7ec5414c4ca69b2b1a162e382, type: 2}
+    _workerRole: 0
+    _workersAddedPerLevel: 50
+    _customerBonusPerLevel: 1
+    _priceMultiplierValue: 5
+    _speedBonusPercent: 20
+    _miningTimeReduction: 0.2
+    _price: 25
+  - _upgradeId: 05
+    _displayName: Better all
+    _icon: {fileID: 0}
+    _description: x5 all profit
+    _upgradeType: 2
+    _targetScope: 1
+    _targetStall: {fileID: 11400000, guid: 7eb0f2b7ec5414c4ca69b2b1a162e382, type: 2}
+    _workerRole: 0
+    _workersAddedPerLevel: 50
+    _customerBonusPerLevel: 1
+    _priceMultiplierValue: 5
+    _speedBonusPercent: 20
+    _miningTimeReduction: 0.2
+    _price: 10000

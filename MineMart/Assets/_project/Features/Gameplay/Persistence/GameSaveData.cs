@@ -9,12 +9,14 @@ namespace MineMart.Gameplay.Persistence {
     public class StationSaveEntry {
         public string stationId;
         public int level;
+        public string plotId;
 
         public StationSaveEntry() { }
 
-        public StationSaveEntry(string stationId, int level) {
+        public StationSaveEntry(string stationId, int level, string plotId = null) {
             this.stationId = stationId;
             this.level = level;
+            this.plotId = plotId;
         }
     }
 

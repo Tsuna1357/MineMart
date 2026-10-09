@@ -13,13 +13,5 @@ MonoBehaviour:
   m_Name: Stall_Dirt
   m_EditorClassIdentifier: MineMart.Data::MineMart.Data.StallDataSO
   _stallId: 0002
-  _stallName: Dirt_Stall
+  _stallName: Dirt
   _producedBlock: {fileID: 11400000, guid: 1c05db20fc89b9b4eb17f4ac04bc97ff, type: 2}
-  _buyPrice: 0
-  _baseUpgradePrice: 6
-  _priceMultiplier: 0
-  _milestoneRules:
-  - {fileID: 11400000, guid: c25f742da4c690c4b81cc7abce02c195, type: 2}
-  - {fileID: 11400000, guid: 727a0c73c6fe0884cb9f7bb4a693c162, type: 2}
-  - {fileID: 11400000, guid: 6e2014f84af6d264ca0c742bba39745b, type: 2}
-  - {fileID: 11400000, guid: 5d53dc1b6a688394eaab286e6becff16, type: 2}

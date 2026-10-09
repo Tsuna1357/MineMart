@@ -11,20 +11,12 @@ namespace MineMart.Data {
         [SerializeField] private string _blockId;
         [SerializeField] private string _displayName;
 
-        [Header("Economics & Production")]
-        [SerializeField] private double _baseValue;
-        [SerializeField] private float _baseCraftTime;
-
         [Header("Visuals")]
-        [SerializeField] private Sprite _icon;
+        [Tooltip("Prefab 3D của khối block dùng để hiển thị trên quầy order, trên tay người chơi và thợ mỏ")]
         [SerializeField] private GameObject _prefab3D;
 
         public string BlockId => _blockId;
         public string DisplayName => _displayName;
-        public double BaseValue => _baseValue;
-        public double BasePrice => _baseValue;
-        public float BaseCraftTime => _baseCraftTime;
-        public Sprite Icon => _icon;
         public GameObject Prefab3D => _prefab3D;
     }
 }

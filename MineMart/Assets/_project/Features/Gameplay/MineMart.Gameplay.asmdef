@@ -6,7 +6,8 @@
         "MineMart.Data",
         "MineMart.Economy",
         "MineMart.Feel",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,0 +1,18 @@
+Thầy đã nghiên cứu cái GDD của em, nói chung vẫn là sử dụng AI nhiều.
+Sử dụng AI thì cũng tốt vì dùng nó nghiên cứu khá nhanh, nhưng em không nên quá lạm dụng và tin tưởng nó.
+Tài liệu AI render ra thường khá dài và không có trọng tâm, viết nhiều và nhiều mục chia ra cảm giác cần thiết, nhưng thực tế thường lặp và khiến người đọc rối/không nhớ hoặc khó hệ thống kiến thức.
+
+GDD không phải viết cho máy đọc, em cần viết cho người đọc vì vậy sau khi đọc xong GDD người đọc cần hiểu rõ game của em có gì, chơi như nào. Nhưng GDD của em do AI làm xong em không tự biên tập lại nên trông khá rối và khó hiểu.
+
+Sau khi nghiên cứu cái GDD của em, thầy nhận thấy rằng:
+- Game play có nhiều thao tác. Trước đó em có nói với thầy rằng "để 1 thời gian không hoạt động thì AI nó sẽ chạy". Có nghĩa là: khi người chơi muốn can thiệp thì sẽ điều khiển các nhân vật, nhưng khi người chơi không điều khiển thì nhân vật sẽ tự hoạt động. Và lúc này nó bị vướng phải 1 vấn đề là: 
+--> người chơi có thể điều khiển nhân vật trong game này/chơi game này -> thoát khỏi chế độ idle (người chơi tự chơi game), game lúc này không còn là idle nữa. 
+--> Vấn đề tiếp theo: việc người chơi bắt tay vào điều khiển nhân vật, không tạo thêm ra bất cứ giá trị nào đặc biệt hơn chế độ auto? 
+--> Trong khi đó Idle game nhắm tới là: game tự vận hành, và các quyết định của người chơi sẽ giúp cho các đơn được xử lý nhanh hơn, đem về nhiều lợi nhuận hơn, giúp các nhân vật làm việc hiệu quả hơn, tối ưu hơn, nâng cấp công cụ làm việc, nhà hàng lên cấp cao hơn, phục vụ được nhiều khách hơn ....
+--> khi các tác động của người chơi tới game không tạo ra sự khác biệt với không làm gì --> người dùng nhanh chán vì không tạo ra giá trị --> họ sẽ để auto tự chạy và nhìn game tự chơi
+
+- Cơ chế khóa khi đào khoáng/tài nguyên: vậy lúc muốn nhân viên đi phục vụ khách hoặc làm việc khác thì sao? thầy từng chơi nhiều game có farmer đi đào khoáng/khai thác.. bất kỳ lúc nào người dùng muốn thì nhân viên/farmer cũng đều có thể ngắt công việc đang làm để làm công việc khác. Như vậy, người chơi thấy mình có quyền hạn cao (điều khiển tự do) hơn là không thể thay đổi được khi đã ra quyết định -> Gây cảm giác gò bó
+
+- đối với các worker, theo thầy thấy em đang cố làm nó thông minh nhất có thể, hoạt động tốt nhất có thể. Nhưng điều đấy là không nên trong 1 game. Nếu giả sử nó thông minh, rất thông minh, thì lại không cần người chơi phải làm quá nhiều. Nó sẽ gánh khá nhiều vấn đề cho người chơi. Trong khi đó, game tạo ra là để người chơi giải quyết vấn đề. Hãy làm cho các worker không hoàn hảo ở 1 phần nào đó, ví dụ: có con di chuyển nhanh, có con khuân vác nhiều, ... mỗi con 1 thế mạnh và tương đương đó là hạn chế của nó. Khi sắp xếp công việc cho nó, người dùng sẽ cần suy nghĩ xem xếp nó vào đâu thì hợp lý.
+
+Tạm thời thầy chỉ có những nhận xét và góp ý như trên.

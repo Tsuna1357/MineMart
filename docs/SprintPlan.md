@@ -1,134 +1,139 @@
 ---
-title: "Game Collab 3D phase 01 — Sprint Plan"
-sprint_number: "1-6"
-start_date: "2026-04-18"
-end_date: "TBD"
-goal: "Create a complete, testable, and demo‑ready core system for the 3D Match‑3 game"
-status: "Planning"
+title: "MineMart: Pocket Workshop — Sprint Plan"
+sprint_number: "1-7"
+start_date: "2026-09-20"
+end_date: "2026-10-05"
+goal: "Xây dựng hoàn chỉnh tựa game Idle Tycoon kết hợp Arcade Voxel trong 1 màn hình dọc tĩnh, đạt chuẩn nộp bài và demo mượt mà 60fps"
+status: "In Progress (Sprint 5 UI Next)"
 ---
 
-# 🚀 Overall Project Sprint Plan
+# 🚀 Kế Hoạch Sản Xuất Dự Án: MineMart: Pocket Workshop
 
-## Goal
-Deliver the core systems: Dynamic Tray, swap‑mechanic, pop‑out physics, admin tool, data sync (Firebase), Addressables, and Visual Time‑Pressure. Solo development with runnable demos after each sprint.
+> **Mục tiêu sản phẩm:** Phát triển hoàn chỉnh vòng lặp cốt lõi (Core Loop) game Idle Tycoon kết hợp Arcade điều khiển lai trên một màn hình tĩnh (Single-screen). Game vận hành ngoại tuyến 100%, không lag giật, đồ họa Voxel tươi sáng và cảm giác tương tác thỏa mãn (Juicy Feel).
 
-## Architecture Decisions (Resolved)
-- **Addressables Naming**: Phân chia theo Loại Asset (Option A) `Assets/Items`, `Assets/Audio`, `Assets/UI`.
-- **Version Field**: Format Integer (Option A: 1, 2, 3...) cho `LevelConfigSO.version`.
-- **UI Framework**: TextMeshPro + Canvas truyền thống + DOTween (Option B) cho hiệu ứng rung, đếm ngược bật nảy.
-
----
-
-## 🛠 Sprint 1: Foundations (Core Physics & Tray Snapping)
-
-| # | Task | Size | Depends On | Agent | Status | Linear ID |
-|---|------|------|-----------|-------|--------|-----------|
-| 1 | Scaffold project structure & asmdef files (Core, Gameplay, Editor, Tests) | S | — | Architect | ⬜ | |
-| 2 | Create `Item` prefab (Rigidbody, ZeroFriction PhysicMaterial, placeholder mesh) | M | 1 | Gameplay Dev | ⬜ | |
-| 3 | Implement `TrayManager` (slot grid, snap, add/remove slots) | M | 2 | Gameplay Dev | ⬜ | |
-| 4 | Basic `LevelLoader` – load local JSON, instantiate Items via Object Pool | M | 3 | Gameplay Dev | ⬜ | |
-| 5 | Demo scene: pause → load level → resume → simultaneous fall (Ω‑effect) | S | 4 | Gameplay Dev | ⬜ | |
-| 6 | PlayMode unit tests for `TrayManager` snapping & `LevelLoader` parsing | S | 4 | QA Tester | ⬜ | |
-
-**Status Legend**: ⬜ To Do | 🔄 In Progress | ✅ Done | ❌ Blocked
+## 🏛 Quyết Định Kiến Trúc Đã Giải Quyết (Resolved Architecture Decisions)
+- **Kiến trúc dữ liệu:** ScriptableObject-First (`StallDataSO`, `BlockDataSO`, `MilestoneRuleSO`).
+- **Phân tách trách nhiệm (Separation of Concerns):**
+  - `StallDataSO`: Thuần túy lưu trữ hồ sơ kinh tế (giá mua, hệ số nhân giá, block sản xuất, mốc milestone).
+  - `MiningStation`: Đối tượng thực thể trong Scene quản lý vị trí các slot (`CustomSlotAnchor`), cấp độ tối đa (`MaxLevel`), và mốc mở khóa slot (`SlotUnlockLevels`).
+- **Cơ chế đơn hàng (Order Dispatching):** Hàng đợi phân ngăn FIFO $O(1)$ (`OrderManager`), mỏ chỉ khai thác khi có đơn đặt hàng từ khách (`NeedsMining`), tuyệt đối không sản xuất dư thừa.
+- **Điều khiển lai (Hybrid Control):** Người chơi tự do kéo Joystick di chuyển trực tiếp; buông tay quá 1.5s hệ thống tự động kích hoạt Auto-Pilot làm việc thay.
+- **Hệ thống Lưu trữ (Persistence):** Lưu trữ JSON cục bộ qua `SaveManager`, tính toán thu nhập Offline AFK khi khởi động lại game.
 
 ---
 
-## 🔄 Sprint 2: Swap Mechanic & Pop‑out Physics
+## 📊 Bảng Tổng Quan Tiến Độ Các Sprint
 
-| # | Task | Size | Depends On | Agent | Status | Linear ID |
-|---|------|------|-----------|-------|--------|-----------|
-| 7 | Extend `TrayManager` to detect 3 identical items and trigger swap | M | 5 | Gameplay Dev | ⬜ | |
-| 8 | Swap animation: items 1 & 3 slide out, converge to item 2, play “merge” sound | L | 7 | Gameplay Dev | ⬜ | |
-| 9 | Pop‑out logic: on tap, `AddForce` + `AddTorque`, then `DOPath` Bézier to slot | L | 7 | Gameplay Dev | ⬜ | |
-| 10| Install DOTween, create reusable `TweenHelper` (spiral lift + Bézier drop) | S | 9 | Gameplay Dev | ⬜ | |
-| 11| PlayMode tests for swap detection & pop‑out logic | M | 9 | QA Tester | ⬜ | |
+| Sprint | Nội dung trọng tâm | Trạng thái | Tỷ lệ hoàn thành |
+| :--- | :--- | :---: | :---: |
+| **Sprint 1** | Kiến trúc dữ liệu, Dây chuyền cung ứng & Điều phối đơn hàng | ✅ Done | 100% |
+| **Sprint 2** | Mỏ đa slot, Bộ đệm xếp chồng 3D & Cơ chế điều khiển lai | ✅ Done | 100% |
+| **Sprint 3** | Kéo thả quy hoạch mỏ, Nam châm hút & Tự động chạy theo mỏ mới | ✅ Done | 100% |
+| **Sprint 4** | Động cơ kinh tế, Lưu trữ ngoại tuyến & Tính tiền AFK | ✅ Done | 100% |
+| **Sprint 5** | Giao diện người dùng (UI), HUD thanh tiền & Bảng nâng cấp quầy | 🔄 In Progress | 0% (Ưu tiên tiếp theo) |
+| **Sprint 6** | Cảm giác game (Game Feel), Âm thanh (SFX/BGM) & Tiền bay | ⬜ To Do | 0% |
+| **Sprint 7** | Trang trí cảnh quan (Dressing), Ánh sáng URP & Tối ưu Demo | ⬜ To Do | 0% |
 
----
-
-## 🏗 Sprint 3: Admin Tool & Data Architecture
-
-| # | Task | Size | Depends On | Agent | Status | Linear ID |
-|---|------|------|-----------|-------|--------|-----------|
-| 12| Create `ItemDataSO` (itemId, prefab, defaultScale) | S | — | Architect | ⬜ | |
-| 13| Build `LevelConfigSO` (list of ItemData, placements, int version) | M | 12 | Architect | ⬜ | |
-| 14| Extend `TrayDesigner` EditorWindow: drag‑drop items, edit x/y, export JSON | L | 13 | Tool Developer | ⬜ | |
-| 15| Implement JSON export/import for `LevelConfigSO` (`JsonUtility`) | M | 13 | Tool Developer | ⬜ | |
-| 16| Editor tests for `TrayDesigner` round‑trip save/load | S | 15 | QA Tester | ⬜ | |
+**Chú thích trạng thái:** ✅ Done (Đã xong) | 🔄 In Progress (Đang thực hiện) | ⬜ To Do (Chờ thực hiện) | ❌ Blocked (Bị nghẽn)
 
 ---
 
-## 🌐 Sprint 4: Remote Data Sync & Offline Fallback
+## 📦 Chi Tiết Kế Hoạch Từng Sprint
 
-| # | Task | Size | Depends On | Agent | Status | Linear ID |
-|---|------|------|-----------|-------|--------|-----------|
-| 17| Add Firebase SDK, initialize `FirebaseManager` singleton | M | — | Architect | ⬜ | |
-| 18| Version check: compare local int version with remote; fetch newer levels | M | 17 | Gameplay Dev | ⬜ | |
-| 19| Offline mode: load local JSON; store temporary results in `PlayerPrefs` | S | 18 | Gameplay Dev | ⬜ | |
-| 20| Sync cached results to Firebase when online (background coroutine) | M | 19 | Gameplay Dev | ⬜ | |
-| 21| Integration tests (mock Firebase) for version check & sync logic | M | 20 | QA Tester | ⬜ | |
+### ✅ Sprint 1: Kiến Trúc Nền Tảng & Chuỗi Cung Ứng Khép Kín
+*Mục tiêu: Dựng bộ khung ScriptableObject, hệ thống đơn hàng trung tâm và vòng lặp tiếp khách cơ bản.*
 
----
-
-## ⏳ Sprint 5: Visual Time‑Pressure System
-
-| # | Task | Size | Depends On | Agent | Status | Linear ID |
-|---|------|------|-----------|-------|--------|-----------|
-| 22| `WaterFill` component: raise water level, trigger countdown at character height | M | 5 | Gameplay Dev | ⬜ | |
-| 23| TMP UI overlay: red flash, nảy số, urgent music, character struggle (DOTween) | L | 22 | UI Specialist | ⬜ | |
-| 24| Integrate goals: when required items matched, play glass‑break & stop water | M | 22 | Gameplay Dev | ⬜ | |
-| 25| Sound effects (splash, alarm, struggle, glass break) via Addressables | S | 23 | Audio Engineer | ⬜ | |
-| 26| PlayMode tests for water rise & goal completion handling | S | 24 | QA Tester | ⬜ | |
+| # | Hạng mục công việc (Task) | Quy mô | Phụ trách | Trạng thái | Ghi chú kỹ thuật |
+|---|---------------------------|:------:|:---------:|:----------:|------------------|
+| 1 | Phân chia Assembly Definition (`Core`, `Data`, `Economy`, `Gameplay`, `UI`) | S | Architect | ✅ Done | Tối ưu hóa thời gian biên dịch, kiến trúc module độc lập |
+| 2 | Thiết kế Schema dữ liệu (`BlockDataSO`, `StallDataSO`, `MilestoneRuleSO`) | M | Architect | ✅ Done | Single source of truth cho kinh tế và tài nguyên voxel 3D |
+| 3 | Xây dựng Bộ điều phối đơn hàng trung tâm `OrderManager` FIFO O(1) | L | Gameplay Dev | ✅ Done | Phân ngăn theo loại Block, quản lý 4 trạng thái đơn hàng |
+| 4 | Xây dựng Quầy tiếp khách `CustomerCounter` & các ô `CustomerSlot` | M | Gameplay Dev | ✅ Done | Điểm neo đón khách, tiếp nhận order và vị trí để lại tiền Tip |
+| 5 | Quản lý Khách hàng `CustomerManager` & AI `CustomerAgent` | M | Gameplay Dev | ✅ Done | Sinh khách, xếp hàng lùi thẳng ra sảnh đón, quay mặt vuông góc |
 
 ---
 
-## ✨ Sprint 6: Polish, Addressables & Final Demo
+### ✅ Sprint 2: Mỏ Đa Slot, Bộ Đệm Xếp Chồng & Điều Khiển Lai
+*Mục tiêu: Đưa nhân vật chính và thợ dân làng vào vận hành dây chuyền sản xuất đa điểm.*
 
-| # | Task | Size | Depends On | Agent | Status | Linear ID |
-|---|------|------|-----------|-------|--------|-----------|
-| 27| Convert prefabs, materials, audio to Addressables (`Assets/Items`, etc.) | M | 1‑26 | Architect | ⬜ | |
-| 28| Build Level Map UI (Candy Crush style), Win/Lose screens (w/ Shop links) | M | 27 | UI Specialist | ⬜ | |
-| 29| Build Global Settings Popup (Slider & Toggle Mute) & Gameplay UI quick mute | S | 28 | UI Specialist | ⬜ | |
-| 30| Full play‑through testing on target Android device (60 fps) | L | 29 | QA Tester | ⬜ | |
-| 31| Create demo build (APK), record walkthrough video | S | 30 | Gameplay Dev | ⬜ | |
-
----
-
----
-
-## 💰 Sprint 7: Meta-Game Economy & Boosters
-
-| # | Task | Size | Depends On | Agent | Status | Linear ID |
-|---|------|------|-----------|-------|--------|-----------|
-| 32| Implement Soft Currency system: award coins based on time/score | M | 24 | Gameplay Dev | ⬜ | |
-| 33| Build Booster Pre-game Selection Popup (Configurable slots & amounts) | L | 32 | UI Specialist | ⬜ | |
-| 34| Implement "Hint" Booster (highlight target / matching items) | M | 33 | Gameplay Dev | ⬜ | |
-| 35| Implement "Shake" Booster (physics impulse to rearrange tray) | S | 33 | Gameplay Dev | ⬜ | |
-| 36| Implement IAP Unity In-App Purchasing | L | 33 | Architect | ⬜ | |
+| # | Hạng mục công việc (Task) | Quy mô | Phụ trách | Trạng thái | Ghi chú kỹ thuật |
+|---|---------------------------|:------:|:---------:|:----------:|------------------|
+| 6 | Trạm mỏ đa slot `MiningStation`: Mở khóa N-slot theo cấp độ | L | Gameplay Dev | ✅ Done | Độc lập hóa `MaxLevel` và `_slotUnlockLevels`, logic đào theo order |
+| 7 | Tùy biến vị trí slot tự do (`CustomSlotAnchor`) | M | Gameplay Dev | ✅ Done | Cho phép Designer đặt vị trí slot theo hình chữ L, vòng cung tùy biến |
+| 8 | Quầy trung chuyển `CheckoutCounter`: Xếp chồng quặng kim tự tháp 3D | M | Gameplay Dev | ✅ Done | Đệm 4 block/ô, chia rõ `PlaceAnchor` cho thợ và `TakeAnchor` cho runner |
+| 9 | AI Thợ Dân Làng `WorkerAgent` đa vai trò (Miner, Runner, DirectSeller) | L | Gameplay Dev | ✅ Done | Không va chạm vật lý (No Obstacle Avoidance), tự tìm việc tự động |
+| 10| Người chơi điều khiển lai `PlayerController` (Manual Joystick + Auto-Pilot) | L | Gameplay Dev | ✅ Done | Tự động làm việc khi buông tay, ưu tiên điều khiển tay ngay khi chạm |
 
 ---
 
-## 🌍 Sprint 8: Social, Auth & Analytics
+### ✅ Sprint 3: Quy Hoạch Kéo Thả Trạm Mỏ & Tự Động Định Vị Lại
+*Mục tiêu: Đem lại sự tự do sắp xếp bố cục cửa hàng với phản hồi vật lý mượt mà.*
 
-| # | Task | Size | Depends On | Agent | Status | Linear ID |
-|---|------|------|-----------|-------|--------|-----------|
-| 37| Integrate Firebase Auth (Anonymous + Google/Apple Sign-in) | M | 17 | Architect | ⬜ | |
-| 38| Implement Leaderboard Data Structure (Firebase DB) | M | 37 | Gameplay Dev | ⬜ | |
-| 39| Integrate Top-3 Avatars & Scores directly onto Level Map nodes | M | 38 | UI Specialist | ⬜ | |
-| 40| Integrate Firebase Analytics & Crashlytics | S | 37 | QA Tester | ⬜ | |
+| # | Hạng mục công việc (Task) | Quy mô | Phụ trách | Trạng thái | Ghi chú kỹ thuật |
+|---|---------------------------|:------:|:---------:|:----------:|------------------|
+| 11| Ô Quy Hoạch `WorkstationPlot`: Hỗ trợ offset vị trí và góc xoay riêng | M | Gameplay Dev | ✅ Done | Tránh reset về giữa ô, hiển thị WireCube preview trong Editor |
+| 12| Bộ điều khiển kéo thả `WorkstationPlacementController`: Nhấc bổng, theo chuột | M | Gameplay Dev | ✅ Done | Nhấn giữ 0.2s để nhấc, nâng bổng trên sàn, bay theo ngón tay |
+| 13| Cơ chế Nam Châm Hút Quầy (Magnetic Snap) vào Bounding Box của ô | M | Gameplay Dev | ✅ Done | Tự động nhận diện khi vào phạm vi khu đất, tự căn chỉnh góc xoay |
+| 14| Cơ chế Hoán Đổi Vị Trí (Swap Stations) giữa 2 ô mỏ | M | Gameplay Dev | ✅ Done | Trượt mượt mà hai mỏ đổi chỗ cho nhau khi thả đè lên ô đã có mỏ |
+| 15| Ngắt đào an toàn & Bảo lưu tiến độ khai thác dở dang (`SavedCraftTimer`) | M | Gameplay Dev | ✅ Done | Không bị mất % đào dở khi mỏ bị bốc đi, tránh cuốc vào không khí |
+| 16| Tự động bắt mục tiêu và chạy sang mỏ mới (`OnStationRelocated`) | M | Gameplay Dev | ✅ Done | Thợ và Auto-Pilot tự động chạy bộ sang vị trí mới để đào tiếp |
 
 ---
 
-## Acceptance Criteria
-- [ ] All tasks completed across all Sprints.
-- [ ] All Unity Test Runner tests pass.
-- [ ] No critical bugs open.
-- [ ] APK demo runs smoothly at 60fps on Android.
+### ✅ Sprint 4: Động Cơ Kinh Tế, Lưu Trữ & Tính Thu Nhập AFK
+*Mục tiêu: Đảm bảo tiến trình người chơi được bảo toàn và tạo động lực tích lũy vàng.*
 
-## Retrospective
-### What went well
-<!-- Fill after completion -->
-### What could improve
-<!-- Fill after completion -->
-### Action items for the future
-<!-- Fill after completion -->
+| # | Hạng mục công việc (Task) | Quy mô | Phụ trách | Trạng thái | Ghi chú kỹ thuật |
+|---|---------------------------|:------:|:---------:|:----------:|------------------|
+| 17| Động cơ kinh tế `EconomyManager`: Ví vàng, công thức nâng cấp lũy tiến | M | Architect | ✅ Done | $Cost = Base \times Multiplier^{(Level - 1)}$, tích hợp tiền tip và thưởng đơn |
+| 18| Hệ thống lưu trữ `SaveManager`: Serialization JSON cục bộ | M | Gameplay Dev | ✅ Done | Tự động lưu tiến trình (Vàng, Level mỏ, vị trí Plot...) không mất dữ liệu |
+| 19| Thuật toán tính thu nhập ngoại tuyến (Offline AFK Welcome-Back) | M | Gameplay Dev | ✅ Done | Ước tính sản lượng và tặng vàng tích lũy khi mở lại game |
+
+---
+
+### 🔄 Sprint 5: Giao Diện Người Dùng (UI / HUD) & Tương Tác
+*Mục tiêu: Cung cấp giao diện trực quan cho người chơi theo dõi dòng tiền và nâng cấp xưởng.*
+
+| # | Hạng mục công việc (Task) | Quy mô | Phụ trách | Trạng thái | Ghi chú kỹ thuật |
+|---|---------------------------|:------:|:---------:|:----------:|------------------|
+| 20| Thanh HUD Chính: Hiển thị Vàng (Icon Vàng + Rút gọn số 1.2K, 3.4M) | M | UI Specialist | ✅ Done | Thanh trên cùng màn hình, nảy số mượt, layout khớp 100% bản vẽ |
+| 21| Bảng Thông Tin & Nâng Cấp Trạm Mỏ (Station Upgrade Card / Popup) | L | UI Specialist | ⬜ To Do | Hiện tên mỏ, cấp độ, số slot, chi phí nâng cấp và nút bấm `Upgrade` |
+| 22| Vùng Mua / Nâng Cấp Dưới Sàn (Interactive Purchase Zone under Station) | M | Gameplay Dev | ⬜ To Do | Vòng tròn mở khóa/nâng cấp dưới chân mỏ khi người chơi bước vào |
+| 23| Menu Cài Đặt (Floating Settings Modal) | S | UI Specialist | ✅ Done | Modal Voxel: Bật/Tắt Auto-Pilot, Bật/Tắt Joystick, SFX, Haptics |
+| 24| Hiệu ứng Chữ Bay & Tiền Bay (Floating Text `+$15G` & Popups) | M | UI Specialist | ⬜ To Do | Hiển thị số tiền bay lên khi giao block hoặc nhặt tiền tip |
+
+---
+
+### ⬜ Sprint 6: Âm Thanh (SFX/BGM) & Cảm Giác Game (Juice Pass)
+*Mục tiêu: Bổ sung phản hồi giác quan đậm đặc (Audio & Haptics) giúp game chơi cuốn hút.*
+
+| # | Hạng mục công việc (Task) | Quy mô | Phụ trách | Trạng thái | Ghi chú kỹ thuật |
+|---|---------------------------|:------:|:---------:|:----------:|------------------|
+| 25| Tích hợp Hệ thống Âm thanh `AudioManager` (AudioSource Pool) | M | Audio Engineer | ⬜ To Do | Quản lý phát âm thanh không giật lag, tối ưu bộ nhớ |
+| 26| Thiết kế & Gắn SFX Khai thác: Tiếng cuốc đập đá (`Mining SFX`) | S | Audio Engineer | ⬜ To Do | Biến thiên cao độ (Pitch variation $\pm 0.1$) tránh cảm giác nhàm chán |
+| 27| Thiết kế & Gắn SFX Giao dịch: Tiếng block rơi, tiếng leng keng nhặt tiền Tip | S | Audio Engineer | ⬜ To Do | Âm sắc trong trẻo, kích thích dopamine |
+| 28| Tích hợp Nhạc nền Lo-Fi thư giãn (Cozy Voxel Workshop BGM) | S | Audio Engineer | ⬜ To Do | Vòng lặp êm dịu, âm lượng nền nhẹ nhàng |
+| 29| Tinh chỉnh Squash & Stretch và rung nảy (DOTween Feel Pass) | M | Gameplay Dev | ⬜ To Do | Khối nảy nhẹ khi nhặt, quầy mỏ đàn hồi khi đặt xuống sàn |
+
+---
+
+### ⬜ Sprint 7: Trang Trí Cảnh Quan, Ánh Sáng URP & Đóng Gói Demo
+*Mục tiêu: Đưa chất lượng thẩm mỹ lên mức cao nhất và kiểm thử toàn diện trên thiết bị.*
+
+| # | Hạng mục công việc (Task) | Quy mô | Phụ trách | Trạng thái | Ghi chú kỹ thuật |
+|---|---------------------------|:------:|:---------:|:----------:|------------------|
+| 30| Thiết lập Ánh sáng URP Isometric ấm áp & Đổ bóng mềm | M | Art Director | ⬜ To Do | Màu nắng ấm dịu, góc chiếu Isometric chuẩn tôn lên nét đẹp Voxel |
+| 31| Trang trí cảnh quan sảnh xưởng (Cây cối, thảm cỏ viền, đèn lồng Voxel) | M | Art Director | ⬜ To Do | Xóa bỏ cảm giác màn hình xám xịt, tạo không gian xưởng ấm cúng |
+| 32| Kiểm thử luồng chơi PlayMode và cân bằng kinh tế ban đầu | M | QA Tester | ⬜ To Do | Đảm bảo 10 phút chơi đầu tiên nhịp độ nhanh và gây nghiện |
+| 33| Build Demo (PC Executable / APK Android) & Quay video trải nghiệm | S | Gameplay Dev | ⬜ To Do | Kiểm tra độ mượt đạt 60fps ổn định |
+
+---
+
+## 🎯 Tiêu Chí Nghiệm Thu Dự Án (Project Acceptance Criteria)
+- [x] Vòng lặp cung ứng (Order -> Mine -> Counter -> Customer -> Tip) chạy trơn tru 100% không nghẽn.
+- [x] Kéo thả di dời trạm mỏ tự do, tự động hút vào ô quy hoạch, hoán đổi mượt mà.
+- [x] Thợ và người chơi tự động ngắt cuốc và tự chạy sang vị trí mới tiếp tục đào khi mỏ di chuyển.
+- [x] Dữ liệu tiền vàng và cấp độ được lưu an toàn sang file JSON, mở lại game không mất.
+- [ ] UI HUD hiển thị tiền vàng và bảng nâng cấp quầy hoạt động mượt mà, bấm nâng cấp trừ tiền chính xác.
+- [ ] Âm thanh gõ cuốc và nhặt tiền leng keng sống động.
+- [ ] Tốc độ khung hình duy trì 60 FPS ổn định.

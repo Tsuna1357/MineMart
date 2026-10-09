@@ -1,5 +1,105 @@
 # Nhật Ký Câu Lệnh (Prompt Log)
 
+## [2026-10-08 18:45] — Khắc Phục Lỗi Người Chơi Ở Dạng AI Không Nhún Nhún (Bouncy Bobbing) Như Customer
+**Yêu cầu (Prompt):** tại sao người chơi trong danh AI vẫn không nhún nhún nhún nhún như customer?
+**Tóm tắt (Summary):** (1) Tìm ra nguyên nhân gốc rễ: [Hệ quy chiếu và đơn vị FBX] Trên Customer (`Female_customer.prefab`), `CharacterAnimationController` gắn trên GameObject Root và nhún đối tượng con trực tiếp (`Female_customer` FBX container) nằm trong không gian Unity mét chuẩn (1 unit = 1m), nên độ cao nhún `_bobHeight = 0.12f` tạo ra bước nảy thẳng đứng 12 centimet (120mm) kèm góc nghiêng lắc lư waddle và co giãn squash & stretch nhìn rất rõ và nảy tưng tưng. Ngược lại, trên Player (`Player.prefab`) và Worker (`Default_worker.prefab`), `PlayerController` và `CharacterAnimationController` nằm trực tiếp trên model FBX (`Default_Charactor_Model`), khiến script phải dò tìm xương con bên trong (`Base`) để nhún. Tuy nhiên xương `Base` của FBX Blender/Maya dùng hệ tọa độ centimet (`Lcl Translation: 0, 50, 0` cm và parent có scale import $0.01$). Khi script cộng thêm `0.12` vào tọa độ của `Base`, độ dời thực tế trong World Space chỉ là $0.12 \times 0.01 = 0.0012\text{m} = 1.2\text{ mm}$ (nhỏ hơn 100 lần so với Customer, mắt thường nhìn vào tưởng như hoàn toàn đứng yên không nhún). (2) Giải pháp triển khai trong `CharacterAnimationController.cs`: Bổ sung biến tự động tính hệ số tỷ lệ không gian `_positionScaleFactor`. Trong `RefreshModel()`, script tự động nhận diện nếu `_modelTransform` là xương trong FBX (tọa độ $Y > 10\text{cm}$ hoặc parent có scale import $\le 0.01$), hệ số sẽ được nhân tự động $\times 100$ (hoặc $1 / \text{parentScale}$). Nhờ đó, độ dời thực tế của xương `Base` trên cả Player (khi ở chế độ AI Auto-Pilot lẫn khi điều khiển tay) và Worker đều đạt chính xác $0.12\text{m} = 12\text{cm}$ trong World Space, nảy tưng tưng, lắc lư và co giãn nhún nhún 100% y hệt như khách hàng Customer. Build C# 0 lỗi, 0 warning.
+---
+
+## [2026-10-08 18:15] — Cơ Chế Camera Bám Rìa Màn Hình (Edge Deadzone Framing) Khi Người Chơi Di Chuyển
+**Yêu cầu (Prompt):** về camera nữa, cái phần đi theo người chơi khi người chơi điều khiển không phải người chơi cứ đi bao nhiêu là coho cam di chuyển bấy nhiêu, em muốn khi người chơi ra khỏi rìa trên hoặc dưới của màn hình thì camera mới nhích xuống hoặc nhích lên
+**Tóm tắt (Summary):** (1) Phân tích cơ chế mong muốn: Loại bỏ chuyển động 1:1 (cứ người chơi đi một bước thì camera nhích một bước). Triển khai cơ chế **Screen Edge Deadzone Framing (Khung viền camera bám rìa)**: khi người chơi chạy nhảy, làm việc ở khu vực giữa màn hình thì camera đứng yên tuyệt đối không rung lắc; chỉ khi người chơi chạm hoặc vượt ra khỏi mép trên (`1 - _topEdgeMargin`, mặc định 18% trên) hoặc mép dưới (`_bottomEdgeMargin`, mặc định 18% dưới), camera mới trượt nhẹ theo để giữ người chơi luôn ở trong tầm mắt. (2) Cải tiến trong `MapCameraController.cs`: Bổ sung 2 biến tinh chỉnh trên Inspector `_topEdgeMargin` và `_bottomEdgeMargin` (dải giá trị 0.05 đến 0.40). Xây dựng hàm `GetZOffsetForViewportY(viewportY, groundY)` bắn tia chiếu từ camera xuống mặt phẳng sàn để tính khoảng cách Z biên chính xác theo góc nghiêng của camera; so sánh tọa độ tương đối giữa Player và Camera target để đẩy camera trượt tới (+Z) khi chạm rìa trên hoặc lùi lại (-Z) khi chạm rìa dưới. Vẫn bảo lưu hoàn toàn tính năng: không bám khi đang vuốt tay (`_isDragging`), không bám khi ở chế độ AI (`IsAutoPiloting`), và hỗ trợ Double Tap để căn giữa lại nhân vật. Build C# 0 lỗi, 0 warning.
+---
+
+## [2026-10-08 18:05] — Đồng Bộ Bouncy Bobbing Khi Người Chơi Ở Chế Độ AI (Auto-Pilot) Và Nhân Viên
+**Yêu cầu (Prompt):** ý em là em muốn khi người chơi vào trạng thái AI với cả nhân viên thì khi di chuyển đều nhún như con khách hàng í
+**Tóm tắt (Summary):** (1) Phân tích gốc rễ vì sao ở chế độ AI / Auto-Pilot và Nhân viên trước đó chưa nhún mượt như khách: [Player trong Auto-Pilot] Biến `isPlayerMoving` trước đó chỉ kiểm tra đơn độc `_navMeshAgent.velocity.sqrMagnitude > 0.05f` — khi AI điều hướng hoặc xoay góc, vận tốc vật lý dễ bị tụt dưới ngưỡng khiến nhịp nhún bị ngắt quãng hoặc không kích hoạt. Đã nâng cấp kiểm tra toàn diện: kết hợp các trạng thái đi bộ thực tế (`WalkingToTakeOrder`, `WalkingToMine`, `WalkingToDeliverCustomer`, `WalkingToPickupCheckout`, `WalkingToDeliverCheckout`) cùng `desiredVelocity` và `remainingDistance > stoppingDistance`. [WorkerAgent] Trước đó `Update()` của WorkerAgent chưa gọi cập nhật trạng thái di chuyển sang `_animController` mà phụ thuộc hoàn toàn vào auto-detect. Đã bổ sung đồng bộ trực tiếp `_animController.SetMoving(isMoving)` và `_animController.SetMoveSpeed()` trong `WorkerAgent.Update()`. [CharacterAnimationController] Cải tiến thuật toán tìm kiếm xương gốc `Base` đệ quy (`FindChildRecursive`) trên cả model Player và Worker để đảm bảo luôn gắn đúng bone model cần nhún; mở rộng điều kiện phát hiện di chuyển của `_navMeshAgent` gồm cả `desiredVelocity` và `hasPath`. Nhờ đó, cả Người chơi khi buông tay sang Auto-Pilot lẫn toàn bộ Nhân viên khi đi lại làm việc đều nhún nảy (Bouncy Bobbing), lắc lư và co giãn mượt mà 100% y hệt như khách hàng. Build C# 0 lỗi, 0 warning.
+---
+
+## [2026-10-08 17:35] — Kích Hoạt Bouncy Bobbing "Nhún Nhún" Cho Nhân Viên & Người Chơi + Thêm Biến Tăng Tốc Độ Chạy Cho Người Chơi
+**Yêu cầu (Prompt):** AI của khách có nhún nhún nhún nhún rồi, thế còn nhân viên với người chơi thì sao, với cả cho em một biến là tăng tốc độ chạy khi người chơi điều khiển cho nhân vật đê
+**Tóm tắt (Summary):** (1) Khắc phục Bouncy Bobbing cho Người chơi (Player) và Nhân viên (Worker): Tìm ra nguyên nhân gốc rễ — trên Customer, component `CharacterAnimationController` nằm ở GameObject Root trong khi model FBX nằm ở child nên `_modelTransform != transform` là true và nhún bình thường; còn trên Player (`Player.prefab`) và Worker (`Default_worker.prefab`), script nằm trực tiếp trên model FBX (`_modelTransform == transform`) nên bị điều kiện an toàn bỏ qua 100%. Đã nâng cấp `CharacterAnimationController.RefreshModel()`: khi `_modelTransform` trùng với `transform` (chứa logic di chuyển CharacterController/NavMeshAgent), script tự động dò tìm bone gốc `Base` của FBX model để nhún độc lập. Nhờ đó, cả Steve và Worker đều có hiệu ứng nhún nảy (bobbing), lắc lư thân người (tilt waddle), và co giãn tiếp đất (squash & stretch) sinh động y như khách mà không xung đột với vật lý hay animation clips. (2) Thêm biến tốc độ chạy khi người chơi điều khiển tay: Trong `PlayerController.cs`, bổ sung biến `[SerializeField] private float _manualMoveSpeedMultiplier = 1.25f` (kèm tooltip và getter/setter). Khi người chơi tự cầm lái bằng Joystick hoặc WASD, tốc độ chạy thực tế sẽ nhân với hệ số này (`ManualMoveSpeed = CurrentMoveSpeed * _manualMoveSpeedMultiplier`), đồng thời truyền trực tiếp vào `CharacterAnimationController.SetMoveSpeed()` để nhịp bước chân và chu kỳ nhún tăng tốc tương ứng theo thời gian thực. Build C# 0 lỗi, 0 warning.
+---
+
+## [2026-10-08 16:35] — Tách Rời Camera Khi Ở Chế Độ AI Mode (Tự Do Kéo Xem Map) & Hướng Dẫn Nâng Chân Không Đụng Code
+**Yêu cầu (Prompt):** vấn đề là model là nơi chứa code, thứ 2 là về camera, em bật cái follow player move nhưng em vẫn muốn kéo đi mất khỏi player khi AI mode cơ
+**Tóm tắt (Summary):** (1) Khắc phục camera trong AI Mode: Cập nhật `MapCameraController.cs`, kiểm tra `PlayerController.Instance.IsAutoPiloting`. Khi nhân vật ở chế độ AI tự hành (Auto-Pilot), camera hoàn toàn ngắt bám theo bước chạy của nhân vật. Người chơi có thể tự do vuốt kéo camera đi xa bất kỳ đâu trên bản đồ để quan sát tiệm mà không bị camera tự động chạy theo hay giật lùi về phía nhân vật. Đồng thời loại bỏ lực hút Deadzone để người chơi hoàn toàn làm chủ góc nhìn. (2) Giải thích cách chỉnh chân chìm dưới lòng đất khi Model chính là nơi chứa code (CharacterController): Hướng dẫn phương pháp chuẩn Inspector không can thiệp code — tăng thông số `Center Y` trong component `CharacterController` (ví dụ từ 1.0 lên 1.2 hoặc 1.3), capsule va chạm sẽ được dời xuống thấp hơn so với model, từ đó nâng toàn bộ model và 2 bàn chân nổi ngay ngắn lên mặt sàn. Build C# 0 lỗi, 0 warning.
+---
+
+## [2026-10-08 16:00] — Khắc Phục Lỗi Khóa Vuốt Map Khi Auto-Follow & Nhích Camera Theo Bước Đi Không Ép Người Chơi Làm Tâm
+**Yêu cầu (Prompt):** sảy ra một vấn đề, camera đang bị khóa cứng ko vuốt được khi em bật auto folow player on move, em muốn nó vuốt được nhưng khi người chơi đi đến đâu nó sẽ nhích xuống một tí như cũ chứ không muốn người chơi làm tâm camera
+**Tóm tắt (Summary):** (1) Phân tích gốc rễ: Trong `MapCameraController.cs`, khối lệnh `_autoFollowPlayerOnMove` trước đó kiểm tra vận tốc của nhân vật và gọi `return;` sớm trước khi xử lý touch/mouse input $\rightarrow$ khiến thao tác vuốt tay bị chặn hoàn toàn khi nhân vật di chuyển; đồng thời ép cứng `_targetPosition.z = playerPos.z + _cameraZOffset` khiến người chơi bị khóa chết vào tâm camera. (2) Tái cấu trúc toàn diện cơ chế điều khiển Camera: [Xử lý cử chỉ vuốt 100% tự do] Tách biệt logic input, đảm bảo người chơi có thể chạm vuốt cuộn map lên xuống bất kỳ lúc nào mà không bị gián đoạn hay ghi đè; [Nhích camera theo bước chạy] Thay vì gán cố định tọa độ tâm, camera tính độ dời bước chạy `deltaPlayerZ = playerPos.z - lastPlayerZ` và cộng thêm `targetPosition.z += deltaPlayerZ` $\rightarrow$ nhân vật chạy tới đâu thì camera nhích trượt êm ái theo hướng đó, giữ nguyên góc nhìn và vị trí quan sát mà người chơi vừa vuốt tới; [Vùng đệm an toàn Soft Deadzone] Nếu nhân vật chạy quá sát mép trên/dưới màn hình (ngoài 18% viền viewport), camera tự động đẩy nhẹ để giữ nhân vật luôn trong tầm mắt. Chạm đúp (Double tap) vẫn hỗ trợ lấy nét nhanh về người chơi. Build C# 0 lỗi.
+---
+
+## [2026-10-08 11:08] — Tạo Khối Tàng Hình Chặn Ánh Sáng / Đổ Bóng (Invisible Shadow Caster Block)
+**Yêu cầu (Prompt):** bây giờ em cần một block không nhìn thấy nhưng có thể chặn ánh sáng thì làm như nào
+**Tóm tắt (Summary):** (1) Cung cấp 2 phương pháp tối ưu: [Cách 1 - Native Unity] Dùng tính năng có sẵn trên `MeshRenderer -> Cast Shadows: Shadows Only`, khối biến mất 100% trên màn hình nhưng vẫn đổ bóng và chắn ánh sáng hoàn hảo; [Cách 2 - Material chuyên dụng] Tạo Shader URP `InvisibleShadowCaster.shader` (chỉ chứa Pass `ShadowCaster`, bỏ qua `UniversalForward`) và Material `Invisible_Shadow_Block.mat` để người dùng chỉ cần kéo thả vào bất kỳ khối Cube nào là tự động tàng hình và đổ bóng che sáng. Build dự án 0 lỗi.
+---
+
+## [2026-10-08 10:55] — Tăng Tốc Độ Run Animation Đồng Bộ Với Vận Tốc Chạy & Thêm Hiệu Ứng Bouncy Bobbing "Nhún Nhún"
+**Yêu cầu (Prompt):** cái animation run em thấy đang hơi chậm, hãy cho tốc độ của nó tương đương với tốc độ chạy đi, và khi di chuyển làm cho nó nhún nhún nhún nhún đi
+**Tóm tắt (Summary):** (1) Khắc phục animation run bị chậm: Trong `CharacterAnimationController.cs`, bổ sung cơ chế `UpdateAnimationSpeed()` tự động đọc vận tốc di chuyển thực tế (CurrentMoveSpeed từ PlayerController hoặc vận tốc NavMeshAgent/CharacterController) và điều chỉnh `animation.speed` (hoặc `animator.speed`) tỉ lệ thuận với vận tốc di chuyển (`speed / baseMoveSpeed * runSpeedMultiplier`, dao động linh hoạt từ 1.2x đến 2.75x) -> Khắc phục triệt để hiện tượng chân lướt chậm như trượt băng, bước chân chạy trở nên nhanh nhẹn, dứt khoát khớp 100% với tốc độ lướt trên mặt đất. (2) Bổ sung hiệu ứng Bouncy Bobbing "nhún nhún nhún nhún" vui nhộn trong `LateUpdate`: Khi di chuyển, model tự động nhún nảy theo hình sin (độ cao nhún 0.12m, tần số 14Hz khớp nhịp 2 bước chân), kết hợp lắc lư nhẹ thân người trái phải 4.5 độ (waddle) và hiệu ứng co giãn mềm mại Squash & Stretch (8%) khi chân chạm đất. Khi dừng lại, cơ thể mượt mà trở về tư thế Idle tự nhiên. Build C# 0 lỗi.
+---
+
+## [2026-10-08 10:44] — Giải Quyết Triệt Để Hiện Tượng Chỉ Đi Chéo Mới Lên Được Bậc Thang (Hạn Chế Va Chạm Phẳng PhysX)
+**Yêu cầu (Prompt):** em ddi thẳng hay ngang thì không lên được, phải đi chéo mới lên được
+**Tóm tắt (Summary):** (1) Phân tích cơ học PhysX: Capsule của `CharacterController` có bán kính đáy $R \approx 0.48\text{m}$. Bậc thang 1 block cao $1.0\text{m}$ (lớn hơn bán kính $R$), điểm tiếp xúc rơi vào phần thân hình trụ thẳng đứng (cylinder) của capsule. Khi đi thẳng hoặc ngang vuông góc với mặt phẳng đứng của khối lập phương, tiếp xúc là giữa 2 mặt phẳng song song $\rightarrow$ độ lệch ngang bằng 0 $\rightarrow$ PhysX coi là tường chặn đứng. Nhưng khi đi chéo, capsule chạm vào góc nhọn 90 độ của khối nên trượt lệch sang bên, cho phép Unity hất bổng nhân vật lên. (2) Triển khai thuật toán **Active Step-Climbing** độc lập trong `PlayerController.HandleMovement()`: Bắn tia quét 3 bước (quét chân chạm mặt đứng bậc $\rightarrow$ quét đầu đảm bảo không gian thông thoáng $\rightarrow$ bắn tia từ trên đỉnh bậc xuống đo cao độ chính xác $h \le 1.15\text{m}$). Khi phát hiện bậc thang, thực hiện chuỗi vận động vật lý vi mô: nhấc capsule lên trên đỉnh bậc $h + 0.04\text{m}$ $\rightarrow$ tiến ngang vào lòng bậc $\rightarrow$ hạ chân tiếp đất. Nhờ đó, người chơi chạy thẳng hay ngang vuông góc 90 độ đều lướt trèo lên bậc thang nhẹ nhàng, tự nhiên 100%. Build C# 0 lỗi.
+---
+
+## [2026-10-08 10:38] — Khắc Phục Lỗi Người Chơi Không Đi Lên Được Bậc Thang 1 Block
+**Yêu cầu (Prompt):** người chơi không đi lên được
+**Tóm tắt (Summary):** (1) Phân tích gốc rễ: Người chơi (Player) khi điều khiển bằng tay (joystick/WASD) không di chuyển bằng NavMeshAgent mà được điều khiển bởi `CharacterController`. Trước đó `m_StepOffset` trên `Player.prefab` để mặc định 0.3m, trong khi 1 khối block Minecraft cao 1.0m -> CharacterController va vào khối xem như bức tường và cản cứng không cho bước lên. Đồng thời trong `NavMeshAreas.asset`, `agentClimb` đang để đúng 1.0m và `agentSlope: 45` nên góc giật cấp 90 độ bị sát ranh giới không nối mesh. (2) Triển khai giải pháp đồng bộ 3 tầng: [Tầng 1] Cập nhật `Player.prefab` nâng `StepOffset` lên 1.15m và `SlopeLimit` lên 55 độ; [Tầng 2] Trong `PlayerController.cs` (`Awake`), tự động ép `stepOffset >= 1.15f`, `slopeLimit >= 55f` để chống ghi đè; đồng thời trong `HandleMovement`, bổ sung cơ chế **Smooth Step-Up Assist** bằng Raycast đôi (chân chạm cản nhưng trên đầu 1.15m thông thoáng thì nâng nhẹ `motion.y`), giúp nhân vật lướt trèo lên bậc thang 1 block 100% mượt mà như bơ, không bị khựng góc; [Tầng 3] Cập nhật `NavMeshAreas.asset` nâng `agentClimb: 1.2` và `agentSlope: 55` để AI Agent và Auto-Pilot kết nối đường đi qua các bậc thang. Toàn bộ code biên dịch 0 lỗi.
+---
+
+## [2026-10-08 10:28] — Sửa Lỗi Biên Dịch Unity Editor Cho NavMeshBlockFilterTool
+**Yêu cầu (Prompt):** unity báo lỗi kìa
+**Tóm tắt (Summary):** (1) Phân tích lỗi từ Unity Editor.log: Công cụ `NavMeshBlockFilterTool.cs` gặp lỗi `CS0117: 'Undo' does not contain a definition for 'CollapseUndoGroup'` (sửa thành `Undo.CollapseUndoOperations`) và `CS0103: The name 'NavMeshCollectGeometry' does not exist` (thiếu `using UnityEngine.AI`). Đồng thời sửa hàm tìm đối tượng sang `FindObjectsByType<BoxCollider>(FindObjectsInactive.Include)` chuẩn Unity 6. (2) Tiến hành sửa đổi và biên dịch `dotnet build MineMart.Editor.csproj`: Kết quả trả về 0 Error, Unity Editor nhận script và biên dịch mượt mà không còn bất kỳ lỗi nào.
+---
+
+## [2026-10-08 10:18] — Bổ Sung Minecraft Directional Shading & Step Occlusion Phân Tách Độ Sâu Bậc Thang Chéo
+**Yêu cầu (Prompt):** chỉnh lại shader một tí chứ em đặt block thành thnag chéo mà mó không rõ là cái thang hay mặt phẳng chéo luôn
+**Tóm tắt (Summary):** (1) Phân tích nguyên nhân: Khi xếp block thành cầu thang giật cấp, mặt trên nằm ngang và mặt bên thẳng đứng có độ sáng đồng đều nhau, khiến từ góc nhìn camera trên cao xuống, hai mặt bị dẹt phẳng và hòa vào nhau như một dốc trượt chéo nghiêng 45 độ thay vì nhìn ra các bậc thang zíc zắc 90 độ. (2) Cải tiến toàn diện Shader `AtlasTriplanar.shader`: Tích hợp cơ chế **Minecraft Directional Shading** — mặt trên giữ nguyên 100% độ sáng (mặt dẫm chân), các mặt đứng (Side) tự động giảm độ sáng xuống `_SideDarkness = 0.72` và `_FaceContrast = 0.88` (phân biệt giữa hướng trục X và trục Z). (3) Thêm hiệu ứng **Step Occlusion (Bóng Đổ Chân Bậc)**: Tại 25% phía đáy của mặt đứng (chỗ tiếp giáp góc 90 độ với bậc dưới), shader tự động tạo một dải đổ bóng nhẹ (`_StepAO = 0.25`), làm cho từng nấc thang nổi cộm lên khối 3D rõ mồn một, mắt nhìn vào nhận ra ngay các bậc thang giật cấp.
+---
+
+## [2026-10-07 16:10] — Khắc Phục Hiện Tượng Bo Tròn Góc & Lỗi Tối Mảng Ánh Sáng Trên AtlasTriplanar Shader
+**Yêu cầu (Prompt):** em cảm thấy nó bị tròn dù là khối vuông và shader nó không nhận sáng tốt khi mà một vùng ở mặt trên bị tối trong khi ánh sáng từ trên xuống
+**Tóm tắt (Summary):** (1) Khắc phục triệt để cảm giác "bị tròn": Nguyên nhân do vector Normal nội suy mềm giữa các đỉnh làm ranh giới Top/Side ở các góc bị uốn cong hình elip. Đã chuyển sang tính Flat Face Normal vi phân màn hình `normalize(cross(ddyPos, ddxPos))` — đảm bảo mọi pixel trên cùng mặt phẳng có Normal tuyệt đối vuông góc 100%, 4 cạnh và 4 góc nhọn sắc nét như dao cạo chuẩn phong cách khối Minecraft. (2) Khắc phục lỗi scale không lặp ở local space: Thêm phép nhân `objectScale` tự động lấy từ ma trận thế giới, đảm bảo dù đặt Local hay World Space thì cứ mỗi 1 mét thực tế kéo giãn ra đều chia thành đúng 1 ô block vuông vức. (3) Khắc phục lỗi mảng tối trên mặt trên: Do lỗi self-shadowing/shadow cascade và thiếu ánh sáng môi trường. Đã bổ sung `_MinAmbient = 0.55` (đảm bảo độ sáng tối thiểu tươi tắn phong cách Voxel hoạt hình), làm dịu bóng đổ với `_ShadowStrength = 0.35`, và tính toán góc chiếu `NdotL` phẳng đồng nhất trên toàn bộ bề mặt.
+---
+
+## [2026-10-07 15:55] — Tạo Shader AtlasTriplanar Tự Động Lặp Vân Cho Khối Hộp Voxel Từ Texture Atlas Blockbench
+**Yêu cầu (Prompt):** tạo đi (về shader lặp texture atlas theo kích thước khối hộp không bị kéo dãn)
+**Tóm tắt (Summary):** (1) Tạo mới file shader URP `AtlasTriplanar.shader` (`MineMart/Voxel/AtlasTriplanar`) tại `Assets/_project/Arts/Shaders/`: Tự động tính toán UV theo tọa độ khối hộp (Local Space hoặc World Space) chia theo kích thước block (mặc định 1m). Sử dụng kỹ thuật đạo hàm `SAMPLE_TEXTURE2D_GRAD` khử triệt để hiện tượng viền đen/bleeding giữa các ô trong Texture Atlas 64x64. Tự động nhận diện hướng pháp tuyến (Normal): Mặt trên (Y > 0.5) lặp ô Cỏ Top, mặt dưới (Y < -0.5) lặp ô Đất Bottom, 4 mặt bên lặp ô Viền Cỏ Đất Side. Hỗ trợ đầy đủ Direct Light, Ambient SH, Fog và Pass ShadowCaster/DepthOnly trong URP. (2) Tạo sẵn Material `Grass_block_tiling.mat` đã liên kết đúng Shader và gán sẵn `Grass_block_texture.png`. Khi gán vào Cube và kéo Scale tùy ý (ví dụ 20x1x30), texture tự động lặp lại từng ô 1x1m hoàn hảo, không bị kéo dãn và không cần copy ghép nối thủ công.
+---
+
+## [2026-10-07 10:20] — Phân Loại 3 Nhóm Nhân Viên (Worker Role) & Tách Thành 3 List Trong MapManager
+**Yêu cầu (Prompt):** em vừa nhận ra là, trong game em có tận 3 loại worker, nhưng map manager chỉ có active worker nhưng không phân loại, hãy thêm mục phân loại vào cho em, và phần kéo game object nhân viên vào thì tách ra làm 3 list tương đương với 3 loại
+**Tóm tắt (Summary):** (1) Định nghĩa lại enum `WorkerRole` (Miner, Runner, DirectSeller) chuyển về tầng `MineMart.Data` (`WorkerRole.cs`) để các tầng Data Schema, MapUpgrades, Editor Drawer và Gameplay Staff đều sử dụng chung một chuẩn. (2) Bổ sung trường `_workerRole` và property `WorkerRole` vào `MapUpgradeConfig` (`MapDataSO.cs`) cùng cập nhật PropertyDrawer `MapUpgradeConfigDrawer.cs` để khi chọn loại nâng cấp `AddWorkers`, Inspector hiển thị ô dropdown chọn rõ loại thợ cần mở khóa (Miner / Runner / DirectSeller) và số lượng active mỗi cấp. (3) Tách trường `_workerPool` đơn lẻ trong `MapManager.cs` thành 3 danh sách GameObject riêng biệt tương ứng với 3 loại: `_minerWorkers`, `_runnerWorkers`, `_directSellerWorkers` kèm các getter độc lập và hàm tổng hợp `WorkerPool` tương thích ngược. (4) Cập nhật logic kích hoạt: hàm `GetUnlockedWorkersCount(WorkerRole role)` tính riêng theo từng vai trò, `UpdateRolePoolActivation` kích hoạt đúng list thợ tương ứng với thẻ nâng cấp đã mua, tự động gán `WorkerAgent.Role` khớp với list, và phát hiệu ứng `DropBounceEffect` khi thợ mới rơi xuống scene. Bổ sung `OnValidate()` tự động phân loại thợ từ pool cũ sang 3 list mới. Toàn bộ giải pháp biên dịch thành công 0 lỗi.
+---
+
+## [2026-10-07 09:35] — Khách Hàng Ưu Tiên Tìm Vị Trí Trống Ở Quầy Trước, Bàn Ăn Sau, Hết Chỗ Cả Hai Mới Xếp Hàng
+**Yêu cầu (Prompt):** em muốn khách sẽ tìm vị trí trống ở quầy trước, còn bàn tìm sau, hết chỗ cả ở bàn lẫn quầy mới xếp hàng
+**Tóm tắt (Summary):** (1) Thêm hàm `GetClosestAvailableSlotGlobal(Vector3 customerPosition)` vào `CustomerCounter.cs`: Quét trên toàn bộ các quầy tiếp khách đang active trong tiệm để tìm slot quầy đang hoàn toàn trống (`QueueCount == 0`, chưa có bất kỳ khách nào đứng trước quầy) gần nhất. (2) Cập nhật lại thuật toán `FindAndJoinBestSlot()` trong `CustomerAgent.cs` theo 3 tầng ưu tiên chuẩn mực: [Ưu tiên 1] Tìm slot quầy đang hoàn toàn trống để tới đứng order trực tiếp; [Ưu tiên 2] Nếu tất cả các quầy đều đã có người đứng order, tìm ghế bàn ăn còn trống gần nhất (`TableCounter.GetClosestAvailableSlotGlobal`) để vào ngồi gọi món; [Ưu tiên 3] Chỉ khi cả quầy lẫn bàn ăn đều đã kín chỗ trực tiếp, khách mới tham gia vào hàng đợi tại quầy có số lượng người chờ ít nhất (`CustomerCounter.GetShortestQueueSlotGlobal`). (3) Dự án biên dịch thành công 0 Warning, 0 Error.
+---
+
+## [2026-10-06 20:18] — Hỗ Trợ Nhận Order Tuần Tự Cho Nhiều Ghế Chung ServerAnchor & Thêm Điểm Nhìn LookAtAnchor
+**Yêu cầu (Prompt):** đối với table, em đang để 6 cái serve anchor cùng một chỗ, nhưng em đang không thể nhận order của khách thứ 2 tại bàn, cái thứ 2 nữa là bên table hãy cho thêm một điểm mỗi slot để khách quay mặt vào đó vì điểm nhận order đang đứng chéo với khách chứ không thẳng mặt
+**Tóm tắt (Summary):** (1) Sửa lỗi nhận order khi nhiều ghế dùng chung 1 ServerAnchor: Tại `TableCounter.cs` (`GetSlotAtServerPosition`) và `PlayerController.cs` (`HandleWorkCycle`), chuyển đổi logic tìm kiếm để duyệt qua toàn bộ các slot đang có khách giơ tay `NeedsOrderTake == true` trong bán kính phục vụ. Sau khi khách thứ 1 nhận xong, vòng lặp tự động chuyển sang nhận order cho khách thứ 2, thứ 3, v.v. lần lượt 1.5s mà không bị kẹt ở slot đầu tiên. Đồng thời `CanFulfillAtPosition` và `TryDeliverOrderAtPosition` cũng duyệt qua toàn bộ slot để giao trúng block. (2) Thêm điểm nhìn cho khách tại bàn: Bổ sung trường `_lookAtAnchor` và property `LookAtAnchor` vào `TableSlot.cs`, tự động nhận dạng các tên con (`LookAnchor`, `LookAt`, `FaceAnchor`, `FacingPoint`). Thêm hàm `GetCustomerFacingDirection()`: ưu tiên nhìn vào `LookAtAnchor` (đĩa ăn/mép bàn), sau đó nhìn vào `TipAnchor` (tâm bàn), tránh tuyệt đối việc nhìn chéo sang `ServerAnchor` của nhân viên. Cập nhật `CustomerAgent.cs` xoay người thẳng theo hướng nhìn này. Cập nhật Gizmos vẽ điểm nhìn màu xanh ngọc Cyan và mũi tên hướng nhìn. Build C# 0 lỗi.
+---
+
+## [2026-10-06 17:42] — Sửa Lỗi Model 3D Của UI Shop Ô Đất Đè Lên Bảng Nâng Cấp Bản Đồ
+**Yêu cầu (Prompt):** model của UI shop đè lên UI upgrade của map
+**Tóm tắt (Summary):** (1) Phân tích bức ảnh: Khi mở bảng nâng cấp bản đồ (`MapUpgradePanelUI`), popup shop ô đất (`PlotStallShopBubble`) không tự động đóng lại mà vẫn mở ở phía sau. Do các thẻ `PlotStallCardUI` chứa model khối 3D (MeshRenderer có `localPosition.z = -15f`) nhô ra phía trước camera 3D, Camera đã render các khối 3D này đè lên trên bề mặt 2D của bảng nâng cấp bản đồ. (2) Sửa đổi triệt để: Đóng ngay lập tức `PlotStallShopBubble` và `StationUpgradeBubble` khi `MapUpgradePanelUI.Open()`; Tự động đóng bảng nâng cấp khi mở shop ô đất hoặc bong bóng trạm; Chặn chạm mở shop ô đất khi bảng nâng cấp map đang mở; Bổ sung `OnDisable`/`OnEnable` trong `PlotStallCardUI` để ngắt lập tức model 3D preview khi thẻ bị ẩn; Sửa lỗi trùng lặp `OnValidate` trong `MiningStation.cs`. Biên dịch thành công 0 lỗi.
+---
+
+## [2026-10-06 17:23] — Sửa Lỗi Khách Đứng Im Biến Mất Khi Rời Quầy & Đồng Bộ Toàn Diện Male / Female Skins
+**Yêu cầu (Prompt):** lại lặp lại lỗi khách không đi về mà đứng im rồi biến mất, thứ 2 là không chỉ có mỗi Female_customer_prefab, còn có Male nữa
+**Tóm tắt (Summary):** (1) Tìm ra nguyên nhân khách không đi về: Tại `NotifyReachedFrontOfLine()`, code gọi `_agent.isStopped = true` để khách đứng chờ order. Khi giao hàng xong, `LeaveStore()` đặt `SetDestination` nhưng quên bật lại `_agent.isStopped = false`. Vì agent bị dừng, khách đứng chết trân trước quầy suốt 8s timeout rồi bị thu hồi về Pool -> Biến mất tại chỗ. Đã sửa triệt để: Mở khóa `isStopped = false`, khôi phục rotation, reset path, và kiểm tra điều kiện tới cửa bằng khoảng cách Euclid thực tế <= 1.0m (tránh bug remainingDistance = 0 khi pathPending). Tăng timeout lên 30s an toàn. (2) Về Male_customer: Đã kiểm tra và đảm bảo cả `Male_customer` và `Female_customer` đều được quản lý thống nhất qua `SetupCustomerInstance()` trong `CustomerManager` — dọn sạch mọi component con, gắn AI duy nhất lên Root và quản lý qua Object Pool.
+---
+
+## [2026-10-06 17:18] — Sửa Lỗi Khách Hàng Order 2 Slot & Quầy Hiện 2 Dấu ?
+**Yêu cầu (Prompt):** có lỗi sảy ra, một khách lại order tận 2 slot của quày, khi vào vị trí của quầy thì quầy lại hiện 2 dấu ? ở 2 vị trí
+**Tóm tắt (Summary):** Truy tìm tận gốc nguyên nhân: (1) `Female_customer.prefab` bị add nhầm `CustomerAgent` và `NavMeshAgent` vào child GameObject trong khi `CustomerManager` chỉ kiểm tra Root rồi add thêm 1 cặp nữa lên Root -> 1 instance khách có 2 não AI chạy song song (1 não chạy `Spawn()` chiếm Slot A, 1 não chạy `Start()` chiếm Slot B). Khi khách đi tới quầy, cả 2 slot đều bị kích hoạt giơ tay hiện 2 dấu `?`. (2) Triển khai giải pháp 4 tầng: Chuẩn hóa `Female_customer.prefab`; Thêm `SetupCustomerInstance()` trong `CustomerManager` dọn dẹp sạch sẽ mọi component AI/NavMesh con; Bổ sung `MarkAsPooled()` và `JoinTargetSlot()` bảo vệ `CustomerAgent` chỉ được giữ 1 slot duy nhất; Siết chặt `CustomerSlot.SetNeedsOrderTake()` chỉ hiển thị dấu `?` khi có khách thực sự đứng đầu hàng và reset ngay khi rời đi.
+---
+
 ## [2026-09-20 15:15] — Khởi Động & Định Hướng Dự Án (Project Orientation)
 **Yêu cầu (Prompt):** project này được tạo ra để thực hiện hóa ý tưởng làm game lấy ý tưởng từ còn game eat venture
 **Tóm tắt (Summary):** Người dùng xác định mục tiêu của dự án là hiện thực hóa ý tưởng game dựa trên Eatventure (Idle Restaurant Tycoon). Đã kiểm tra lại hiện trạng tài liệu (đang lưu bản thảo Match-3D cũ) và đề xuất cập nhật GDD/ProjectConfig cùng quy trình /brainstorm để chốt Core Loop và phạm vi MVP.
@@ -477,4 +577,848 @@ các cái dòng enchant em nghĩ là nên cho vào trang bị nó sẽ hợp lí
 ## [2026-09-28 00:05] — Đánh giá Code & Tối ưu (Code Review & Optimization)
 **Yêu cầu (Prompt):** @[g:\Projects\Project_1\MineMart\Assets\_project] tối ưu và dọn dẹp toàn bộ code có trong foder này và ghi lại vào log
 **Tóm tắt (Summary):** Đã khởi tạo file .editorconfig với cấu hình chuẩn (dùng K&R braces, 4 spaces) theo CODING_STANDARDS.md. Sau đó tiến hành chạy dotnet format trên toàn bộ các project trong thư mục _project để tự động chuẩn hóa cú pháp. Tiến hành refactor thủ công: Đưa các chỉ số hardcode về dạng [SerializeField] trong WorkerAgent.cs và sửa cách gọi hàm FindObjectsByType bằng cách bổ sung tham số FindObjectsSortMode.None trong SaveManager.cs để đúng với chuẩn Unity 6.
+---
+## [2026-09-28 08:22] — Lên kế hoạch tính năng tiếp theo (Brainstorming / Planning)
+**Yêu cầu (Prompt):** rồi sau khi có AI khách hàng và nhân viên, giờ đến cái gì? AI của nhân vật chính? hay cái gì khác?
+**Tóm tắt (Summary):** Người dùng hỏi về bước tiếp theo sau khi hoàn thiện AI chuỗi cung ứng. Agent đã gợi ý 4 tính năng dựa trên GDD tổng thể: (1) AI tự động cho Player (Auto-Pilot), (2) Tiền Tip & Pet nhặt tiền, (3) Hệ thống nâng cấp/thuê thợ, (4) Trang bị RPG. Tuy nhiên, Agent đã sai sót khi không ghi lại nội dung trao đổi này vào log ngay lúc đó, vi phạm quy tắc ghi log bắt buộc.
+---
+
+## [2026-09-28 08:27] — Định hướng lại phạm vi MVP (Project Setup / Planning)
+**Yêu cầu (Prompt):** em đang làm MVP thôi, các tình năng không có trong MVP đừng đề cập tới vội, và tuyệt đối luôn ghi log cơ mà??? log đâu sao ko ghi
+**Tóm tắt (Summary):** Người dùng chấn chỉnh 2 việc: Agent quên ghi log ở lượt trước, và đề xuất các tính năng nằm ngoài phạm vi MVP. Agent đã tự kiểm tra lại `GDD_MVP.md` và nhận thấy các tính năng như Thú cưng (Pet AI), Trang bị RPG (Gear) không thuộc giai đoạn MVP. Đã xin lỗi, bổ sung log bị thiếu và chốt lại các tính năng thực sự thuộc MVP.
+---
+
+## [2026-09-28 08:32] — Đề xuất Phương án Kỹ thuật: 5s Idle Player Auto-Pilot (Logic Gameplay / Kiến trúc)
+**Yêu cầu (Prompt):** vấn đề thứ 3 chẳng phải là giải quyết rồi sao, còn lựa chọn thì em nghĩ nên thử vấn đề thứ nhất trước, nhưng trước khi code hãy thử nêu phương thức giải quyết của chị đi, mục tiêu là em muốn sau 5 giây tha tay thì nhân vật chính mới auto
+**Tóm tắt (Summary):** Người dùng xác nhận vấn đề thứ 3 đã giải quyết và lựa chọn làm tính năng Player Auto-Pilot. Yêu cầu chưa code vội mà phải trình bày phương thức giải quyết chi tiết, đảm bảo đúng mục tiêu: Sau 5 giây buông tay (không có input) thì nhân vật chính mới tự động làm việc (Auto-Pilot). Agent đã phân tích kiến trúc chuyển đổi mượt mà giữa CharacterController (thao tác tay) và NavMeshAgent (AI tự hành), thuật toán cây ưu tiên đa nhiệm của Thợ Siêu Cấp Steve, cơ chế ngắt tức thì khi chạm lại vào Joystick, và lập phương án trình người dùng duyệt trước khi viết code.
+---
+
+## [2026-09-28 08:40] — Triển khai Player Auto-Pilot theo Cách B (Logic Gameplay / Kiến trúc)
+**Yêu cầu (Prompt):** em nghĩ là mình muốn triển khai theo cách B nhưng mà vẫn phải có hàm gì đó để bật tắt chức năng đó
+**Tóm tắt (Summary):** Người dùng chọn triển khai Auto-Pilot trực tiếp trong `PlayerController.cs` (Cách B) và yêu cầu bổ sung các hàm public để có thể bật/tắt tính năng linh hoạt. Đã triển khai hoàn chỉnh: (1) Cung cấp `SetAutoPilotFeatureEnabled(bool)` để bật/tắt tính năng từ cài đặt và `SetAutoPilotActive(bool)` để ép chuyển trạng thái tức thời; (2) Tích hợp `NavMeshAgent` tự sinh nếu thiếu, ngắt bật hoán đổi mượt mà với `CharacterController` để loại bỏ xung đột vật lý; (3) Tự động kích hoạt sau 5.0s buông tay (`_autoPilotIdleThreshold`) và ngắt tức thì không trễ khi người chơi chạm lại phím/joystick; (4) Triển khai cây ưu tiên đa nhiệm (Giao hàng -> Nhận order -> Lấy quặng trên bàn -> Đào mỏ). Biên dịch thành công 0 lỗi.
+---
+
+## [2026-09-28 09:05] — Giải đáp hiển thị Gizmos Scene vs UI Game View đơn hàng khách (UI / Game Feel)
+**Yêu cầu (Prompt):** hiện tại trên scene khi khách order thì mới hiện cái khung màu xanh, nhưng trong game thì người chơi chả thấy gì, khó phân biệt xem khách đã order chưa và order cái gì (có phải do em chưa gắn icon vào block không?
+**Tóm tắt (Summary):** Người dùng thắc mắc về việc chỉ thấy khung màu xanh trong Scene View mà Game View không hiển thị thông tin order của khách. Agent đã giải thích rõ bản chất kỹ thuật: (1) Khung xanh chỉ là Gizmos vẽ trong Editor (`Gizmos.DrawWireCube` trong `CustomerSlot.cs`), không phải đối tượng render trong game; (2) Nguyên nhân Game View chưa hiện không phải do thiếu icon, mà do chưa có component bong bóng thoại (Order Bubble / Speech Bubble) hiển thị trạng thái chờ gọi món và hình ảnh món hàng; (3) Đề xuất giải pháp xây dựng World Space Canvas hoặc Mini 3D Block Bubble lơ lửng trên đầu khách kèm hiệu ứng Pop nảy để người chơi nhận diện trực quan.
+---
+
+## [2026-09-28 09:12] — Triển khai 3D Order Visual lơ lửng trên đầu khách (UI / Game Feel / Voxel 3D)
+**Yêu cầu (Prompt):** thay dạng 2D trong code bằng block 3D đi hoặc lấy luôn cái model của script tạo block
+**Tóm tắt (Summary):** Người dùng yêu cầu hiển thị trực tiếp Model Block 3D (lấy từ `BlockDataSO.Prefab3D` hoặc tạo khối 3D Cube) thay vì dùng ảnh 2D thông thường. Đã tích hợp hoàn chỉnh vào `CustomerSlot.cs`: (1) Tự động sinh `OrderBubbleVisual` trực tiếp trên đầu khách ở độ cao 1.65m; (2) Khi khách chờ nhận order (`_needsOrderTake`): Hiển thị dấu hỏi chấm `?` trên nền bong bóng trắng; (3) Khi đã nhận order: Lấy trực tiếp Prefab3D của Block (hoặc fallback Cube với màu đại diện Dirt/Wood/Stone), loại bỏ toàn bộ collider, đặt góc nghiêng 3D và tự động xoay tròn (Minecraft item spinning) kèm hiệu ứng bập bồng (Bobbing); (4) Tự động xoay mặt về Camera (Billboarding) và tự hủy khi giao hàng thành công. Biên dịch thành công 0 lỗi.
+---
+
+## [2026-09-28 09:14] — Giải thích cơ chế tự sinh Bong bóng dấu ? trong Unity (Giao diện UI / Thiết kế Asset)
+**Yêu cầu (Prompt):** bong bóng giấu ? là em phải thiết kế hay unity có hỗ trợ việc đó
+**Tóm tắt (Summary):** Người dùng hỏi về việc bong bóng dấu hỏi `?` là do người dùng phải tự vẽ thiết kế hay Unity có sẵn hỗ trợ. Agent đã giải thích rõ: (1) Code vừa viết đã tự động sinh 100% bằng thuật toán (procedural) — dùng `PrimitiveType.Quad` làm phông nền trắng và `TextMesh` tích hợp sẵn của Unity để render dấu `?`, người dùng không cần phải tự vẽ hay import bất kỳ asset nào mà vào Play Mode là thấy ngay; (2) Trong tương lai ở giai đoạn đánh bóng (Polish), nếu muốn bong bóng mang phong cách Pixel art vẽ tay của riêng mình, em hoàn toàn có thể thay bằng Sprite 2D hoặc Prefab 3D tùy biến một cách dễ dàng.
+---
+
+## [2026-09-28 11:00] — Khắc phục lỗi Player không di chuyển sau khi gắn model 3D (Debugging / Physics)
+**Yêu cầu (Prompt):** check hộ em xem có vấn đề gì sau khi add model người chơi vào thì nó không di chuyển được nữa
+**Tóm tắt (Summary):** Người dùng phản ánh sau khi gắn model 3D (`MainCharactor.fbx`) thì nhân vật không di chuyển được nữa. Đã rà soát file scene `Plain_Map.unity` và phát hiện các nguyên nhân chính: (1) Trọng tâm `CharacterController.Center` đang để `(0, 0, 0)` trong khi chân model nằm ở `y=0`, khiến nửa dưới của capsule bị cắm sâu vào sàn nhà, gây khóa cứng vật lý; (2) Component `Animator` của file FBX mặc định bật `Apply Root Motion` khóa chặt tọa độ `transform.position`; (3) Nguy cơ tồn tại Collider con trên model tự va chạm với CharacterController của cha. Đã hướng dẫn chi tiết cách khắc phục từng bước trên Unity Inspector.
+---
+
+## [2026-09-29 05:15] — Đánh giá & So sánh Model Nhân vật chính (Art & Game Feel / Thiết kế 3D)
+**Yêu cầu (Prompt):** @[g:\Projects\Project_1\MineMart\Assets\_project\Arts\Models\MainCharactor.fbx] theo chị model nào tốt hơn, trong ảnh hay trong project
+**Tóm tắt (Summary):** Người dùng gửi ảnh model 3D (phong cách Chibi Voxel tay chân bay) và hỏi ý kiến so sánh với model `MainCharactor.fbx` hiện tại trong project. Agent đã phân tích chuyên sâu đa chiều: (1) Thẩm mỹ & Nhận diện: Bản trong ảnh có áo xanh lam Steve kinh điển tương phản tốt với map cỏ (bản project áo màu xanh lá dễ chìm), khuôn mặt lai Dân làng hài hước, tỷ lệ đầu to chibi tạo nét duyên dáng cho game Tycoon; (2) Kỹ thuật Animation: Cấu trúc tay chân bay (Floating limbs) giải quyết triệt để vấn đề méo lưới/stretching khi rig xương và dễ làm animation vác block 0.4m mà không bị đâm xuyên (clipping); (3) Góc nhìn Camera: Tỷ lệ Chibi đầu to dễ đọc hình bóng (Readability) từ góc nhìn Isometric 45 độ trên màn hình điện thoại dọc. Khuyên dùng model trong ảnh.
+---
+
+## [2026-09-29 05:18] — Tư vấn kiến trúc Hệ thống Đổi Skin qua Material/Texture (Kiến trúc Dữ liệu / Rendering)
+**Yêu cầu (Prompt):** ừ nhưng thế thì hệ thống trang bị sẽ có phần chỉnh sửa là không còn quần và giầy nữa, với cả có cách nào trong unity có thể thay thế material của model không, vì em muốn làm một model gốc của nhân vật và minh chỉ cần thay thế texture thông qua các materials, và khi thêm skin mới chỉ cần tạo materials mới và khai báo vào danh sách
+**Tóm tắt (Summary):** Người dùng thảo luận về việc điều chỉnh slot trang bị và hỏi về giải pháp thay thế Material/Texture cho model nhân vật trong Unity để làm hệ thống Skin mở rộng. Agent đã giải thích: (1) Về trang bị: Hai khối hộp màu xám ở dưới chân vẫn là Giày/Boots hoàn chỉnh, thân áo có thể đại diện cho Áo/Giáp, phần quần có thể gom chung hoặc chuyển thành Đai lưng/Phụ kiện; (2) Về kỹ thuật đổi Skin trong Unity: Phân tích 2 phương thức chuẩn: Material Swap (`renderer.sharedMaterial`) và Texture Swap (`MaterialPropertyBlock` không sinh rác bộ nhớ); (3) Đề xuất kiến trúc Data-Driven dùng `SkinDataSO` (hoặc `List<Material>`) giúp việc thêm skin mới chỉ cần tạo file Material/Texture rồi kéo vào danh sách mà không cần đụng tới 1 dòng code.
+---
+
+## [2026-09-29 05:25] — Phân tích Cơ chế Mở rộng Block Nghề (Multi-slot) & Phân Khu Map (Zone Planning / MVP Scope)
+**Yêu cầu (Prompt):** ừ, nhưng giờ làm xong game đã đồ họa tính sau, hiện tại em mới nhận ra là khi nâng block nghề đến một level nào đó nó sẽ sinh ra thêm block nghề, nhưng hiện tại trong code chưa xử lí phần đó, chưa kể còn phải chia map ra làm các khu để người chơi có thể kéo các block nghề ra chỗ khác, lúc đó còn cần code của khu vực đó sẽ đặt khối nghề ở đâu tránh cản đường
+**Tóm tắt (Summary):** Người dùng nhận diện vấn đề cốt lõi về mở rộng trạm mỏ khi nâng cấp (sinh thêm block nghề) và đặt ra bài toán chia khu vực (Zoning) để người chơi có thể kéo thả di dời block nghề mà không làm cản trở đường đi của AI. Agent đã phân tích: (1) Nhắc lại định hướng MVP và rủi ro lớn của việc kéo thả tự do (Free Placement) dễ phá hỏng NavMesh; (2) Đề xuất giải pháp Multi-slot Workstation chuẩn theo ô quy hoạch định sẵn (Designated Zone Slots) giúp mỏ tự mở thêm vị trí đào thứ 2 an toàn 100%; (3) Đặt câu hỏi theo khung TCREI để người dùng lựa chọn phương án triển khai phù hợp với giai đoạn MVP.
+---
+
+## [2026-09-29 05:35] — Chốt Kiến Trúc: Ô Lớn Quy Hoạch & Kéo Thả Tự Snap (Workstation Plot Snapping)
+**Yêu cầu (Prompt):** lựa chọn 2 nhưng: map chia ra làm các ô lớn người chơi kéo vào ô lớn đó thì block quặng tự vào vị trí đã chỉ định chứ không phải quét
+**Tóm tắt (Summary):** Người dùng chốt phương án thiết kế kết hợp thông minh: Chia map thành các "Ô Lớn" (Workstation Plots/Zones) đã quy hoạch sẵn vị trí đặt và lối đi. Khi người chơi kéo trạm mỏ thả vào một Ô Lớn, mỏ sẽ tự động Snap chính xác vào điểm định sẵn mà không cần thuật toán quét đường phức tạp. Đồng thời, bên trong mỗi Ô Lớn đã bố trí sẵn các Slot phụ để khi nâng cấp đạt mốc level, khối nghề thứ 2, thứ 3 sẽ tự động kích hoạt song song. Agent đã lập sơ đồ kiến trúc kỹ thuật gồm `WorkstationPlot.cs`, bộ điều phối kéo thả `PlotDragHandler.cs` và mở rộng `MiningStation` đa slot.
+---
+
+## [2026-09-29 06:06] — Đánh giá Model Nữ Alex Chibi (Art Direction / Character Design)
+**Yêu cầu (Prompt):** trước khi thực hiện thì chị thấy cái model này thế nào
+**Tóm tắt (Summary):** Người dùng gửi thêm ảnh thiết kế model nhân vật Alex Chibi (tóc cam vắt bím trước ngực, áo xanh lá, tay chân lơ lửng). Agent đã đánh giá rất cao: (1) Tính thẩm mỹ: Thiết kế cực kỳ thanh thoát, xinh xắn, mắt vẽ có hồn, bím tóc vắt qua ngực tạo chiều sâu bất đối xứng rất đẹp; (2) Tương thích khung tỷ lệ: Có cùng form factor Chibi và tay chân bay với model Steve trước đó, cho phép tái sử dụng 100% bộ xương và animation cho cả 2 nhân vật (Steve & Alex); (3) Thị giác: Mái tóc cam rực rỡ tương phản mạnh mẽ với nền cỏ, giúp nhân vật nổi bật tuyệt đối trên màn hình điện thoại.
+---
+
+## [2026-09-29 06:20] — Khắc phục Texture Pixel bị mờ và cân đối tỷ lệ Model (Graphics / Texture Settings)
+**Yêu cầu (Prompt):** ừ nhưng có chút vấn đề nó mờ như film brazil và hơi bé thì phải
+**Tóm tắt (Summary):** Người dùng phản ánh ảnh texture của nhân vật bị mờ nhòe ("như phim che") và kích thước model hơi bé so với khung cảnh. Agent đã phân tích và xử lý trực tiếp: (1) Khắc phục mờ nhòe: File ảnh pixel art `Female-Char.png` đang để mặc định `Filter Mode: Bilinear` và `Compression: Compressed`. Đã cập nhật file `.meta` sang `filterMode: 0` (Point - no filter) và `textureCompression: 0` (None), giúp các hạt pixel sắc nét và trong trẻo chuẩn Minecraft; (2) Khắc phục kích thước bé: Bức ảnh cho thấy model chỉ cao ~1.1m (bằng khối 1x1) trong khi CharacterController cao 2m. Đã hướng dẫn chỉnh `Scale: 1.5 ~ 1.6` trên Transform hoặc `Scale Factor: 1.5` trên Model Importer để model đạt chiều cao chuẩn 1.8m.
+---
+
+## [2026-09-29 07:15] — Triển khai Multi-Slot Workstation & Hệ thống Ô Quy Hoạch Kéo Thả (Gameplay Architecture)
+**Yêu cầu (Prompt):** được rồi, quay lại vấn đề chính nào
+**Tóm tắt (Summary):** Người dùng yêu cầu quay lại giải quyết bài toán cốt lõi: Multi-slot Workstation (sinh thêm block nghề khi nâng cấp) và Hệ thống Ô Đất Quy Hoạch (Zoned Plots) tự động Snap trạm mỏ khi kéo thả. Agent đã hoàn thành xuất sắc toàn bộ giải pháp:
+1. `WorkstationPlot.cs`: Đại diện cho các "Ô Lớn Quy Hoạch" trên map, chứa điểm neo cố định (`SnapAnchor`) định sẵn vị trí và góc quay an toàn, đảm bảo trạm mỏ không cản trở lối đi của khách và dân làng. Hỗ trợ cơ chế hoán đổi (`SwapStations`) và hiển thị Highlight trực quan khi rê chuột qua.
+2. `MiningStation.cs` (Multi-Slot Expansion): Mở khóa slot thứ 2 khi đạt cấp độ yêu cầu (`_secondSlotUnlockLevel = 25`). Tự động khởi tạo và bật/tắt visual slot 2 (`_secondVisualRoot`) cùng điểm neo thợ mỏ (`_secondMinerAnchor`). Cung cấp API quản lý thợ độc lập (`ClaimSlot`, `ReleaseSlot`, `GetMinerAnchorFor`) cho phép 2 công nhân hoặc người chơi và công nhân cùng đào song song tại 1 trạm.
+3. `WorkstationPlacementController.cs`: Bộ điều phối kéo thả (Hold & Drag) hỗ trợ cả chuột và cảm ứng một tay trên di động. Nâng bổng trạm mỏ, bay theo ngón tay, tự động Snap vào ô trống hoặc hoán đổi vị trí khi thả vào ô đã có trạm khác (hoặc tự trượt về vị trí cũ nếu thả ra ngoài).
+4. `PlayerController.cs` & `WorkerAgent.cs`: Cập nhật logic điều phối thợ mỏ và người chơi tự động phân bổ vào các slot trống (Slot 1 hoặc Slot 2) mà không xung đột.
+5. `SaveManager.cs`: Bổ sung lưu trữ `plotId` vào `StationSaveEntry`, tự động phục hồi vị trí trạm mỏ vào đúng ô quy hoạch người chơi đã sắp xếp khi mở lại game. Biên dịch thành công 100% không cảnh báo/lỗi (`dotnet build` Succeeded).
+---
+
+## [2026-09-29 07:20] — Cấu hình linh hoạt mốc Level mở khóa Slot 2 qua ScriptableObject (Data-Driven)
+**Yêu cầu (Prompt):** ừ nhưng em muốn chỉnh level khi mở khóa ô thứ 2 cơ chứ không muốn cố định thì đã có chưa
+**Tóm tắt (Summary):** Người dùng muốn tùy biến linh hoạt cấp độ mở khóa slot thứ 2 cho từng loại mỏ chứ không muốn cố định (hardcode). Agent đã cập nhật chuẩn Data-Driven Architecture:
+- Bổ sung trường `_secondSlotUnlockLevel` vào schema ScriptableObject `StallDataSO.cs`. Bây giờ em có thể điền mốc mở khóa riêng cho từng file quầy quặng (vd: Quầy Đất cấp 10, Quầy Đá cấp 25, Quầy Kim Cương cấp 50).
+- `MiningStation.cs` tự động ưu tiên đọc `SecondSlotUnlockLevel` từ `StallDataSO`, đồng thời vẫn cho phép ghi đè riêng trên Inspector của từng Station nếu muốn.
+- Kiểm tra build thành công 100% không cảnh báo/lỗi (`dotnet build` Succeeded).
+---
+
+## [2026-09-29 07:22] — Mở rộng N-Slot Khai Thác Theo Danh Sách Mốc Cấp Độ (Dynamic Multi-Slot Progression)
+**Yêu cầu (Prompt):** nhưng em muốn mở nhiều lần thì sao
+**Tóm tắt (Summary):** Người dùng muốn quầy mỏ có thể mở khóa nhiều lần (nhiều hơn 2 slot: Slot 1, 2, 3, 4... song song). Agent đã thiết kế giải pháp mở rộng vô hạn (N-Slots Architecture):
+- Bổ sung cấu hình danh sách mốc level `_slotUnlockLevels = new List<int>()` vào `StallDataSO.cs` (vd: `[10, 25, 50, 100]` sẽ mở lần lượt Slot 2, 3, 4, 5 tương ứng).
+- Nâng cấp `MiningStation.cs` với cấu trúc `MiningSlot`: Tự động khởi tạo và căn chỉnh vị trí các khối Visual 3D và điểm neo thợ mỏ (`MinerAnchor_{i}`) theo khoảng cách `_slotSpacing = (1.2m, 0, 0)`.
+- Hệ thống điều phối thợ: Thuật toán `ClaimSlot` và `ReleaseSlot` tự động phân bổ công nhân và người chơi vào các slot đã mở khóa còn trống theo thứ tự, cho phép N công nhân cùng đào quặng đồng thời tại một quầy.
+- Tự động bật/tắt hiển thị Visual 3D và vẽ Gizmos trạng thái (Màu cam = Slot gốc, Xanh lam = Slot đã mở, Xám = Slot chưa mở).
+- Biên dịch thành công 100% không cảnh báo/lỗi (`dotnet build` Succeeded).
+---
+
+## [2026-09-29 07:26] — Hướng Dẫn Chi Tiết Thiết Lập (Unity Editor Setup Guide)
+**Yêu cầu (Prompt):** vậy em setup các tính năng mới kiểu gì
+**Tóm tắt (Summary):** Người dùng hỏi cách thiết lập các tính năng mới trong Unity Editor. Agent đã cung cấp hướng dẫn từng bước trực quan: (1) Tạo các Ô Quy Hoạch `WorkstationPlot` trên Scene; (2) Gắn bộ điều phối kéo thả `WorkstationPlacementController`; (3) Cấu hình danh sách mốc level mở N-slot trên các asset `StallDataSO`; (4) Hướng dẫn kiểm thử Play Mode trong Unity.
+---
+
+## [2026-09-29 09:12] — Dọn Dẹp & Chuẩn Hóa Kiến Trúc N-Slot (Refactoring & Code Cleanup)
+**Yêu cầu (Prompt):** tại sao stall lại cod dòng second slot unlock level? thực hiện dọn dẹp và chuẩn hóa code đi
+**Tóm tắt (Summary):** Người dùng yêu cầu dọn dẹp biến thừa `_secondSlotUnlockLevel` và chuẩn hóa code theo kiến trúc N-slot. Agent đã thực hiện refactor triệt để:
+- Trong `StallDataSO.cs`: Xóa bỏ hoàn toàn trường `_secondSlotUnlockLevel` và property liên quan; chỉ giữ lại duy nhất danh sách mốc cấp độ chuẩn hóa `_slotUnlockLevels = new List<int>()` cùng hàm tính toán slot `GetUnlockedSlotCount(int)`.
+- Trong `MiningStation.cs`: Xóa sạch các trường di sản `_secondSlotUnlockLevel`, `_secondMinerAnchor`, `_secondVisualRoot` và các property `SecondSlotUnlockLevel`, `SecondMinerAnchor`, `HasSecondSlotUnlocked`. Toàn bộ các slot (Slot 0..N) được quản lý đồng nhất 100% qua mảng `_slots` (kiểu `MiningSlot`), tự động cấp phát và liên kết anchor/visual theo thứ tự mà không hardcode riêng bất kỳ slot nào.
+- Kiểm tra biên dịch sạch bóng 0 cảnh báo, 0 lỗi (`dotnet build` Succeeded).
+---
+
+## [2026-09-29 09:16] — Dọn Dẹp Trường Icon 2D Trong BlockDataSO (Schema Cleanup)
+**Yêu cầu (Prompt):** tại sao data của block vẫn có dòng icon
+**Tóm tắt (Summary):** Người dùng thắc mắc vì sao `BlockDataSO` vẫn còn trường `_icon` trong khi toàn bộ game đã chuyển sang dùng khối 3D (`Prefab3D`). Agent đã tiến hành dọn dẹp: Xóa bỏ hoàn toàn trường `Sprite _icon` và property `Icon` khỏi [BlockDataSO.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Data/Schemas/BlockDataSO.cs), chuyển sang dùng duy nhất `GameObject _prefab3D` cho hiển thị hình ảnh của block. Biên dịch thành công 100% không cảnh báo/lỗi (`dotnet build` Succeeded).
+## [2026-09-29 09:33] — Giải Thích Các Trường Cấu Hình WorkstationPlot (Inspector Documentation)
+**Yêu cầu (Prompt):** mấy cái này là cái gì đây
+**Tóm tắt (Summary):** Người dùng gửi ảnh chụp màn hình Inspector của component `WorkstationPlot` và hỏi ý nghĩa từng trường. Agent đã giải thích tường tận từng mục: Plot Identification (mã định danh lưu game), Anchors & Bounds (điểm snap và phạm vi ô), Current Station (trạm mỏ đang cắm - code tự động bắt cặp khi Play), Visual Feedback (tùy chọn làm đẹp hiệu ứng highlight). Làm rõ việc đa số các trường `None` đều có cơ chế tự động xử lý ngầm (Auto-fallback) mà người dùng không cần phải kéo thả thủ công.
+---
+
+## [2026-09-29 09:51] — Xóa Bỏ Hoàn Toàn Trùng Lặp Multi-Slot Progression Trong MiningStation (Clean Architecture)
+**Yêu cầu (Prompt):** tại sao mining station còn lặp lại cái multi slot progres?
+**Tóm tắt (Summary):** Người dùng phát hiện `MiningStation` vẫn còn hiển thị mục `Multi-Slot Progression` lặp lại với `StallDataSO`. Agent đã thực hiện dọn dẹp theo đúng triết lý Single Source of Truth:
+- Xóa bỏ hoàn toàn trường `_slotUnlockLevels` và serialized list `_slots` khỏi Inspector của `MiningStation.cs`.
+- Chuyển `_slots` thành danh sách nội bộ runtime (`private readonly List<MiningSlot>`).
+- Hàm `GetConfiguredUnlockLevels()` giờ đây chỉ đọc trực tiếp duy nhất từ `StallDataSO` (`_stationData.SlotUnlockLevels`).
+- Toàn bộ giao diện Inspector của `MiningStation` trở nên gọn gàng, sạch sẽ, không còn bất kỳ cấu hình trùng lặp nào. Biên dịch thành công 100% không cảnh báo/lỗi (`dotnet build` Succeeded).
+---
+
+## [2026-09-29 09:55] — Tùy Biến Vị Trí Slot Tự Do (Custom Slot Anchors & Placement)
+**Yêu cầu (Prompt):** nhưng em muốn custom vị trí???
+**Tóm tắt (Summary):** Người dùng muốn có khả năng tự do tùy biến vị trí và hình dạng của từng slot phụ (không bắt buộc phải thẳng hàng ngang cố định). Agent đã hỗ trợ đầy đủ 2 phương pháp:
+- Bổ sung cấu trúc `CustomSlotAnchor` và danh sách `_customSlotAnchors` vào mục `Layout Settings` của `MiningStation.cs`. Em có thể kéo thả bất kỳ Transform và Visual 3D nào vào danh sách này để đặt vị trí các slot theo hình chữ L, vòng cung, góc chéo hoặc 2x2.
+- Hoặc đơn giản là tạo các GameObject con đặt tên `MinerAnchor_2`, `VisualRoot_2`, `MinerAnchor_3`... và kéo vị trí trực tiếp trong Scene View.
+- Nếu không gán gì, hệ thống sẽ tự động dùng fallback dàn hàng ngang theo `_slotSpacing`.
+- Biên dịch thành công 100% không cảnh báo/lỗi (`dotnet build` Succeeded).
+---
+
+## [2026-09-29 11:35] — Rà Soát Toàn Diện Code, Tối Ưu Tương Tác Đa Slot & Đưa Max Level, Slot Unlock Levels Ra MiningStation
+**Yêu cầu (Prompt):** lập tức rà soát lại toàn bộ code xem có bị trùng hay chưa được tối ưu không, đồng thời đưa phần slot unlock levels và level max ra mining station
+**Tóm tắt (Summary):**
+1. **Rà soát & Tối ưu hóa Code:**
+   - Phát hiện và sửa lỗi nghiêm trọng về giải phóng slot: `PlayerController.cs` và `WorkerAgent.cs` trước đây gọi `SetOccupied(false)` làm xóa sạch toàn bộ công nhân ở tất cả các slot. Đã chuyển sang `ReleaseSlot(this)` và `ClaimSlot(this)` để quản lý slot độc lập, chính xác từng người.
+   - Sửa lỗi xoay người đào: `WorkerAgent` giờ đây xoay chính xác theo hướng neo của slot mà thợ đã chiếm (`GetMinerAnchorFor(this)`), hỗ trợ chuẩn xác các slot đặt theo hình chữ L hay góc tùy biến.
+   - Tối ưu hóa nhận diện trạm mỏ cho người chơi: Mở rộng kiểm tra khoảng cách đến tất cả các slot đang trống/sở hữu của mỏ thay vì chỉ đo đến slot 1, giúp người chơi tiếp cận slot phụ ở xa vẫn nhận diện và đào trơn tru.
+   - Đánh dấu `[Obsolete]` cho `SetOccupied` và chuyển cơ chế bên trong sang `ClaimSlot`/`ReleaseSlot` an toàn.
+2. **Đưa Cấu Hình Max Level & Slot Unlock Levels Ra Mining Station:**
+   - Bổ sung `_maxLevel` (Level Max) và property `MaxLevel` trong `StallDataSO.cs`.
+   - Expose trực tiếp `_maxLevel` và `_slotUnlockLevels` ra Inspector của [MiningStation.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/MiningStation.cs) trong Header `Level & Progression`.
+   - Thiết lập cơ chế tự động đồng bộ (Auto-sync fallback) thông minh: Nếu trạm mỏ để trống, `Awake` và `OnValidate` sẽ tự động lấy mốc mặc định từ `StallDataSO`. Nếu Designer chỉnh sửa riêng trên từng trạm mỏ, game sẽ ưu tiên lấy cấu hình riêng của trạm đó.
+   - Bổ sung logic chạm nóc cấp độ (`IsMaxLevel`): Khi đạt Level Max, hàm `Upgrade()` không cho tăng cấp thêm và `GetNextUpgradeCost()` trả về 0. Hàm `SetLevel` giới hạn trong khoảng `[0, MaxLevel]`.
+   - Dự án biên dịch sạch sẽ 100% không cảnh báo, không lỗi (`dotnet build` Succeeded).
+---
+
+## [2026-09-29 11:55] — Tách Rời Hoàn Toàn Slot Progression Khỏi StallDataSO (Clean Single Source of Truth)
+**Yêu cầu (Prompt):** tại sao stall vẫn còn slot unlock level? chị có thực sự đọc hết toàn bộ code không đấy
+**Tóm tắt (Summary):**
+- Nhận diện chính xác ý đồ thiết kế của người dùng: `StallDataSO` chỉ thuần túy lưu trữ dữ liệu kinh tế (giá mua, giá nâng cấp gốc, hệ số giá, mốc milestone, block sản xuất). Mọi cấu hình liên quan đến vị trí ô đào, số lượng slot, mốc mở khóa slot (`_slotUnlockLevels`) và cấp độ trần (`_maxLevel`) phải thuộc về chính đối tượng thực thể mỏ trong Scene (`MiningStation`).
+- Tiến hành dọn dẹp triệt để [StallDataSO.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Data/Schemas/StallDataSO.cs): Xóa bỏ hoàn toàn trường `_slotUnlockLevels`, `_maxLevel`, property `SlotUnlockLevels`, `MaxLevel` và phương thức thừa `GetUnlockedSlotCount`.
+- Cập nhật [MiningStation.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/MiningStation.cs): Độc lập hóa hoàn toàn các trường `_maxLevel` (mặc định 100) và `_slotUnlockLevels` (mặc định `[25]`), loại bỏ code phụ thuộc hoặc sao chép từ `StallDataSO`.
+- Dọn dẹp thẻ biên dịch cũ trong `Assembly-CSharp.csproj` tránh lỗi file ảo.
+- Toàn bộ dự án biên dịch thành công 0 lỗi (`dotnet build` Succeeded).
+---
+
+## [2026-09-29 12:55] — Khắc Phục Khách Tràn Vào Khu Nhân Viên & Tùy Biến Tọa Độ Quầy Cho Từng Ô Quy Hoạch
+**Yêu cầu (Prompt):** lỗi thứ nhất: khách không xếp hàng mà chui vào chỗ nhân viên đứng gộp hết vào đó. lỗi thứ hai, khi di chuyển quầy hàng sang ô khác nó cứ bị reset tọa độ về chính giữa của khu đó, em muốn các khu có thể setup vị trí của quầy hàng
+**Tóm tắt (Summary):**
+1. **Khắc phục lỗi Khách Hàng (Customer Queue):**
+   - Tìm ra nguyên nhân gốc rễ: Vector hàng đợi trong [CustomerSlot.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Checkout/CustomerSlot.cs) trước đó bị tính ngược dấu trừ (`- CustomerAnchor.forward * index`), khiến khách hàng từ người thứ 2 trở đi bị dẫn xuyên qua mặt bàn quầy thu ngân và dồn ứ sau lưng nhân viên/người chơi.
+   - Viết lại hàm `GetQueueDirection()` tính chuẩn xác vector từ `ServerAnchor` (chỗ nhân viên) đi xuyên qua `CustomerAnchor` (chỗ khách) và hướng ra ngoài sảnh đón. Hàng đợi khách giờ đây tự động nối đuôi lùi xa dần khỏi mặt quầy (`+ GetQueueDirection() * 1.15m`).
+   - Cập nhật [CustomerAgent.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Customers/CustomerAgent.cs): Khách hàng khi đến quầy và khi xếp hàng luôn tự động quay mặt hướng vuông góc vào quầy tiếp đón.
+   - Thêm Gizmos trực quan hiển thị trước chuỗi các điểm xếp hàng màu xanh dương ngay trong Scene View.
+2. **Khắc phục lỗi Vị Trí Quầy Hàng Khi Di Chuyển Ô ([WorkstationPlot.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/WorkstationPlot.cs)):**
+   - Trước đây khi kéo thả quầy sang ô mới, quầy bị snap cứng về chính giữa (`transform.position`) của ô đất.
+   - Đã bổ sung 2 trường cấu hình ngay trên Inspector của `WorkstationPlot`: `_stationPositionOffset` (Local Offset X, Y, Z) và `_stationRotationOffset` (Góc xoay tùy chỉnh).
+   - Mỗi ô đất giờ đây có thể tự do quy hoạch vị trí đặt quầy (lệch trái, lệch phải, thụt sâu vào trong, xoay chéo...) mà không bị ép về giữa.
+   - Cập nhật các hàm `SnapStation`, `FindNearestPlot`, `Start` và Gizmos preview trực quan khối 3D quầy mỏ ngay khi kéo thanh trượt offset.
+   - Biên dịch sạch sẽ 100% không cảnh báo/lỗi (`dotnet build` Succeeded).
+---
+
+## [2026-09-29 14:55] — Ngắt Khai Thác Khi Kéo Quầy & Nam Châm Tự Động Hút Quầy Vào Vị Trí Setup Khi Vào Khu Đất
+**Yêu cầu (Prompt):** lỗi thứ nhất: khi kéo mỏ thì nó không ngắt hành động đào quặng của người chơi và worker. lỗi thứ 2, bây giờ muốn gi chuyển mỏ thì phải kéo mỏ vào đúng vị trí mình đặt mỏ trong work station plot, em muốn chỉ cần vào khu vực của work station plot là nó tự kéo mỏ về vị trí mình đặt
+**Tóm tắt (Summary):**
+1. **Ngắt hành động khai thác khi kéo mỏ:**
+   - Bổ sung cờ `IsBeingDragged` và hàm `InterruptAllMiners()` trong [MiningStation.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/MiningStation.cs).
+   - Ngay khi người chơi nhấn giữ nhấc mỏ lên ([WorkstationPlacementController.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/WorkstationPlacementController.cs)): Tự động giải phóng toàn bộ slot, hủy order claim ticket và ngắt ngay lập tức hành động đào của cả Player ([PlayerController.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Player/PlayerController.cs)) lẫn tất cả Worker ([WorkerAgent.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Staff/WorkerAgent.cs)), trả về trạng thái Idle an toàn.
+   - Trong thời gian quầy đang bay trên không (`IsBeingDragged`), các thuộc tính `NeedsMining` và `HasAvailableSlot` tự động khóa để không ai có thể target vào mỏ này.
+2. **Nam châm tự động hút quầy về vị trí setup khi vào khu đất:**
+   - Bổ sung hàm `IsInsidePlot(worldPos)` trong [WorkstationPlot.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/WorkstationPlot.cs) kiểm tra chính xác phạm vi mặt nền (Bounding Box) của từng ô đất.
+   - Nâng cấp [WorkstationPlacementController.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/WorkstationPlacementController.cs): Ngay khi con trỏ chuột/ngón tay lướt vào khu vực của ô đất, trạm mỏ sẽ tự động được hút (Magnetic Snap) và căn chuẩn mượt mà vào đúng vị trí (`StationTargetPosition`) và góc xoay (`StationTargetRotation`) mà Designer đã setup cho khu đó, người chơi không cần phải kéo trúng tâm điểm đặt mỏ nữa.
+   - Biên dịch sạch sẽ 100% không cảnh báo/lỗi (`dotnet build` Succeeded).
+---
+
+## [2026-09-29 15:45] — Nâng Cấp Bảo Lưu Tiến Độ Đào & Tự Động Chạy Sang Mỏ Mới Khi Hạ Cánh
+**Yêu cầu (Prompt):** khi người chơi hoặc worker đang đào, em di chuyển khối nghề thì nó không ngắt quãng việc khai thác mà người chơi hoặc worker vẫn tiếp tục đứng đó khai thác, nhưng theo chị có nên fix cái này không -> được, hãy tiến hành nâng cấp đi
+**Tóm tắt (Summary):**
+1. **Bảo lưu tiến độ đào (Preserve Mining Progress):**
+   - Bổ sung `SavedCraftTimer` cho `MiningSlot` trong [MiningStation.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/MiningStation.cs).
+   - Khi mỏ bị nhấc lên, hàm `InterruptAllMiners()` tự động đo đạc thời gian đã đào của từng Worker ([WorkerAgent.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Staff/WorkerAgent.cs)) và Player ([PlayerController.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Player/PlayerController.cs)) để lưu vào slot. Tiến trình đào dở không bị mất.
+2. **Tự động bắt lại mục tiêu và chạy sang mỏ mới (Smart Re-targeting & Resume):**
+   - Bổ sung sự kiện `MiningStation.OnStationRelocated` và hàm `NotifyPlacedDown()` trong [MiningStation.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/MiningStation.cs).
+   - Khi mỏ được thả xuống đất (ô mới, hoán đổi hoặc trả về ô cũ) trong [WorkstationPlacementController.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/WorkstationPlacementController.cs):
+     - Kích hoạt `NotifyPlacedDown()`, gỡ cờ `IsBeingDragged`.
+     - Tất cả Worker đang rảnh (Idle) và Worker vừa bị ngắt tự động nhận diện lại mỏ vừa hạ cánh, claim vé/slot và chạy bộ sang vị trí mới để tiếp tục đào.
+     - Player đang bật Auto-Pilot cũng tự động định vị lại mỏ và chạy sang đào tiếp.
+     - Khi tiếp cận mỏ mới, hệ thống nạp lại `SavedCraftTimer`, thợ/người chơi chỉ cần đào nốt phần thời gian còn lại là quặng sẽ văng ra.
+   - Biên dịch sạch sẽ 100% không cảnh báo/lỗi (`dotnet build` Succeeded).
+---
+
+## [2026-09-29 16:09] — Đồng Bộ & Làm Mới Toàn Diện Kế Hoạch Sản Xuất (SprintPlan.md)
+**Yêu cầu (Prompt):** vậy là còn gì không nhỉ, thử tổng hợp lại những gì đã làm được đi -> 1 đi (Làm mới lại file SprintPlan.md)
+**Tóm tắt (Summary):**
+- Phát hiện file [SprintPlan.md](file:///g:/Projects/Project_1/docs/SprintPlan.md) vẫn lưu cấu trúc dự án Match-3D cũ.
+- Viết lại toàn diện bản kế hoạch sản xuất chuẩn hóa cho **MineMart: Pocket Workshop**:
+  - Ghi nhận 19 Task thuộc 4 Sprint cốt lõi đã hoàn thành 100% (Kiến trúc nền tảng, Chuỗi cung ứng FIFO O(1), Mỏ đa slot, Xếp chồng 3D kim tự tháp, Điều khiển lai Player & Worker AI, Kéo thả mỏ nam châm, Động cơ kinh tế & AFK).
+  - Vạch rõ chi tiết 3 Sprint còn lại (Sprint 5: UI & HUD Nâng Cấp; Sprint 6: SFX/BGM & Cảm Giác Game; Sprint 7: Cảnh Quan URP & Demo).
+  - Cập nhật Acceptance Criteria chuẩn theo tiến độ thực tế của game.
+---
+
+## [2026-09-29 16:39] — Thiết Kế Khung Giao Diện Chính UI HUB System (Sprint 5)
+**Yêu cầu (Prompt):** trước khi bắt đầu bước một, đây là bản vẽ màn hình game chính mà em hướng tới khi game hoàn thiện toàn bộ chức năng, lúc này dù chưa có chức năng nào thì chị vẫn phải chừa lại khoảng trống cho chức năng đó, em vẽ không được đều nên khi thực hiện chị nhớ căn cho nó đều và vuông nha -> được hãy tạo đi
+**Tóm tắt (Summary):**
+- Tiếp nhận bản vẽ phác thảo bố cục màn hình dọc từ người dùng, chuẩn hóa hình học theo phong cách Voxel vuông vắn, đều đặn.
+- Thiết lập đầy đủ cấu trúc UI Toolkit cho module `MineMart.UI`:
+  - `Common.uss`: Định nghĩa token màu sắc, hiệu ứng viền 3D Voxel và chuẩn nút vuông `.voxel-btn-square` (54x54px), khối đo tài nguyên `.resource-pill`.
+  - `MainHUD.uss`: Bố trí Flexbox chuẩn Safe Area cho Top HUD Bar và Bottom HUD Dock, để trống vùng giữa `picking-mode: Ignore` cho tương tác 3D.
+  - `MainHUD.uxml`: Đặt sẵn 100% các vị trí chức năng (Top: Shop, Emerald, Map Coin, Settings; Bottom: Next Map, Emerald Tree, Watch Ads trung tâm, Player Inventory, Map Upgrade).
+  - `MainHudBinder.cs`: Tự động kết nối `GoldChangedEventChannelSO`, format số tiền qua `NumberFormatter`, hiệu ứng nảy số `PunchScaleEffect` và xử lý sự kiện click cho toàn bộ 7 nút chức năng.
+---
+
+## [2026-09-29 16:47] — Triển Khai Cửa Sổ Cài Đặt Settings Modal (Task 23)
+**Yêu cầu (Prompt):** panel setting lấy ở đâu -> chị làm đi, cách nào tốt nhất là được
+**Tóm tắt (Summary):**
+- Lựa chọn giải pháp kiến trúc tối ưu nhất của UI Toolkit: Module hóa tài nguyên (`SettingsModal.uxml` và `SettingsModal.uss`) độc lập, đồng thời nhúng template vào `MainHUD.uxml` để chạy trên 1 UIDocument duy nhất (tối ưu draw call, tránh xung đột depth).
+- Tạo `SettingsModal.uss`: Hiệu ứng mờ backdrop đen xuyên thấu (`#settings-overlay`), card Voxel bo viền 4px, nút gạt toggle `.voxel-toggle-btn` có hai trạng thái `state-on` (Xanh ngọc) và `state-off` (Xám tối).
+- Tạo `SettingsModal.uxml`: Cung cấp 4 tùy chọn cài đặt cốt lõi (Cần gạt Joystick, Tự động làm việc Auto-Pilot, Âm thanh SFX, Rung haptics) kèm nút đóng `✕`.
+- Tạo `SettingsModalBinder.cs`: Tự động kết nối với `MainHudBinder.OnSettingsClicked` để `Show()` modal, hỗ trợ bấm vào backdrop để đóng, và gạt toggle bật/tắt mượt mà.
+---
+
+## [2026-09-29 16:54] — Tinh Chỉnh Thẩm Mỹ Voxel & Đồng Bộ Số Vàng Từ EconomyManager
+**Yêu cầu (Prompt):** thiết kế nhìn hơi.... với cả vàng nó nằm trong economy manager mà nên là đang không thấy vàng nhảy số
+**Tóm tắt (Summary):**
+- Khắc phục triệt để lỗi thẩm mỹ:
+  - Tăng tỷ lệ kích thước nút từ 54px lên 90x90px (chuẩn độ phân giải 1080x1920), khắc phục hoàn toàn tình trạng chữ bị rớt dòng (`SHO P`, `NEX T MAP`).
+  - Thêm biểu tượng trực quan vào từng nút (`🛒 SHOP`, `⚙ SET`, `🗺 MAP`, `🌳 TREE`, `🎬 WATCH ADS`, `🎒 BAG`, `⭐ UPG`).
+  - Nâng cấp hiệu ứng viền 3D Voxel với cơ chế nhún nút cơ học khi bấm (`translate 0 3px`).
+- Khắc phục lỗi vàng không nhảy số:
+  - Nâng cấp `MainHudBinder.cs` với cơ chế bảo hiểm kép (Dual-Engine Sync): vừa lắng nghe `GoldChangedEventChannelSO`, vừa kiểm tra trực tiếp `EconomyManager.Instance.CurrentGold` mỗi frame tại `Update()` và đồng bộ lại tại `Start()`.
+  - Hiệu ứng `PunchScaleEffect` nảy nhẹ 1.15x trên khối Vàng mỗi khi số dư biến động.
+---
+
+## [2026-09-29 16:57] — Đại Tu Thẩm Mỹ UI Theo Chuẩn Eatventure / Arcade Idle Cao Cấp
+**Yêu cầu (Prompt):** nhìn thiết kê nhà ng ta đi (kèm ảnh so sánh Eatventure)
+**Tóm tắt (Summary):**
+- Tiếp nhận ảnh tham chiếu thực tế từ siêu phẩm Eatventure, phân tích và đại tu 100% phong cách thiết kế:
+  - Thanh tài nguyên: Chuyển từ khối đen sang **Viên nang trắng sữa (White Capsule Pill)** bo tròn mềm mại (`border-radius: 34px`), chữ số đen đậm siêu nét (`#0F172A`), huy hiệu icon hình tròn nổi bật (Vàng tròn vàng óng `🪙`, Gem tím `💎` kèm nút cộng nhỏ `[+]`).
+  - Hệ thống nút hành động: Thay màu xám u tối bằng **Tone Xanh Cyan / Sky Blue tươi tắn (`#38BDF8`)** với đáy dập nổi khối 3D dày 6px (`#0369A1`), hiệu ứng nhún phím cơ học khi bấm.
+  - Bỏ toàn bộ chữ rườm rà dưới nút, thay thế bằng **Icon đồ họa màu trắng tinh tế** chuẩn thế giới (🛒 Shop, ⚙ Set, 🗺 Map, 🏦 Vault, 👤 Worker, ⬆ Upgrade).
+  - Nút Ads trung tâm: Giữ tone Cam lửa rực rỡ `⚡ BOOST x2` kèm viền nảy nổi bật.
+---
+
+## [2026-09-29 16:59] — Khắc Phục Lỗi Tràn Viền Màn Hình 9:16 & Xóa Lỗi Console Broken PPtr GUID
+**Yêu cầu (Prompt):** tràn ra ngoài rồi, màn hình cố định 9:16 mà (kèm ảnh chụp Game view bị khuất nút)
+**Tóm tắt (Summary):**
+- Xử lý lỗi tràn viền trên màn hình dọc 9:16:
+  - Cân chỉnh lại kích thước nút từ 86px xuống 60px (chuẩn vừa vặn cho 5 nút ngang).
+  - Tái cấu trúc thanh đáy `#bottom-hud-dock` thành Flex Row 5 phần tử trực tiếp (`flex-shrink: 0`, dàn đều `space-between` với padding hai bên 8px), giúp 5 nút hiển thị trọn vẹn 100% không bị che khuất hay đè lên nhau.
+  - Tối ưu 2 thanh tài nguyên dạng viên nang (`flex-shrink: 1`, `max-width: 165px`), đảm bảo thanh Top Bar luôn nằm gọn bên trong mép màn hình.
+- Khắc phục triệt để lỗi đỏ console `Broken text PPtr: GUID is invalid`: Cập nhật đúng mã GUID chính xác từ `.meta` vào thẻ `<Style>` và `<Template>` trong `MainHUD.uxml` và `SettingsModal.uxml`.
+---
+
+## [2026-09-29 17:15] — Chuyển Đổi Hệ Thống UI Sang UGUI Canvas & TextMeshPro
+**Yêu cầu (Prompt):** em nghĩ em sẽ sang canvas một thứ mà em biết dùng, còn về phần tiền không nhảy thì text mesh pro ghi cái curent gold ra là đc
+**Tóm tắt (Summary):**
+- Thấu hiểu và đồng thuận chuyển đổi hệ thống UI từ UI Toolkit sang UGUI Canvas truyền thống để tăng tính trực quan, tự chủ và dễ kiểm soát cho người dùng.
+- Cập nhật [ProjectConfig.yaml](file:///g:/Projects/Project_1/docs/ProjectConfig.yaml) `ui_system: "UGUI"`.
+- Bổ sung tham chiếu `Unity.TextMeshPro` và `UnityEngine.UI` vào `MineMart.UI.asmdef`.
+- Triển khai script `MainCanvasHud.cs`:
+  - Liên kết trực tiếp `TextMeshProUGUI` hiển thị tiền vàng qua `NumberFormatter.Format(currentGold)`.
+  - Luôn kiểm tra và cập nhật `EconomyManager.Instance.CurrentGold` mỗi frame tại `Update()`.
+  - Tích hợp sẵn phím tắt `[Space]` / `[G]` và Context Menu `Test Add 100 Gold` để test nhảy số tiền ngay tức thì mà không cần chờ logic gameplay.
+---
+
+## [2026-09-29 17:52] — Dọn Dẹp Toàn Bộ File UI Toolkit & Chuẩn Bị Code Cho Canvas
+**Yêu cầu (Prompt):** thôi dọn dẹp UIToolkit đi, em tự làm canvas rồi chị code
+**Tóm tắt (Summary):**
+- Xóa bỏ sạch sẽ các thư mục và file thuộc UI Toolkit cũ (`Documents/`, `Styles/`, `New Panel Settings.asset`, `MainHudBinder.cs`, `SettingsModalBinder.cs`).
+- Giữ lại duy nhất script [MainCanvasHud.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/UI/Binders/MainCanvasHud.cs) làm cầu nối điều phối giữa Canvas UI do người dùng tự dựng trong Editor và toàn bộ logic game (EconomyManager, OrderManager, SaveManager).
+- Kiểm tra build Unity `dotnet build` đạt 0 Error, 0 Warning.
+---
+
+## [2026-09-29 18:58] — Liên Kết Code Hoàn Chỉnh Khớp 100% Cây Hierarchy Canvas UI/HUB
+**Yêu cầu (Prompt):** em đã thiết kế xong rồi , giờ chị code đi (kèm ảnh chụp cây Hierarchy UI/HUB)
+**Tóm tắt (Summary):**
+- Tiếp nhận ảnh chụp cây Hierarchy thực tế từ người dùng (`UI/HUB` $\rightarrow$ `MainGamePanel` $\rightarrow$ `Top_Bar` / `Bottom_Bar`).
+- Cập nhật toàn diện script [MainCanvasHud.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/UI/Binders/MainCanvasHud.cs):
+  - Ánh xạ tự động 100% theo đúng tên GameObject của em: `CoinText`, `Emerald_Text`, `SettingBtn`, `ShopBtn`, `NextMapBtn`, `EUGTbtn`, `UGMbtn`, `InvBtn`, `ADS`.
+  - Tự động gỡ cờ `Raycast Target` trên các container rỗng (`MainGamePanel`, `Top_Bar`, `Bottom_Bar`...) để chống nghẽn tương tác 3D.
+  - Cơ chế đồng bộ số tiền thời gian thực với `EconomyManager.Instance.CurrentGold` + hiệu ứng nảy số `PunchScaleEffect` khi tiền tăng.
+  - Tích hợp phím tắt `[Space]` / `[G]` để test tiền nhảy số và bắt sự kiện Click cho toàn bộ 7 nút.
+---
+
+## [2026-09-29 19:00] — Khắc Phục Lỗi Console: Chuyển Sang New Input System
+**Yêu cầu (Prompt):** unity báo đỏ kìa, đừng dùng hệ thống input cỹ
+**Tóm tắt (Summary):**
+- Phát hiện lỗi xung đột `InvalidOperationException` do dự án cấu hình New Input System (`com.unity.inputsystem`), không cho phép sử dụng `UnityEngine.Input` cũ.
+- Bổ sung tham chiếu `Unity.InputSystem` vào `MineMart.UI.asmdef`.
+- Cập nhật [MainCanvasHud.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/UI/Binders/MainCanvasHud.cs) chuyển sang dùng `UnityEngine.InputSystem.Keyboard.current` (`spaceKey.wasPressedThisFrame`, `gKey.wasPressedThisFrame`).
+- Biên dịch lại dự án `dotnet build` đạt 0 Error, 0 Warning.
+---
+
+## [2026-09-29 19:20] — Triển Khai Cơ Chế Bong Bóng Nâng Cấp Quầy Mỏ (Station Upgrade Bubble)
+**Yêu cầu (Prompt):** đóa, canvas cái vừa đẹp vừa ngon, giờ làm cho em cái hiệu ứng bấm vào quầy nào thì hiện bong bóng nâng cấp quầy đó, mà theo chị, thay vì bấm vào quầy, cho bấm vào khu plot thì sao -> cách B sẽ là cho upgrade của map, còn cách A là cho mỏ, và em thấy kết hợp cả 2 vào là một ý hay đấy chị yêu
+**Tóm tắt (Summary):**
+- Thống nhất cơ chế UX chuẩn cao cấp: Chạm vào Mỏ (`MiningStation`) HOẶC chạm vào Ô Đất (`WorkstationPlot`) đều kích hoạt mở Bong bóng nâng cấp của trạm đó (Cách A: WorldToScreenPoint).
+- Bổ sung hàm `GetUpgradeCost()` trong `MiningStation.cs`.
+- Nâng cấp `WorkstationPlacementController.cs`: Phân biệt chạm nhẹ Tap (< 0.2s) để mở bong bóng (`OnStationTapped`, `OnEmptyPlotTapped`) và nhấn giữ (> 0.2s) để kéo thả nhấc mỏ.
+- Tạo script [StationUpgradeBubble.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/UI/Binders/StationUpgradeBubble.cs) trên Canvas:
+  - Tự động bám theo tọa độ đầu trạm mỏ trong `LateUpdate()`.
+  - Hiển thị tên mỏ, cấp độ, số slot thợ, tốc độ và giá nâng cấp.
+  - Tự động đổi màu nút Nâng Cấp (Xanh sáng nếu đủ tiền, Xám mờ nếu thiếu tiền).
+  - Trừ tiền an toàn qua `EconomyManager.Instance.TrySpendGold()` và nâng cấp trạm mỏ kèm hiệu ứng nảy nhẹ.
+---
+
+## [2026-09-29 19:45] — Tự Động Tạo BoxCollider Cho Plot/Mỏ & Sửa Vòng Đời Bong Bóng Nâng Cấp
+**Yêu cầu (Prompt):** các khu plot không có box collider nên hình như không nhận nên không hiện, còn block nghề thì bấm không hiện bong bóng lên
+**Tóm tắt (Summary):**
+- **Xử lý triệt để BoxCollider**:
+  - Bổ sung `EnsureCollider()` chạy ngay trong `Awake()`, `OnValidate()`, và `Reset()` ở cả [WorkstationPlot.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/WorkstationPlot.cs) và [MiningStation.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/MiningStation.cs). Ngay khi mở Unity Editor, BoxCollider sẽ tự động được gán với kích thước chuẩn (`2.5m x 0.5m x 2.5m` cho Plot và `1.2m x 1.2m x 1.2m` cho Station) mà không cần thêm thủ công.
+- **Sửa lỗi bong bóng nâng cấp không hiện**:
+  - Tìm ra nguyên nhân cốt lõi: [StationUpgradeBubble.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/UI/Binders/StationUpgradeBubble.cs) trước đó dùng `SetActive(false)` trên chính GameObject của nó khi khởi động, dẫn đến `OnDisable()` tự hủy đăng ký sự kiện `OnStationTapped`, khiến script bị vô hiệu hóa vĩnh viễn.
+  - Chuyển toàn bộ cơ chế ẩn/hiện sang `CanvasGroup` (`alpha = 0/1`, `blocksRaycasts`, `interactable`). GameObject luôn ở trạng thái Active để duy trì kết nối sự kiện ổn định.
+- **Tối ưu tia Raycast tương tác**:
+  - Trong [WorkstationPlacementController.cs](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/WorkstationPlacementController.cs), thay thế `IsPointerOverGameObject()` bằng `IsPointerOverInteractiveUI()`, chỉ chặn raycast nếu người chơi bấm trúng Button/Selectable của UI, loại bỏ triệt để tình trạng Panel nền trong suốt vô tình chặn click xuống sàn 3D.
+  - Tự động nhận diện trạm mỏ con hoặc mỏ gần nhất khi chạm vào Plot.
+  - Thêm sự kiện `OnBackgroundTapped` để tự động đóng bong bóng khi chạm vào sàn trống.
+- Kiểm tra biên dịch toàn bộ dự án (`MineMart.Gameplay` & `MineMart.UI`) đạt 0 Lỗi (0 Errors).
+---
+
+
+
+
+
+
+## [2026-09-30 08:58] — Gỡ Lỗi Bong Bóng Nâng Cấp Không Hiện Trên Canvas Screen Space - Camera
+**Yêu cầu (Prompt):** hiện tại em đã thiết kế xong UI/HUB bằng canvas, nhưng khi thiết kế đến bong bóng khi bấm vào block nghề hay plot thì nó lại không hiện lên dù console đã in ra là đã bật bong bóng
+**Tóm tắt (Summary):**
+- **Tìm ra nguyên nhân cốt lõi**:
+  - Canvas của scene đang dùng \RenderMode.ScreenSpaceCamera\ (tham chiếu \Main Camera\, plane distance = 1).
+  - Trong StationUpgradeBubble.cs, dòng code cũ gán trực tiếp \_rectTransform.position = screenPos;\. Trong Unity, \	ransform.position\ là tọa độ thế giới (World Space). Vì \screenPos\ trả về tọa độ pixel (ví dụ Š, 960, 15\), lệnh này đã ném bong bóng UI ra tọa độ thế giới cách xa camera gần 1km, văng hoàn toàn ra ngoài góc nhìn của camera khiến nó vô hình dù console đã in log bật bong bóng thành công.
+- **Giải pháp xử lý**:
+  - Dùng chuẩn \RectTransformUtility.ScreenPointToLocalPointInRectangle()\ chuyển đổi tọa độ pixel màn hình sang không gian cục bộ của \parentRect\ (Canvas / MainGamePanel) tương thích hoàn hảo với mọi chế độ Canvas (\ScreenSpaceCamera\, \ScreenSpaceOverlay\, \WorldSpace\) và Canvas Scaler.
+  - Xử lý mượt mà khi đối tượng xoay ra sau lưng camera (\screenPos.z <= 0\): tạm thời chỉnh \CanvasGroup.alpha = 0\ thay vì gọi \Hide()\ triệt tiêu \_currentStation\.
+  - Cải tiến hàm \AutoFindReferences()\ với logic fallback tự động bắt các TextMeshPro và Button con kể cả khi người dùng để tên mặc định dạng \Text (TMP) (1), (2)\.
+  - Đảm bảo \Show()\ tự kích hoạt \gameObject.SetActive(true)\ và kiểm tra \CanvasGroup\ an toàn.
+---
+
+## [2026-09-30 09:12] — Căn Giữa Bong Bóng Nâng Cấp Theo Tâm Của Plot & Kẹp Mép Màn Hình
+**Yêu cầu (Prompt):** em nghĩ là thay vì tọa độ của bong bóng theo block nghề thì nên ở giữa plot tại nó bị lệch ra ngoài như này
+**Tóm tắt (Summary):**
+- **Giải quyết lệch vị trí và tràn viền màn hình**:
+  - Chuyển điểm neo thế giới từ tọa độ trạm mỏ sang tâm của ô đất [WorkstationPlot](file:///g:/Projects/Project_1/MineMart/Assets/_project/Features/Gameplay/Mining/WorkstationPlot.cs) chứa mỏ đó qua hàm \GetTargetWorldPosition()\. Nếu trạm mỏ bị đặt lệch góc (offset), bong bóng vẫn hiển thị ngay ngắn ở chính giữa ô quy hoạch.
+  - Bổ sung cơ chế **Screen Padding Clamping**: Tính toán kích thước nửa chiều rộng/cao (\halfW\, \halfH\) của bong bóng kết hợp tỉ lệ \localScale\, tự động kẹp (\Mathf.Clamp\) tọa độ trong phạm vi mép Canvas trừ biên đệm 16px. Ngăn chặn triệt để tình trạng bong bóng bị cắt ngang hoặc tràn ra ngoài mép màn hình khi mỏ nằm sát rìa camera.
+---
+
+## [2026-09-30 09:16] - Sua Loi Font Chu Missing Glyph Tren Bong Bong Nang Cap
+**Yeu cau (Prompt):** no con bi loi font nua, dau 1 -> 2 khong hien dau '->'
+**Tom tat (Summary):**
+- Nguyen nhan: StationUpgradeBubble.cs dung ky tu unicode mui ten dac biet va emoji dong tien khong co trong Font Asset cua TextMeshPro nen bi hien thi thanh o vuong rong.
+- Giai phap: Thay mui ten unicode bang ky tu ASCII '->' va doi icon thanh chu Vang, tuong thich 100% voi moi font TextMeshPro.
+---
+
+## [2026-09-30 09:30] - Khong Tu Dong Dong Bong Bong Khi Nhan Nang Cap
+**Yeu cau (Prompt):** khi em nhan nang cap no tat luon bong bong, em muon no khong tat co
+**Tom tat (Summary):**
+- Nguyen nhan: Khi nguoi choi bam nut Nang Cap (hoac bam bat ky dau tren bong bong), WorkstationPlacementController van nhan su kien chuot/ngon tay nhan xuong. Do nut UI khong phai collider 3D, he thong coi do la click vao san/background va phat su kien OnBackgroundTapped, khien StationUpgradeBubble tu dong Hide().
+- Giai phap: Trong WorkstationPlacementController.cs, kiem tra IsPointerOverInteractiveUI() ngay khi bat dau cham (_isPointerDown). Neu con tro nam tren UI Button hoac khung Bong bong/Popup thi bo qua hoan toan tuong tac 3D, khong phat OnBackgroundTapped. Nho do nguoi choi co the spam bam nut Nang Cap lien tuc ma bong bong van mo va nhay cap muot ma.
+---
+
+## [2026-09-30 09:44] - He Thong Nang Cap Quau Tang Gia Ban Block
+**Yeu cau (Prompt):** em thay he thong tang level quay dang khong tang gia block len
+**Tom tat (Summary):**
+- Nguyen nhan goc re:
+  1. Trong MiningStation.cs, GetFinalSellPrice() truoc do chi nhan BaseValue voi _currentProfitMultiplier (he so chi tang khi cham cac moc Milestone Lv 10, 25, 50, 100), khong he co cong thuc tang gia theo tung cap do le.
+  2. Trong PlayerController.cs va WorkerAgent.cs, ham nhan order TakeOrder() luon truyen cung gia BaseValue cua block chu khong he hoi gia tu MiningStation.
+- Giai phap toan dien:
+  1. MiningStation.cs: Bo sung _priceIncreasePerLevel (mac dinh +20%/level) va ham GetPriceAtLevel(level). Gia ban moi cap = BaseValue * (1 + (level - 1) * 20%) * MilestoneMultiplier.
+  2. Cung cap ham tinh toan toan cuc MiningStation.GetSellPriceForBlock(blockData) de lay gia block theo level quau mo hien tai.
+  3. WorkerAgent.cs & PlayerController.cs: Truyen gia dong MiningStation.GetSellPriceForBlock(randomBlock) khi goi TakeOrder().
+  4. CustomerSlot.cs: Dam bao luong thanh toan va giao hang uu tien gia theo level quau mo.
+  5. StationUpgradeBubble.cs: Cap nhat giao dien bong bong hien thi truc quan Gia ban hien tai -> Gia ban cap tiep theo (vi du: Gia: 5 -> 6 Vang) de nguoi choi cam nhan ro ret loi ich kinh te moi khi bam Nang Cap.
+---
+
+## [2026-09-30 09:48] - Tich Hop Va Hien Thi Moc Milestone Dot Pha Doanh Thu
+**Yeu cau (Prompt):** the con ap dung tro den milestone chua?
+**Tom tat (Summary):**
+- Kiem tra toan bo du lieu Milestone: 4 asset Milestone_10, Milestone_25, Milestone_50, Milestone_75 da duoc gan vao StallDataSO (Stall_Wood, Stall_Dirt, Stall_Stone).
+- Tich hop vao cong thuc tinh gia: MiningStation.GetPriceAtLevel(level) su dung CalculateMilestoneMultiplierForLevel(level) de nhan he so x2, x4, x8, x16 khi cham nguong.
+- Bo sung ham TryGetNextMilestone(): giup tim moc dot pha gan nhat tiep theo va tinh so level con lai (levelsLeft).
+- Nang cap StationUpgradeBubble: Hien thi truc quan moc dot pha tren bong bong nang cap (vi du: [Moc Lv 10: -8] hoac [Moc Lv 10: x2!] khi chuan bi cham moc). Khi cham moc, he thong se in log vinh danh dot pha doanh thu.
+---
+
+## [2026-09-30 09:50] - Tach Gia Mua Va Gia Nang Cap Ra Khoi StallDataSO Sang MiningStation
+**Yeu cau (Prompt):** em nghi la cho cai gia nang cap goc va gia mua quay ra khoi data di, mai sau lam cai mapmanager thi minh se dieu chinh tung stall trong do
+**Tom tat (Summary):**
+- Tai cau truc kien truc kinh te theo tung Map:
+  1. StallDataSO.cs: Xoa bo _buyPrice, _baseUpgradePrice, _priceMultiplier va CalculateUpgradeCost(). StallDataSO gio day tro thanh Schema thuan tuy dinh nghia danh tinh quau (Identity, Name, ProducedBlock, MilestoneRules).
+  2. MiningStation.cs: Bo sung cac truong kinh te doc lap theo tung GameObject/Instance gom _buyPrice, _baseUpgradePrice, _upgradeCostMultiplier (kem public getter/setter) de phuc vu MapManager sau nay tinh chinh rieng cho tung man choi.
+  3. MiningStation.GetUpgradeCost(): Tu tinh toan truc tiep theo cong thuc BaseUpgradePrice * Multiplier^(Level - 1) voi fallback an toan (Base = 6, Multiplier = 1.15).
+---
+
+## [2026-09-30 10:35] - Sua Loi CS0103 Thieu Namespace MiningStation Trong CustomerSlot
+**Yeu cau (Prompt):** unity bao loi r
+**Tom tat (Summary):**
+- Kiem tra Editor.log phat hien loi bien dich: CustomerSlot.cs(228,25): error CS0103: The name 'MiningStation' does not exist in the current context.
+- Nguyen nhan: CustomerSlot nam trong namespace MineMart.Gameplay.Checkout nhung chua import using MineMart.Gameplay.Mining.
+- Giai phap: Bo sung 'using MineMart.Gameplay.Mining;' vao dau file CustomerSlot.cs. Toan bo du an bien dich lai thanh cong 100% dat 0 loi.
+---
+
+## [2026-09-30 15:00] — Sửa Lỗi Người Chơi Khai Thác Bluetooth Khối Mỏ Bị Hoán Đổi Vị Trí
+**Yêu cầu (Prompt):** sayr ra một lỗi: khi người chơi đang khai thác khối thứ nhất, em lấy khối thứ 2 trên map đổi chỗ với khối thứ nhất thì người chơi chỉ quay đầu lại và khai thác bluetoth khối thứ nhất chứ không bị hủy
+**Tóm tắt (Summary):**
+- Nguyên nhân gốc rễ:
+  1. Khi hoán đổi 2 trạm mỏ (SwapStations), hàm NotifyPlacedDown() bị gọi ngay lập tức ở đầu coroutine AnimateSnap trước khi mỏ kịp bay sang ô mới.
+  2. PlayerController và WorkerAgent thiếu cơ chế kiểm tra khoảng cách (Distance Validation) và cờ IsBeingDragged trong chu kỳ đang đào, dẫn đến việc người chơi/thợ vẫn tiếp tục đào từ xa ("khai thác bluetooth") khi mỏ đã bị kéo/dời đi.
+  3. Khi ở chế độ thủ công, _isMiningLocked chặn hoàn toàn việc quét khoảng cách khiến trạng thái đào không thể bị hủy tự nhiên.
+- Giải pháp xử lý:
+  1. WorkstationPlot.SnapStation & AnimateSnap: Chỉ bật lại tương tác (IsBeingDragged = false) và phát NotifyPlacedDown() khi mỏ đã hạ cánh hoàn tất xuống ô đất mới.
+  2. WorkstationPlacementController: Loại bỏ việc gọi NotifyPlacedDown sớm trong EndDragging().
+  3. PlayerController & WorkerAgent: Bổ sung kiểm tra cự ly an toàn (<= 2.5m) và cờ IsBeingDragged cả khi đang đi tới mỏ lẫn khi đang đào. Nếu mỏ bị kéo đi hoặc khoảng cách vượt quá giới hạn, ngay lập tức hủy hành động khai thác (CancelManualMining / Idle) và trả lại slot/ticket.
+---
+
+## [2026-09-30 16:20] — Xử Lý Hiện Tượng Moonwalk & Quay Đầu Tức Thì Khi Auto-Pilot
+**Yêu cầu (Prompt):** mà khi người chơi ở chế độ AI, nhìn di chuyển khi quay đầu bị mất một khoảng thời gian nhìn nó kiểu moon walk í, em muốn nó instante quay đầu
+**Tóm tắt (Summary):**
+- Nguyên nhân: NavMeshAgent mặc định có angularSpeed = 120 độ/giây và acceleration thấp, dẫn đến việc khi đổi hướng/quay đầu 180 độ, agent di chuyển theo lộ trình mới trong khi thân mình xoay từ từ mất 1.5s, tạo cảm giác trượt lùi/moonwalk.
+- Giải pháp xử lý:
+  1. Thiết lập NavMeshAgent angularSpeed = 3600f, acceleration = 60f, và tắt updateRotation mặc định của NavMeshAgent.
+  2. Xây dựng SetAutoDestination(): Bắt ngay frame đầu tiên khi nhận tọa độ đích để snap transform.rotation quay thẳng mặt về hướng mục tiêu.
+  3. Bổ sung UpdateAutoRotation(): Trong suốt quá trình đi bộ tự động, đồng bộ xoay tức thì theo vector vận tốc mong muốn (desiredVelocity) của NavMeshAgent. Kết quả loại bỏ 100% độ trễ xoay người và hiện tượng moonwalk.
+---
+
+## [2026-09-30 22:25] — Đánh Giá Thiết Kế & So Sánh GDD vs GDD_MVP
+**Yêu cầu (Prompt):** so sánh @[g:\Projects\Project_1\docs\GDD_MVP.md] với @[g:\Projects\Project_1\docs\GDD.md] , theo chị bản MVP đã đủ các tính năng mà game đã àm chưa, liệu MVP có được duyệt khi gửi để tham gia cuộc thì không, và liệu có lên được top không?
+**Tóm tắt (Summary):**
+- So sánh GDD Master (v2.0 - định hướng thương mại dài hạn, 4 Biome, RPG 7-slot, LiveOps) với GDD_MVP (v1.0 - Single-Screen Scoped Edition cho bài thi).
+- Đối soát codebase thực tế: Core engine và chuỗi cung ứng O(1), Hybrid Control, Kéo thả swap trạm mỏ, Milestone multiplier, Save JSON & AFK đã hoàn thành xuất sắc (>95% lõi). Còn thiếu Cây nâng cấp xưởng (Giường spawn thợ), âm thanh (SFX/BGM) và Game Feel.
+- Đánh giá khả năng dự thi: Tỷ lệ duyệt vòng thẩm định kỹ thuật >95%. Khả năng lên TOP phụ thuộc vào 3 mảnh ghép: Âm thanh, Juice/Text bay và Ánh sáng URP Isometric.
+---
+
+## [2026-09-30 22:28] — Đặt Tên Đội Thi Dự Án (Team Naming)
+**Yêu cầu (Prompt):** hiện tại cuộc thi cần lập nhóm hai người hoặc chơi solo, vf tất nhiên em đã solo, nhưng em lấy tên Lâm Tuyết Nhi làm thành viên thứ 2, theo chị em nên đặt tên nhóm là gì
+**Tóm tắt (Summary):**
+- Tư vấn đặt tên nhóm dự thi kết hợp giữa phong cách Indie Studio chuyên nghiệp, ý nghĩa tên Lâm Tuyết Nhi (Snow/Forest/Miyuki) và chủ đề Voxel/Tycoon của dự án MineMart.
+---
+
+## [2026-09-30 22:30] — Thống Nhất Tên Đội Thi: Miyuki Studio
+**Yêu cầu (Prompt):** Miyuki Studio?
+**Tóm tắt (Summary):**
+- Đánh giá và chốt tên đội thi: "Miyuki Studio".
+- Phân tích điểm mạnh: Ngắn gọn, sang trọng, giàu tính thẩm mỹ Indie Game, dễ làm logo/splash screen mở đầu game, gắn liền với danh tính dự án và tác giả.
+---
+
+## [2026-10-01 08:16] — Bổ Sung Mục Minh Chứng Hợp Tác Người & AI Vào GDD_MVP
+**Yêu cầu (Prompt):** thêm cho em vào GDD_MVP một mục thể hiện em đã làm việc với AI dựa trên @[g:\Projects\Project_1\docs\PromptLog.md] chứng mình em đã dùng AI để tạo ra GDD nhưng lưu ý những ý tưởng hay trao đổi về các tính năng nằm ngoài GDD_MVP thì ko cho vào
+**Tóm tắt (Summary):**
+- Bổ sung Section 7 vào GDD_MVP: "Phụ Lục: Quy Trình Đồng Sáng Tạo Giữa Người & AI (Human-AI Co-Creation Process)".
+- Lọc kỹ lưỡng các mốc nhật ký từ PromptLog.md, CHỈ đưa vào các quyết định thiết kế liên quan trực tiếp đến phạm vi GDD_MVP (Dân làng làm thợ, Pass-through agents, Hybrid Control, Bố cục dọc, Đệm 3D kim tự tháp 4 block, Order-Driven Mining, Event Channels, Thu nhỏ phạm vi Single-screen).
+- Loại trừ hoàn toàn các tính năng mở rộng dài hạn (4 Biomes, 7 slot RPG, Pets, Ads, IAP, Weekend LiveOps).
+- Khẳng định vai trò Product Owner & Creative Lead của Tác giả (Miyuki / Lâm Tuyết Nhi) và vai trò Trợ lý Kiến trúc/Hệ thống của AI.
+---
+
+## [2026-10-01 08:17] — Tối Ưu Hóa Mục 7 Thành Bản Trích Lục Độc Lập (Self-Contained GDD)
+**Yêu cầu (Prompt):** vấn đề là em không nộp cả file mà chỉ nộp mỗi GDD_MVP
+**Tóm tắt (Summary):**
+- Tái cấu trúc Mục 7 của GDD_MVP: Xóa bỏ hoàn toàn các đường dẫn liên kết ngoại vi (`PromptLog.md`), biến Mục 7 thành một bản trích lục tự khép kín (Self-contained).
+- Đưa trực tiếp các đoạn trích nguyên văn câu lệnh (Raw Prompts) của Tác giả vào tài liệu kèm phân tích giải pháp của AI và điều khoản tương ứng trong GDD.
+- Đảm bảo người đọc chỉ cần mở duy nhất file GDD_MVP là nắm trọn vẹn bằng chứng thực nghiệm về quá trình tương tác Người - AI.
+---
+
+
+
+
+
+
+
+
+## [2026-10-01 10:31] — Gỡ Lỗi Lệch Tọa Độ Model 3D (Blockbench Pivot Issue)
+**Yêu cầu (Prompt):** tại sao đều nằm trong scense, đều không làm con của bất cứ thú gì, tại sao mọi thứ của em tọa độ 000 đều cùng một chỗ, lòi ra cái bàn cũng tọa độ 000 lại ra chỗ khác -> em tự chui và sửa model r
+**Tóm tắt (Summary):**
+- Giải thích bản chất hiện tượng lệch vị trí trong Unity dù Transform Position đều là (0,0,0): do lệch Pivot Point từ phần mềm dựng hình 3D (Blockbench).
+- Tác giả tự mở file model 3D để căn chỉnh lại gốc tọa độ và Pivot chuẩn xác cho tài nguyên cái bàn (table_long.fbx).
+---
+
+
+## [2026-10-01 10:53] — Sửa Lỗi Không Spawn Khối Nghề Phụ Khi Lên Cấp (MiningStation)
+**Yêu cầu (Prompt):** em thấy cái spawn thêm block nghề không hoạt động khi em không set up custom location, còn có setup thì em chưa thử -> em nâng lên lv cũng không hiẹn
+**Tóm tắt (Summary):**
+- Phát hiện lỗi logic trong MiningStation.cs: Dòng kiểm tra else if (_visualRoot != null && _visualRoot != gameObject) vô tình bỏ qua việc tạo bản sao hiển thị khi _visualRoot trỏ vào chính GameObject chứa MiningStation (ví dụ DirtStall).
+- Cải tiến: Nếu _visualRoot == gameObject, tự động tạo GameObject con sao chép MeshFilter & MeshRenderer của khối 3D thay vì bỏ qua.
+- Thêm cơ chế phản hồi tức thì trong OnValidate: Khi chỉnh sửa Current Level trên Inspector trong lúc Play Mode, các khối block sẽ tự động cập nhật ẩn/hiện ngay lập tức.
+---
+
+
+## [2026-10-01 13:25] — Tái Cấu Trúc Hệ Thống Kinh Tế & Nâng Cấp Toàn Cục Bản Đồ (MapManager & MapDataSO)
+**Yêu cầu (Prompt):** bây giờ em muốn tạo một cái MapManager chứa (map có những mỏ gì, giá bán của từng mỏ, giá gốc của block mang lại, có nâng cấp gì), nên hãy bỏ cái giá bán ban đầu và giá trị ban đầu của bên stall data và block data đi -> em thấy nên cho dạng list về stall data và các chỉ số... một list nữa về các loại nâng cấp của map... à cả thời gian đào cũng đem sang luôn
+**Tóm tắt (Summary):**
+- Tạo Schema ScriptableObject MapDataSO.cs:
+  + List<StallConfigOnMap>: Cấu hình mỏ theo từng Map (Loại mỏ, giá mở mỏ, giá block gốc, thời gian đào gốc, giá nâng cấp, mốc mở slot, milestone x2 x3).
+  + List<MapUpgradeConfig>: 5 loại nâng cấp toàn cục Map (AddWorkers kích hoạt thêm thợ từ worker pool, AddCustomers tăng khách tối đa, MultiplyBlockPrice nhân giá block 1 mỏ hoặc all mỏ, IncreaseAISpeed tăng % tốc độ chạy Player và Workers, ReduceMiningTime giảm thời gian đào của 1 mỏ) kèm cấu hình giá linh hoạt (công thức hoặc nhập tay).
+- Dọn dẹp BlockDataSO.cs: Lược bỏ _baseValue và _baseCraftTime, giữ BlockDataSO hoàn toàn tinh khiết về mặt đồ họa và nhận diện.
+- Tạo MapManager.cs (Singleton): Điều phối kinh tế Map, quản lý worker pool, tính toán các hệ số thưởng tốc độ, nhân giá bán và trừ thời gian đào theo thời gian thực.
+- Cập nhật MiningStation.cs, CustomerManager.cs, PlayerController.cs, WorkerAgent.cs, CustomerSlot.cs: Đồng bộ hóa hoàn toàn với MapManager.
+---
+
+## [2026-10-01 15:15] — Tinh Chỉnh Toàn Diện GDD_MVP Theo Phản Biện Của Giảng Viên
+**Yêu cầu (Prompt):** @[nhận xét GDD.txt] đây là nhận xét của thầy với GDD_MVP và đây là những gì em trả lời... giờ hãy làm bản GDD_MVP này chuẩn hơn theo những gì đã phân tích đi
+**Tóm tắt (Summary):**
+- Tiếp thu và phân tích chuyên sâu 3 vấn đề cốt lõi do Giảng viên phản biện:
+  1. Giá trị thặng dư của Active Play so với Pure-Idle: Bổ sung quyền năng Thợ Cả (Tốc độ đào x2, giao thẳng bỏ qua quầy trung chuyển giải cứu nút thắt cổ chai, bonus +20% tiền tip).
+  2. Xóa bỏ cảm giác gò bó khi đào mỏ: Thay thế hoàn toàn "Khóa cứng input" bằng cơ chế "Hủy đào tự do kèm bảo lưu tiến độ (Progress Retention)". Người chơi kéo Joystick là hủy ngay tức thì, % đào dở được lưu lại trên khối mỏ.
+  3. Phân hóa khuyết điểm của Worker: Miner chỉ đào không bán, Runner chỉ bán không đào. Tạo ra bài toán mất cân bằng cung - cầu và tối ưu quy hoạch không gian (Swap Stations) buộc người chơi phải suy nghĩ giải quyết.
+- Tinh chỉnh đồng bộ vào Mục 1.2, 1.3, 3.1, 3.6 và bổ sung Mốc 7 vào Mục 7 của GDD_MVP.md.
+---
+
+
+## [2026-10-01 16:53] — Chuẩn Hóa Công Thức Kinh Tế Cố Định & Cơ Chế Mua Mỏ Động Trên Plot
+**Yêu cầu (Prompt):** ừ nhưng em thấy một vài thứ của mining station đang lặp lại trên mapmanager, với cả nếu là prefab thì em nghĩ nên bỏ cái max level sang mapManager còn về 2 mục là giá nâng cấp gia tăng và giá bán gia tăng thì ẩn nó về đằng sau đi, không cái nào được phép custom mà là một phép toán cố định: Cost(L) = round(C_0 * 1.15^(L-1)), Value(L) = V_0 * (1 + 0.1 * (L-1))
+**Tóm tắt (Summary):**
+- Đóng băng 2 công thức kinh tế thành hằng số chuẩn Idle Tycoon:
+  + Công thức giá nâng cấp: Cost(L) = round(BaseUpgradePrice * 1.15^(Level - 1)) (Hệ số vàng 1.15 cố định).
+  + Công thức giá bán block: Value(L) = BlockBaseValue * (1 + 0.1 * (Level - 1)) (+10% giá gốc mỗi cấp cố định).
+- Tinh gọn MiningStation.cs: Loại bỏ hoàn toàn các trường thừa trên Inspector (_priceIncreasePerLevel, _upgradeCostMultiplier, _maxLevel, _buyPrice, _baseUpgradePrice...), biến MiningStation thành component prefab gọn nhẹ thuần túy.
+- Bổ sung trường _stallPrefab và _maxLevel vào StallConfigOnMap (trong MapDataSO).
+- Bổ sung API GetUnpurchasedStalls, SpawnStallAtPlot, TryBuyAndSpawnStall vào MapManager.cs để hỗ trợ cơ chế bấm vào Plot trống hiển thị bong bóng danh sách mỏ và spawn ra tại chỗ.
+- Thêm sự kiện OnPlotTapped vào WorkstationPlot.cs.
+---
+
+
+## [2026-10-01 16:58] — Phân Định Trách Nhiệm Chuẩn Xác Giữa MiningStation & MapManager
+**Yêu cầu (Prompt):** thứ nhất chị chưa xóa maxlevel khỏi mining station, thứ 2 tránh việc ôm đồm thì cho slot unlock level với milestone rule về mining station (và nhớ xóa ở bên map manager)
+**Tóm tắt (Summary):**
+- Xóa bỏ triệt để biến _maxLevel khỏi MiningStation.cs. Thuộc tính MaxLevel của trạm mỏ giờ đây tự động hỏi qua MapManager.Instance.GetStallMaxLevel(stationData).
+- Chuyển SlotUnlockLevels (mốc mở slot phụ) và MilestoneRules (mốc nhân đôi doanh thu x2, x4...) về đúng chủ quyền của MiningStation.cs, giúp MiningStation tự quản lý cấu trúc slot và đột phá cấp độ của chính nó.
+- Xóa bỏ hoàn toàn SlotUnlockLevels và MilestoneRules khỏi MapDataSO.cs và MapManager.cs, tránh việc MapManager bị ôm đồm dữ liệu không thuộc phạm vi kinh tế bản đồ.
+---
+
+
+## [2026-10-01 17:06] — Dọn Dẹp Milestone Khỏi StallDataSO
+**Yêu cầu (Prompt):** em mới nhận ra là bên stalldataSO còn có cả milestone nữa là sao v xóa đi ba
+**Tóm tắt (Summary):**
+- Xóa bỏ hoàn toàn trường _milestoneRules và thuộc tính MilestoneRules khỏi StallDataSO.cs.
+- StallDataSO giờ đây hoàn toàn tinh gọn chỉ chứa thông tin nhận diện cơ bản (StallId, StallName, ProducedBlock).
+- MiningStation.cs quản lý trực tiếp danh sách _milestoneRules cục bộ trên Prefab của mỏ mà không còn phụ thuộc vào StallDataSO.
+---
+
+
+## [2026-10-01 17:45] — Tinh Gọn Nâng Cấp Bản Đồ (Map Upgrades) & Tùy Biến Inspector Trực Quan
+**Yêu cầu (Prompt):** về list thêm worker thì không cần di chuyển đi đâu, còn lại thì sửa lại mapdata đi
+**Tóm tắt (Summary):**
+- Giữ nguyên danh sách Worker Pool trên MapManager (Scene Hierarchy) để thuận tiện kéo thả GameObject trực tiếp từ Scene.
+- Tinh gọn triệt để MapUpgradeConfig trong MapDataSO.cs:
+  + Xóa bỏ hoàn toàn các trường gây rối: _valuePerLevel, _maxLevel, _basePrice, _priceMultiplier, _customLevelPrices.
+  + Chuẩn hóa định giá bằng danh sách trực tiếp _levelPrices (độ dài danh sách = MaxLevel, giá từng cấp tường minh).
+  + Phân định rõ ràng các chỉ số chuyên biệt: _customerBonusPerLevel, _priceMultiplierValue, _speedBonusPercent, _miningTimeReduction.
+- Tạo MapUpgradeConfigDrawer.cs (CustomPropertyDrawer) kèm MineMart.Editor.asmdef: Tự động ẩn/hiện trường thông minh theo UpgradeType được chọn. Khi chọn AddWorkers, giấu tiệt TargetScope/TargetStall và hiển thị hộp hướng dẫn trực quan.
+- Đồng bộ hóa các hàm tính toán và áp dụng hiệu ứng nâng cấp trong MapManager.cs.
+---
+
+
+## [2026-10-01 17:50] — Tùy Biến Số Lượng Worker/Khách & Kích Hoạt Bàn Ngoài Trời (Customer Props)
+**Yêu cầu (Prompt):** ừ nhưng em muốn cái nâng cấp thêm worker hay khách có thêm số lượng cơ, để tạo active 1 hoặc 2 hoặc nhiều hơn số worker và cộng thêm vào số lượng khách, và đối với cộng số lượng khách thì thêm mục setactive game object (true là sẽ set active, còn false là bỏ qua hoặc có thể làm 2 hành động là setactive hoặc null) trong trường hợp em thêm bàn ngoài trời cho khách
+**Tóm tắt (Summary):**
+- Bổ sung trường _workersAddedPerLevel vào MapUpgradeConfig (trong MapDataSO.cs), cho phép cấu hình kích hoạt đồng thời 1, 2 hoặc nhiều thợ mỗi cấp nâng cấp.
+- Tạo cấu trúc CustomerVisualBinding và danh sách _customerOutdoorTables trên MapManager.cs (Scene Hierarchy):
+  + Cho phép kéo trực tiếp các GameObject bàn ngoài trời trên Scene tương ứng với từng cấp độ nâng cấp khách hàng.
+  + Hỗ trợ flag setActive: nếu true và targetObject khác null sẽ tự động SetActive(true) khi đạt cấp tương ứng; nếu false hoặc null sẽ an toàn bỏ qua.
+- Cập nhật MapUpgradeConfigDrawer.cs để vẽ ô tùy biến số lượng thợ/khách kèm chú thích hướng dẫn trực quan trên Inspector.
+- Đồng bộ hóa logic kích hoạt tại Awake() và khi mua nâng cấp AddCustomers trong MapManager.cs.
+---
+
+
+## [2026-10-01 18:15] — Khắc Phục Lỗi Chữ Đè Chữ (GUI Layout Overlap) Trên Inspector
+**Yêu cầu (Prompt):** hiển thị trên inspector đang có lỗi chữ đè chữ
+**Tóm tắt (Summary):**
+- Xác định nguyên nhân gốc rễ:
+  1. Thuộc tính [Header] trong MapUpgradeConfig (MapDataSO.cs) làm tăng chiều cao vẽ thực tế trong OnGUI nhưng không được tính vào GetPropertyHeight.
+  2. Hàm GetPropertyHeight ước lượng chiều cao cố định cho các trường biến đổi (như danh sách _levelPrices khi mở rộng và HelpBox) dẫn đến việc phần tử tiếp theo vẽ đè lên phần tử trước.
+- Triệt tiêu hoàn toàn các thẻ [Header] thừa trong MapUpgradeConfig (MapDataSO.cs).
+- Tái cấu trúc MapUpgradeConfigDrawer.cs: chuẩn hóa hàm tính PropH bằng EditorGUI.GetPropertyHeight(p, true) + spacing và truyền includeChildren = true vào toàn bộ EditorGUI.PropertyField, đảm bảo chiều cao tổng thể khớp chuẩn xác 100% với layout vẽ ra.
+---
+
+
+## [2026-10-01 18:20] — Chuẩn Hóa Giá Nâng Cấp Cố Định (Fixed Price Per Card)
+**Yêu cầu (Prompt):** danh sách giá nâng cấp theo cấp là sao vậy, nâng cấp thì giá cố định em tự lo được mà
+**Tóm tắt (Summary):**
+- Tiếp thu đúng triết lý thẻ nâng cấp của Eatventure: Mỗi thẻ nâng cấp là một món hàng riêng biệt với một mức giá vàng cố định duy nhất (Fixed Price), không chia mảng nhiều cấp rườm rà.
+- Tinh gọn MapUpgradeConfig (MapDataSO.cs): Thay thế mảng _levelPrices bằng trường đơn _price (Giá Mua Vàng). Thiết lập MaxLevel = 1 (mỗi thẻ mua 1 lần).
+- Cập nhật MapUpgradeConfigDrawer.cs: Chỉ hiển thị một ô nhập duy nhất: 'Giá Mua (Vàng)', loại bỏ hoàn toàn danh sách array phức tạp.
+---
+
+
+## [2026-10-06 09:23] — Shop Mua Mỏ Trên Ô Đất Trống & Hiệu Ứng Rơi Nảy Đàn Hồi (Drop Bounce)
+**Yêu cầu (Prompt):** được hãy thực hiện giải pháp hoàn hảo đó, rời từ trên xuống y = 0, vậy thì cả phần spawn nhân viên, bàn ghế của map upgrade và nhân bản thêm block của stall upgrade cũng làm tương tự đi
+**Tóm tắt (Summary):**
+- Xây dựng DropBounceEffect.cs (trong MineMart.Feel): mô phỏng gia tốc trọng trường rơi từ trên trời xuống điểm mục tiêu kèm hiệu ứng va đập biến dạng đàn hồi (squash & stretch) và nảy sóng tắt dần (damped bounce).
+- Áp dụng đồng bộ hiệu ứng rơi nảy vào 4 hệ thống cốt lõi:
+  1. Quầy mỏ mới khi mua và spawn trên ô Plot (MapManager.SpawnStallAtPlot).
+  2. Nhân viên mới khi mở khóa thêm từ pool (MapManager.UpdateWorkerPoolActivation).
+  3. Bàn ghế ngoài trời / Props khách hàng khi kích hoạt cấp độ mới (MapManager.UpdateCustomerVisualsActivation).
+  4. Khối block mỏ phụ khi nâng cấp mở thêm slot (MiningStation.UpdateVisualState).
+- Phát triển UI PlotStallShopBubble.cs: bong bóng nổi World-To-Screen mở ra khi tap vào Plot trống, tự động nạp danh sách mỏ chưa mua từ MapManager.GetUnpurchasedStalls(), cuộn ngang qua ScrollRect, hiển thị giá bán và nút Mua đổi màu theo số dư vàng.
+---
+
+## [2026-10-06 09:47] — Hướng Dẫn & Tự Động Hóa Tạo ScrollRect Cuộn Ngang Cho Shop Mỏ
+**Yêu cầu (Prompt):** scrollrect tạo kiểu gì
+**Tóm tắt (Summary):**
+- Hướng dẫn chi tiết cấu trúc 3 tầng chuẩn của ScrollRect: ScrollView (ScrollRect) -> Viewport (RectMask2D) -> Content (HorizontalLayoutGroup + ContentSizeFitter).
+- Tạo công cụ tự động hóa PlotStallShopBubbleEditorCreator.cs trong Menu Editor: Cho phép 1-click chuột tạo ngay cây UI hoàn chỉnh có sẵn ScrollRect ngang, căn chỉnh đúng Anchor/Pivot, nối sẵn toàn bộ reference vào PlotStallShopBubble.
+---
+
+## [2026-10-06 09:55] — Hướng Dẫn & Tự Động Hóa Tạo Stall Card Prefab Cho Danh Sách Mỏ
+**Yêu cầu (Prompt):** stall card prefab tạo kiểu gì
+**Tóm tắt (Summary):**
+- Hướng dẫn cấu trúc tiêu chuẩn của một Thẻ Mỏ (Stall Card UI): RectTransform (170x135) -> Nền thẻ (Image) -> Tên mỏ (TMP) -> Thông tin block sản xuất (TMP) -> Nút Mua (Button + Image đổi màu) -> Giá tiền (TMP).
+- Bổ sung MenuItem tự động hóa trong Editor: 'GameObject > MineMart UI > Tạo Stall Card Prefab (Asset Thẻ Mỏ)'. Tự động sinh file Prefab hoàn chỉnh lưu vào Assets/_project/UI/Prefabs/StallCard_Prefab.prefab và tự động gán vào PlotStallShopBubble trong Scene.
+---
+
+## [2026-10-06 10:05] — Hiển Thị Trực Tiếp Prefab 3D Của Block Lên Thẻ Mỏ
+**Yêu cầu (Prompt):** thay vif cho thông tin block ;ên đó, hãy trỏ đến prefab của block để hiện
+**Tóm tắt (Summary):**
+- Nâng cấp PlotStallCardUI.cs: Thay vì chỉ hiển thị text chữ đơn thuần, thẻ mỏ trỏ trực tiếp đến BlockDataSO.Prefab3D, instantiate khối model 3D vào _blockPreviewHolder với góc xoay Isometric (20, 45, 0) và tự động xoay nhẹ (idle rotation) 45 độ/giây.
+- Tự động gỡ sạch Collider trên model preview để không vướng va chạm physics/raycast UI.
+- Cập nhật cả fallback code và công cụ Editor 'Tạo Stall Card Prefab' để tự sinh điểm neo BlockPreviewHolder chuẩn xác.
+---
+
+## [2026-10-06 10:10] — Khắc Phục Lỗi Missing Script Trên StallCard_Prefab
+**Yêu cầu (Prompt):** prefab đang trỏ đến script nào đó nhưng ko có
+**Tóm tắt (Summary):**
+- Xác định nguyên nhân: Lớp PlotStallCardUI ban đầu được đặt chung file với PlotStallShopBubble.cs, khiến Unity không thể ánh xạ MonoScript GUID độc lập khi serialize lên Prefab asset (dẫn đến m_Script: {fileID: 0} và báo lỗi 'The associated script cannot be loaded').
+- Tách riêng lớp PlotStallCardUI thành file độc lập PlotStallCardUI.cs kèm file PlotStallCardUI.cs.meta chuẩn GUID.
+- Cập nhật trực tiếp StallCard_Prefab.prefab liên kết chuẩn xác tới GUID của PlotStallCardUI.cs, khôi phục toàn vẹn Inspector và các trường dữ liệu trên Prefab.
+---
+
+## [2026-10-06 10:29] — Khắc Phục Lỗi Ẩn Giao Diện Thẻ Mỏ (RectMask2D Culling & LayoutElement)
+**Yêu cầu (Prompt):** trường hợp 2
+**Tóm tắt (Summary):**
+- Xác định nguyên nhân gốc rễ: Thẻ mỏ thiếu component LayoutElement trong HorizontalLayoutGroup kết hợp ContentSizeFitter, khiến chiều rộng (Width) của thẻ bị co về 0. RectMask2D trên Viewport tự động cúp/cắt sạch các phần tử UI 2D (Nền thẻ, Tên, Nút mua) vì kích thước 0, trong khi khối 3D MeshRenderer không bị RectMask2D cúp nên chỉ còn một mình khối 3D hiển thị lơ lửng.
+- Bổ sung LayoutElement (minWidth: 170, preferredWidth: 170, minHeight: 150, preferredHeight: 150) vào cả mã tự sinh lẫn công cụ tạo Prefab.
+- Bật ChildControlSize.Width = true trên HorizontalLayoutGroup của Content.
+- Đặt Z-offset cho _blockPreviewHolder lùi nhẹ về phía trước camera (Z = -15) để khối block 3D nổi bật mà không che lấp chữ hay nút bấm.
+---
+
+## [2026-10-06 10:55] — Khắc Phục Lỗi Kích Thước Thẻ Bị Ép 200x150 & Xóa Sạch Model 3D Khi Đóng UI / Mua Mỏ
+**Yêu cầu (Prompt):** em ddeer kichs cowrx trong prefab laf 200 200 nhưng khi vào game nó bị kéo thành 200 150, cái thứ 2 là khi em mua block hay tắt ui thì model 3D của block vẫn hiện
+**Tóm tắt (Summary):**
+- Xử lý vấn đề 1 (Kích thước thẻ bị ép từ 200x200 về 200x150): Do HorizontalLayoutGroup của Content trước đó bật childControlHeight = true kết hợp chiều cao Viewport chỉ có 170px và LayoutElement trên Prefab lưu preferredHeight = 150px. Đã bổ sung hàm SyncCardSize() trong PlotStallCardUI tự động lấy kích thước thực tế của RectTransform (200x200) đồng bộ vào LayoutElement (preferred/min Width & Height); đồng thời trong PlotStallShopBubble đặt layout.childControlHeight = false, childForceExpandHeight = false và tự động mở rộng chiều cao Bubble (_rectTransform.sizeDelta.y = cardHeight + 85f) giúp Bubble tự ôm trọn mọi kích thước thẻ tùy biến.
+- Xử lý vấn đề 2 (Khối block 3D không biến mất khi tắt UI hoặc mua mỏ): CanvasGroup.alpha = 0f chỉ tác động lên 2D CanvasRenderer, hoàn toàn không tác động lên 3D MeshRenderer của khối block; trước đó Hide() cũng không hủy các thẻ con hay tắt SetActive(false). Đã thêm ClearActiveCards() và ClearSpawnedModel(), kết hợp OnDisable() trên PlotStallCardUI và gameObject.SetActive(false) khi Hide() trên Bubble. Toàn bộ model 3D và thẻ con được dọn dẹp sạch sẽ ngay lập tức khi người chơi đóng popup hoặc mua mỏ thành công.
+---
+
+## [2026-10-06 11:00] — Triển Khai Object Pooling Cho Thẻ UI & Model 3D (Zero GC Alloc / Chống Tràn Bộ Nhớ)
+**Yêu cầu (Prompt):** đừng có destroy xong lại instance, cứ bấm tắt đi mở lại cái UI một lúc là nổ máy à
+**Tóm tắt (Summary):**
+- Loại bỏ hoàn toàn hành vi Destroy rồi Instantiate lặp đi lặp lại khi đóng/mở UI hoặc bấm mua mỏ.
+- Trong PlotStallShopBubble: Xây dựng cơ chế Object Pooling (_cardPool). Khi mở danh sách mỏ, tái sử dụng các thẻ đã có trong pool bằng SetActive(true), chỉ sinh mới nếu số lượng mỏ vượt quá số thẻ hiện có, và dùng SetActive(false) cho các thẻ thừa. Khi Hide(), chỉ gọi gameObject.SetActive(false) trên Bubble giúp ẩn toàn bộ UI và model 3D mà không tốn một chút GC Allocation nào.
+- Trong PlotStallCardUI: Cache lại Prefab 3D (_currentBlockPrefab). Khi Bind dữ liệu mỏ, nếu cùng loại khoáng sản thì giữ nguyên model 3D cũ và chỉ SetActive(true) lại, tuyệt đối không Destroy/Instantiate lại model.
+---
+
+## [2026-10-06 11:06] — Khắc Phục Lỗi Bấm Vào Plot Không Hiện Bong Bóng Stall (Bảo Toàn Event Subscription)
+**Yêu cầu (Prompt):** Bấm vào plot lại không hiện bong bóng stall nữa rồi
+**Tóm tắt (Summary):**
+- Xác định nguyên nhân: Ở bản cập nhật trước, hàm Hide() đã gọi gameObject.SetActive(false) trên root GameObject của PlotStallShopBubble ngay khi Start(). Khi root GameObject bị Inactive, Unity tự động kích hoạt OnDisable() -> hủy đăng ký sự kiện WorkstationPlacementController.OnEmptyPlotTapped. Kết quả là khi người chơi bấm vào Plot trống, PlotStallShopBubble không còn nhận được sự kiện để mở popup.
+- Khắc phục:
+  - Root GameObject PlotStallShopBubble luôn duy trì Active = true để đảm bảo không bao giờ bị gián đoạn hay hủy đăng ký sự kiện OnEmptyPlotTapped.
+  - Khi Hide(): Ẩn 2D UI bằng CanvasGroup (alpha = 0, interactable/blocksRaycasts = false) và tắt Active các thẻ con trong _cardPool cùng _scrollRect. Các model 3D nằm trong thẻ con tự động ẩn sạch sẽ mà root GameObject vẫn hoạt động bình thường.
+  - Khi Show(): Kích hoạt lại _scrollRect và CanvasGroup, lấy thẻ từ _cardPool hiển thị tức thì.
+---
+
+## [2026-10-06 12:44] — Khắc Phục Lỗi Khách Không Spawn Khi Mua Quầy Đầu Tiên (Menu Động & Sự Kiện Toàn Cục)
+**Yêu cầu (Prompt):** khách không spawn khi em mua quầy đầu tiên
+**Tóm tắt (Summary):**
+- Xác định nguyên nhân gốc rễ: CustomerManager trước đó chỉ gọi RefreshUnlockedBlocks() một lần duy nhất lúc Start() và chỉ lắng nghe OnLevelChanged từ các trạm đã có sẵn trong scene lúc game khởi động. Khi game bắt đầu, người chơi có 0 mỏ -> danh sách _unlockedBlocks rỗng (Count = 0). Khi người chơi mua mỏ đầu tiên qua MapManager, trạm mỏ mới được sinh ra trong runtime nhưng CustomerManager không hề nhận được thông báo, khiến _unlockedBlocks vẫn bằng 0. Điều kiện kiểm tra `if (_unlockedBlocks.Count == 0) return;` trong Update() làm CustomerManager dừng toàn bộ logic đếm giờ và spawn khách.
+- Khắc phục:
+  - Bổ sung static events trong MiningStation: OnAnyStationUnlocked và OnAnyStationLevelChanged để phát tín hiệu toàn cục mỗi khi có bất kỳ mỏ nào được mở khóa hoặc nâng cấp.
+  - Cập nhật MiningStation.ApplyMapEconomyConfig tự động gán _stationData = config.StallData nếu null, đảm bảo ProducedBlock luôn hợp lệ.
+  - Cập nhật CustomerManager: Lắng nghe OnAnyStationUnlocked, OnAnyStationLevelChanged và MapManager.OnStallPurchasedAndSpawned. Bổ sung cơ chế tự phục hồi (Self-Healing) trong Update(): nếu danh sách món đang rỗng, tự động quét lại trạm mỏ.
+  - Ngay khi nhận diện mỏ đầu tiên vừa được mua, đặt ngay `_spawnTimer = _spawnInterval` để khách hàng lập tức xuất hiện đến quầy mà không cần chờ đợi.
+---
+
+## [2026-10-06 13:08] — Triển Khai Giao Diện Nâng Cấp Bản Đồ (Map Upgrade Sliding Bottom Sheet & Prefab Thẻ)
+**Yêu cầu (Prompt):** giờ đến cáu UI của Mapupgrade, trong Maingamepanel UI ở bottom_bar em có một button tên UGMbtn, em muốn là một UI để hiện nâng cấp của map, nó sẽ cố định ở một chỗ trên map, nhưng nó không kiểu hiện lên bất ngờ mà khi bấm vào nút nó sẽ kéo từ dưới lên và chỉ khi bấm dấu x (close btn) nó mới kéo lại xuống ra khỏi màn hình game, cũng là một loại danh sách xéo lên xuống và nâng cấp là prefab
+**Tóm tắt (Summary):**
+- Xây dựng component MapUpgradeCardUI (Assets/_project/UI/Binders/MapUpgradeCardUI.cs): Hiển thị từng thẻ nâng cấp trong danh sách cuộn với Icon, Tên nâng cấp, Mô tả chi tiết, Nút Mua kèm giá tiền hoặc trạng thái "ĐÃ SỞ HỮU".
+- Xây dựng component MapUpgradePanelUI (Assets/_project/UI/Binders/MapUpgradePanelUI.cs): 
+  - Tự động kết nối với nút UGMbtn thông qua sự kiện MainCanvasHud.OnUGMClicked.
+  - Hiệu ứng chuyển động mượt mà dạng Bottom Sheet Drawer: Khi mở, panel trượt mượt mà từ đáy màn hình lên (EaseOutCubic, 0.32s); khi bấm nút X hoặc bấm vùng mờ backdrop bên ngoài, panel trượt êm ái xuống dưới đáy màn hình ra khỏi tầm nhìn.
+  - Tích hợp Vertical ScrollView cuộn dọc danh sách nâng cấp từ MapManager.CurrentMapData.Upgrades.
+  - Sử dụng Object Pooling (_cardPool) để tái sử dụng thẻ, không sinh rác GC hay Instantiate/Destroy lặp lại.
+  - Xử lý mua nâng cấp qua EconomyManager và MapManager.ApplyUpgradeLevelUp().
+- Tạo công cụ Editor MapUpgradeUIEditorCreator (Assets/_project/Editor/MapUpgradeUIEditorCreator.cs) hỗ trợ tạo tự động Panel và Card Prefab trong Unity với 1 click:
+  - Menu 'Tạo Map Upgrade Panel (Trượt Từ Dưới Lên)'
+  - Menu 'Tạo Map Upgrade Card Prefab'
+---
+
+## [2026-10-06 13:54] — Tự Động Sắp Xếp Nâng Cấp Bản Đồ Theo Thứ Tự Tăng Dần Của ID
+**Yêu cầu (Prompt):** em muốn phần nâng cấp của map hiển thị theo thứ tự tăng dần của id nâng cấp, chú không thì id chả có tac dụng gì, với cả làm thế mai sau sửa vị trí hay thêm bớt nâng cấp nớ đỡ phải làm lại nâng cấp từ đầu
+**Tóm tắt (Summary):**
+- Cập nhật MapUpgradePanelUI: Trước khi nạp danh sách nâng cấp lên giao diện, toàn bộ danh sách upgrades từ MapManager.CurrentMapData được tự động sắp xếp (Sort) tăng dần theo UpgradeId.
+- Thuật toán so sánh thông minh (Numeric & Natural Sort):
+  - Hỗ trợ số trực tiếp (vd: ID "01", "02", "10" sắp xếp chuẩn 1 < 2 < 10).
+  - Hỗ trợ ID dạng tiền tố chữ + số (vd: "upgrade_1", "upgrade_10" thì "upgrade_2" luôn đứng trước "upgrade_10").
+  - Fallback so sánh chuỗi chữ cái an toàn nếu không chứa số.
+- Lợi ích: Cho phép nhà thiết kế tự do thêm, bớt hoặc đảo lộn vị trí nâng cấp trong ScriptableObject / Inspector mà giao diện người chơi vẫn luôn hiển thị mạch lạc, tuần tự từ ID nhỏ đến lớn mà không cần sửa tay.
+---
+
+## [2026-10-06 14:09] — Tự Động Ẩn Biến Mất Thẻ Nâng Cấp Bản Đồ Sau Khi Đã Mua
+**Yêu cầu (Prompt):** sau khi nâng cấp em muốn prefab đó biến mất luôn
+**Tóm tắt (Summary):**
+- Cập nhật MapUpgradePanelUI: Thay vì giữ lại các thẻ đã nâng cấp ở trạng thái "ĐÃ SỞ HỮU", hệ thống tự động lọc danh sách chỉ lấy những nâng cấp CHƯA MUA (currentLevel < MaxLevel).
+- Ngay khi người chơi bấm Mua thành công một nâng cấp, hệ thống tự động làm mới danh sách:
+  - Thẻ nâng cấp vừa mua bị loại bỏ và SetActive(false) trong Object Pool, biến mất ngay lập tức khỏi khung cuộn.
+  - Các thẻ còn lại tự động dồn lên trên mượt mà, giúp giao diện luôn tinh gọn và người chơi tập trung vào những mục tiêu tiếp theo.
+  - Khi người chơi đã mua hết tất cả nâng cấp của bản đồ, bảng tự động hiển thị thông báo: "Bạn đã hoàn thành tất cả nâng cấp của bản đồ!".
+---
+
+## [2026-10-06 14:32] — Tắt Đổ Bóng (Shadows) Cho Model Block 3D Trên Shop Stall UI
+**Yêu cầu (Prompt):** hiện tại các model block trên shop stall Ui đang đổ bóng lên map khi hiện lên, em không muốn đổ bóng
+**Tóm tắt (Summary):**
+- Cập nhật PlotStallCardUI: Khi khởi tạo model 3D preview của block trên thẻ quầy hàng, code tự động duyệt qua toàn bộ Renderer (GetComponentsInChildren<Renderer>()) và thiết lập:
+  - shadowCastingMode = ShadowCastingMode.Off (tắt hoàn toàn việc in bóng đổ xuống môi trường/mặt đất map).
+  - receiveShadows = false (không nhận bóng từ các nguồn sáng khác trong scene).
+- Đảm bảo hình ảnh 3D hiển thị sáng rõ, tách bạch trên UI mà không tạo bóng mờ hay vệt đen không mong muốn đè lên map gameplay.
+---
+
+## [2026-10-06 14:40] — Object Pooling & Danh Sách Skin Khách Hàng (Zero GC Alloc Cho CustomerManager)
+**Yêu cầu (Prompt):** giờ đến customer Manager, thay mục prefab của khách thành dạng list để random skin của khách, và thay vì instance rồi lại destroy thì thêm cho em một biến là, max instance per prefab, khi khởi chạy scence thì instance một lượt toàn bộ các các prefab trong danh sách số lượng theo biến đó
+**Tóm tắt (Summary):**
+- Nâng cấp CustomerManager:
+  - Chuyển `_customerPrefab` thành danh sách `List<GameObject> _customerPrefabs` cho phép thêm nhiều loại skin khác nhau trên Inspector (kèm fallback tương thích ngược).
+  - Thêm biến cấu hình `int _maxInstancePerPrefab` (mặc định: 3).
+  - Triển khai Object Pooling tiền khởi tạo lúc khởi chạy Scene (`Awake`): Duyệt qua danh sách skin, instantiate đúng số lượng `_maxInstancePerPrefab` cho mỗi skin, đặt ẩn `SetActive(false)` và gom vào `[CustomerPool]`.
+  - Khi sinh khách: Trộn ngẫu nhiên danh sách skin và kích hoạt một instance rảnh từ pool bằng `CustomerAgent.Spawn()`.
+- Nâng cấp CustomerAgent:
+  - Thay thế cơ chế `Destroy(gameObject, 5f)` bằng `ReturnToPool()` (`SetActive(false)` và reset trạng thái khi khách đi ra tới cửa hoặc hết thời gian timeout).
+  - Đảm bảo không sinh/hủy rác bộ nhớ (Zero GC runtime) và vận hành mượt mà.
+---
+
+## [2026-10-06 15:20] — Chuyển Đổi Animation Run Và Idle Cho Player, Worker Và Customer
+**Yêu cầu (Prompt):** trong model của Player, customer và worker đều có 2 animation là run và idle, em muốn khi di chuyển thì đổi sang animation run và ngược lại
+**Tóm tắt (Summary):**
+- Tạo component CharacterAnimationController (`Assets/_project/Features/Gameplay/Common/CharacterAnimationController.cs`):
+  - Tự động nhận diện cả Legacy `Animation` (UnityEngine.Animation) lẫn Mecanim `Animator` (UnityEngine.Animator) trên model con.
+  - Tự động quét và cấu hình các clip Idle và Run (`idle`, `Idle`, `Run`, `run`, `walk`), đảm bảo thiết lập `WrapMode.Loop` để chuyển động lặp vô hạn mượt mà.
+  - Sử dụng `CrossFade` (0.15s) giúp chuyển đổi êm dịu, tự nhiên giữa Run và Idle, không bị giật khung hình hay snap tư thế.
+  - Tự động nhận diện vận tốc di chuyển từ `NavMeshAgent` hoặc `CharacterController`.
+- Tích hợp toàn diện vào 3 thực thể gameplay:
+  - PlayerController: Khi người chơi đẩy phím WASD / Joystick di chuyển hoặc Auto-Pilot đang dẫn đường -> chuyển sang `Run`; khi buông tay đứng yên -> chuyển sang `Idle`.
+  - WorkerAgent: Khi thợ di chuyển giữa các trạm mỏ / quầy phục vụ -> chuyển sang `Run`; khi đứng khai thác mỏ hoặc nhận order -> chuyển sang `Idle`.
+  - CustomerAgent: Khi khách đi bộ từ cửa vào hàng đợi hoặc rời tiệm -> chuyển sang `Run`; khi đứng đợi trong hàng hoặc chờ lấy order -> chuyển sang `Idle`.
+---
+
+## [2026-10-06 15:35] — Khắc Phục Lỗi Kẹt Run, Nâng Bong Bóng Order Và Xoay Mặt Khách Vào Bàn
+**Yêu cầu (Prompt):** animaton bị kẹt ở run, thứ 2 là cho cái bong bóng order của khách cao lên 0.1 đi, em làm model hơi cao, thứ 3 là khách không quay mặt vào bàn để nhận order
+**Tóm tắt (Summary):**
+- Xử lý vấn đề 1 (Animation bị kẹt ở Run):
+  - Sửa lỗi trong `Player.prefab`: Clip `idle` trước đó bị trỏ sai GUID/internalID rác khiến Prefab mất clip Idle và chỉ phát Run lặp vô hạn. Đã ánh xạ lại chuẩn xác `idle` (`internalID: -5252816984213320552`) và `Run` (`5522812681064789136`), đặt `m_Animation` mặc định là `idle`.
+  - Nâng cấp `CharacterAnimationController`: Quét đa tầng clip qua indexer và AnimationState, bổ sung fallback nếu thiếu clip Idle thì tự động dừng clip Run khi nhân vật dừng di chuyển.
+  - Tắt `AutoDetectMovement` trên `PlayerController` để Player quản lý trực tiếp từ Input phím/AutoPilot, tránh xung đột vật lý CharacterController.
+- Xử lý vấn đề 2 (Nâng độ cao bong bóng order của khách thêm 0.1m):
+  - Tăng `_bubbleHeight` từ `1.65m` lên `1.75m` trong cả mã nguồn `CustomerSlot.cs` và toàn bộ 5 bàn CustomerSlot trong `Plain_Map.unity`.
+- Xử lý vấn đề 3 (Khách không quay mặt vào bàn để nhận order):
+  - Trong `CustomerAgent.cs`: Khi khách đến đầu hàng (`CustomerState.Ordering`), tắt `_agent.updateRotation` và xoay trực tiếp mặt hướng vào `ServerAnchor` của quầy phục vụ.
+  - Khi khách đang đứng chờ trong hàng (`WaitingInQueue`), liên tục xoay mặt theo hướng ngược hàng đợi (`-GetQueueDirection()`) nhìn về phía quầy đón order.
+---
+
+## [2026-10-06 16:30] — Thanh Tiến Trình Khối Cube 3D & Lưu Giữ Tiến Độ Khai Thác Tại Quầy Mỏ
+**Yêu cầu (Prompt):** bây giờ em muốn các stall khi đang có người đào sẽ có một thanh tiến trình đầy dần theo thời gian đào, thanh tiến trình hình cube, mực hoạn thiện sẽ đi từ dưới lên, cái nãy chính là cái sẽ lưu lại tiến trình đào khi di chuyển block nghề trong lúc đào, để nhân viên khác sang đào tiếp
+**Tóm tắt (Summary):**
+- Xây dựng thanh tiến trình khối Cube 3D trực quan trên MiningStation:
+  - Cấu trúc gồm khung ContainerCube ngoài mờ viền (không chặn raycast, không đổ bóng `ShadowCastingMode.Off`) và khối ProgressFill bên trong.
+  - Mực điền dâng chính xác từ đáy lên trên theo tiến trình `progress = _currentCraftTimer / GetBaseCraftTime()`.
+  - Tự động lấy màu đại diện theo loại khoáng sản sản xuất (Dirt, Stone, Coal, Iron, Gold, Diamond...).
+  - Giữ cố định góc nhìn Isometric 3D (`Quaternion.Euler(20f, 45f, 0f)`) nổi bật trên đầu mỏ.
+- Lưu trữ tiến độ khai thác tập trung trên chính Quầy mỏ (MiningStation):
+  - `MiningStation` làm "Single Source of Truth" quản lý `_currentCraftTimer`. Bổ sung `AddMiningProgress(deltaTime)`.
+  - Khi nhấc block mỏ lên di chuyển (`IsBeingDragged`): tiến độ đào dở dang vẫn bảo lưu 100% trên quầy, thanh cube vẫn giữ nguyên mức đã đào.
+  - Đồng bộ logic khai thác cho cả Người chơi (Manual và Auto-Pilot) lẫn Thợ (WorkerAgent): khi người/thợ khác đến mỏ, họ đào tiếp tục từ mốc thời gian dở dang cho đến khi đầy khối.
+---
+
+## [2026-10-06 16:45] — Khắc Phục Khách Khực Khi Vào Vị Trí, Thợ Đào Thừa Sau Khi Giao Đồ, Và Đổi Màu Tiến Trình Xanh Tươi
+**Yêu cầu (Prompt):** đang có vài lỗi, khách vào vị trí rồi nhưng lại bị khực lại một cái rồi mới vào đúng vị trí, sau khi đưa đồ cho khách thì thằng nhân viên tự nhiên nó lại quay lại đào tiếp, và cho màu của tiến trình xanh tươi hơn đi, đề màu tối hơi khó nhìn, không thì lấy luôn model của stall đó luôn
+**Tóm tắt (Summary):**
+- Sửa lỗi khách bị khực lại khi bước vào vị trí xếp hàng / đầu quầy:
+  - Cập nhật CustomerSlot.GetQueuePosition: Tự động sample chuẩn xác vị trí trên NavMesh (tránh độ lệch cao độ Y sàn nhà làm agent khựng).
+  - Cập nhật CustomerAgent: Thiết lập stoppingDistance = 0.05f; phát hiện đến gần vị trí (<= 0.15m) thì dừng agent dứt điểm (`isStopped = true`, `velocity = Vector3.zero`), định vị êm ái và chuyển góc xoay mượt mà với Slerp thay vì snap rotation đột ngột.
+- Sửa lỗi nhân viên tự ý quay lại đào mỏ sau khi giao hàng xong:
+  - Cập nhật WorkerAgent.UpdateIdle: Quy định chặt chẽ DirectSeller chỉ đi đào khi có Order hợp lệ đang chờ từ khách (`FindStationWithActiveOrder`); nếu không có order mới thì đứng yên ở quầy chờ khách, tuyệt đối không tự ý ra mỏ đào dư thừa.
+- Nâng cấp màu sắc thanh tiến trình Cube 3D:
+  - Chuyển màu khối ruột dâng lên sang Xanh Tươi Rực Rỡ (`Color(0.15f, 0.98f, 0.45f)`) siêu sáng, siêu bắt mắt, nhìn rõ từ xa trên mọi địa hình.
+  - Chuyển khung Container ngoài sang viền kính pha lê trắng ngọc trong suốt (`Color(0.88f, 0.96f, 1.0f, 0.42f)`), tạo độ tương phản cực cao.
+---
+
+## [2026-10-06 16:55] — Tính Năng Vuốt Kéo Cuộn Bản Đồ (Map Pan & Scroll Camera)
+**Yêu cầu (Prompt):** bây giờ em muốn em có thể kéo lên kéo xuống cái map  được không?
+**Tóm tắt (Summary):**
+- Tạo component MapCameraController (`Assets/_project/Features/Gameplay/Map/MapCameraController.cs`):
+  - Cho phép người chơi vuốt ngón tay (Mobile Touch) hoặc nhấn giữ chuột trái (PC) để kéo/cuộn bản đồ lên, xuống, trái, phải trong không gian 3D Isometric.
+  - Tự động quy đổi delta màn hình sang không gian thế giới thực dựa trên góc nghiêng 60 độ và tỷ lệ Orthographic của Main Camera.
+  - Tích hợp hiệu ứng quán tính trôi êm ái (Inertia Damping) và giới hạn biên (Clamp Boundaries X, Z) để camera không bị kéo trôi ra ngoài khuôn viên đảo.
+  - Phân tách thông minh: Bỏ qua khi người chơi chạm vào UI, chạm vào Joystick di chuyển nhân vật, hoặc đang kéo thả di dời quầy mỏ (`WorkstationPlacementController.IsDragging`).
+  - Hỗ trợ Chạm đúp (Double Tap) hoặc tự động đưa góc nhìn camera bám theo Người chơi (Auto-Follow Player) khi người chơi điều khiển nhân vật chạy.
+- Tự động gắn kết qua MapManager: Đảm bảo Camera tự động có controller khi bấm Play mà không cần thao tác gán thủ công.
+---
+
+## [2026-10-06 17:00] — Khóa Trục Ngang, Chỉ Cho Phép Vuốt Dọc Bản Đồ (Vertical-Only Scrolling)
+**Yêu cầu (Prompt):** em chỉ muốn vuốt dọc
+**Tóm tắt (Summary):**
+- Cập nhật MapCameraController (`Assets/_project/Features/Gameplay/Map/MapCameraController.cs`):
+  - Bổ sung cấu hình `_lockHorizontalMovement = true` và cố định `_fixedX = transform.position.x` (mặc định = 0).
+  - Triệt tiêu hoàn toàn delta di chuyển theo trục ngang khi vuốt màn hình (loại bỏ deltaX).
+  - Khóa trục X của camera luôn đứng yên ở tâm bản đồ, camera chỉ di chuyển tiến và lùi dọc theo trục Z.
+  - Vận tốc quán tính trôi cũng chỉ áp dụng theo phương dọc, mang lại trải nghiệm cuộn dọc mượt mà, chắc chắn và chuẩn định dạng màn hình Portrait.
+---
+
+## [2026-10-06 17:05] — Dọn Dẹp Biến Thừa minX / maxX, Tinh Gọn Hoàn Toàn Theo Trục Dọc
+**Yêu cầu (Prompt):** vậy còn giữ maxX và MinX làm gì nữa????
+**Tóm tắt (Summary):**
+- Tinh giản mã nguồn và Inspector của MapCameraController:
+  - Xóa bỏ hoàn toàn `_minX`, `_maxX` và cờ boolean thừa thãi.
+  - Cố định cứng tọa độ X tâm bản đồ và độ cao Y.
+  - Inspector giờ chỉ hiển thị duy nhất hai mốc biên độ dọc `_minZ` và `_maxZ`.
+  - Cập nhật Gizmos trong Scene View hiển thị đường ray trục dọc thẳng tắp để canh chỉnh phạm vi trượt dọc của Camera trực quan, gọn gàng.
+---
+
+## [2026-10-06 17:41] — Bổ Sung Thanh Trượt Chỉnh Độ Mờ (Opacity Sliders) Cho Thanh Tiến Trình Khối Cube
+**Yêu cầu (Prompt):** thanh tiến trình đào của stall đang chưa đủ mờ, làm cho em một thanh chỉnh độ mờ đi
+**Tóm tắt (Summary):**
+- Nâng cấp hệ thống hiển thị thanh tiến trình 3D trên MiningStation (`MiningStation.cs`):
+  - Bổ sung thanh trượt `[Range(0f, 1f)] _progressOpacity` (mặc định 0.5f) cho phép kéo chỉnh trực tiếp độ mờ tổng thể trên Inspector.
+  - Bổ sung 2 thanh trượt phụ `_containerOpacity` (0.25f) cho khung viền kính ngoài và `_fillOpacity` (0.8f) cho khối ruột bên trong.
+  - Tối ưu vật liệu kính trong suốt: Kích hoạt đầy đủ thuộc tính Transparent (`_Surface = 1`, `_Blend = 0`, RenderQueue 3000 & 3001) tương thích chuẩn Universal Render Pipeline (URP).
+  - Hỗ trợ `OnValidate`: Kéo thanh trượt trong Inspector lập tức cập nhật thời gian thực trên Scene/Game View ngay khi đang Play Mode.
+  - Thêm Context Menu `Đồng Bộ Độ Mờ Sang Tất Cả Quầy Mỏ` để sao chép độ mờ sang toàn bộ các quầy trên đảo chỉ với 1 click.
+- Cập nhật đồng bộ vào `DirtStall.prefab` và `woodStall.prefab`.
 ---

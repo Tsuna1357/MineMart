@@ -97,7 +97,8 @@ namespace MineMart.Gameplay.Persistence {
                         ? station.StationData.StallId
                         : station.gameObject.name;
 
-                    saveData.stations.Add(new StationSaveEntry(stationId, station.CurrentLevel));
+                    string plotId = (station.CurrentPlot != null) ? station.CurrentPlot.PlotId : null;
+                    saveData.stations.Add(new StationSaveEntry(stationId, station.CurrentLevel, plotId));
                 }
 
                 // 3. Ghi mốc thời gian lưu
@@ -131,13 +132,13 @@ namespace MineMart.Gameplay.Persistence {
                     EconomyManager.Instance.SetGold(saveData.gold);
                 }
 
-                // 2. Nạp lại cấp độ từng trạm mỏ
-                Dictionary<string, int> stationLevelMap = new Dictionary<string, int>();
+                // 2. Nạp lại cấp độ và vị trí ô quy hoạch của từng trạm mỏ
+                Dictionary<string, StationSaveEntry> stationEntryMap = new Dictionary<string, StationSaveEntry>();
                 if (saveData.stations != null) {
                     for (int i = 0; i < saveData.stations.Count; i++) {
                         StationSaveEntry entry = saveData.stations[i];
                         if (entry != null && !string.IsNullOrEmpty(entry.stationId)) {
-                            stationLevelMap[entry.stationId] = entry.level;
+                            stationEntryMap[entry.stationId] = entry;
                         }
                     }
                 }
@@ -150,8 +151,15 @@ namespace MineMart.Gameplay.Persistence {
                         ? station.StationData.StallId
                         : station.gameObject.name;
 
-                    if (stationLevelMap.TryGetValue(stationId, out int savedLevel)) {
-                        station.SetLevel(savedLevel);
+                    if (stationEntryMap.TryGetValue(stationId, out StationSaveEntry entry)) {
+                        station.SetLevel(entry.level);
+
+                        if (!string.IsNullOrEmpty(entry.plotId)) {
+                            WorkstationPlot plot = WorkstationPlot.FindPlotById(entry.plotId);
+                            if (plot != null) {
+                                plot.SnapStation(station, false);
+                            }
+                        }
                     }
                 }
 

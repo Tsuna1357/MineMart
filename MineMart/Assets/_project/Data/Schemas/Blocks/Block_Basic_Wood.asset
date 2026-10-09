@@ -14,7 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: MineMart.Data::MineMart.Data.BlockDataSO
   _blockId: 0001
   _displayName: Wood
-  _baseValue: 6
-  _baseCraftTime: 8
-  _icon: {fileID: 0}
-  _prefab3D: {fileID: 0}
+  _prefab3D: {fileID: 5314010664421399146, guid: a6324fbfc8e94a04a8508393223b7034, type: 3}

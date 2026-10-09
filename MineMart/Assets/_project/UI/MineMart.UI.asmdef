@@ -4,7 +4,12 @@
     "references": [
         "MineMart.Core",
         "MineMart.Data",
-        "MineMart.Economy"
+        "MineMart.Economy",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "Unity.InputSystem",
+        "MineMart.Gameplay",
+        "MineMart.Feel"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -169,7 +169,7 @@ namespace MineMart.Gameplay.Checkout {
 
             for (int i = 0; i < s_allCounters.Count; i++) {
                 CustomerCounter counter = s_allCounters[i];
-                if (counter != null && counter.Slots != null) {
+                if (counter != null && counter.gameObject.activeInHierarchy && counter.Slots != null) {
                     for (int j = 0; j < counter.Slots.Count; j++) {
                         CustomerSlot slot = counter.Slots[j];
                         if (slot != null) {
@@ -183,6 +183,33 @@ namespace MineMart.Gameplay.Checkout {
                 }
             }
             return bestSlot;
+        }
+
+        /// <summary>
+        /// Tìm ô quầy tiếp khách ĐANG HOÀN TOÀN TRỐNG (QueueCount == 0, chưa có khách đứng) gần nhất trên TOÀN BỘ các quầy trong tiệm (Global).
+        /// Dùng khi khách ưu tiên tìm quầy trống trực tiếp trước khi tính đến bàn ăn hay xếp hàng.
+        /// </summary>
+        public static CustomerSlot GetClosestAvailableSlotGlobal(Vector3 customerPosition) {
+            CustomerSlot closestSlot = null;
+            float minDistanceSqr = float.MaxValue;
+
+            for (int i = 0; i < s_allCounters.Count; i++) {
+                CustomerCounter counter = s_allCounters[i];
+                if (counter != null && counter.gameObject.activeInHierarchy && counter.Slots != null) {
+                    for (int j = 0; j < counter.Slots.Count; j++) {
+                        CustomerSlot slot = counter.Slots[j];
+                        if (slot != null && !slot.IsOccupied) { // !IsOccupied tương đương QueueCount == 0
+                            float distSqr = (slot.CustomerAnchor.position - customerPosition).sqrMagnitude;
+                            if (distSqr < minDistanceSqr) {
+                                minDistanceSqr = distSqr;
+                                closestSlot = slot;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return closestSlot;
         }
 
         /// <summary>

@@ -1,0 +1,24 @@
+{
+    "name": "MineMart.Editor",
+    "rootNamespace": "MineMart.Editor",
+    "references": [
+        "MineMart.Data",
+        "MineMart.Gameplay",
+        "MineMart.Core",
+        "MineMart.UI",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "Unity.AI.Navigation"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

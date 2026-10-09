@@ -1,0 +1,191 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3628066050344421151
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3798418620023231650}
+  - component: {fileID: 6526775638729001327}
+  - component: {fileID: 53886631385050301}
+  m_Layer: 0
+  m_Name: Stone_Stall
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3798418620023231650
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3628066050344421151}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: -5, y: 0, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3535816351286673511}
+  - {fileID: 4503036141691153000}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!114 &6526775638729001327
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3628066050344421151}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bdb6730f40e043f4e9b30fbe0812eb55, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MineMart.Gameplay::MineMart.Gameplay.Mining.MiningStation
+  _stationData: {fileID: 11400000, guid: fbd9d544395271a408a80a3f4491e199, type: 2}
+  _minerAnchor: {fileID: 3535816351286673511}
+  _visualRoot: {fileID: 3834304015396466898}
+  _customSlotAnchors: []
+  _slotSpacing: {x: 1, y: 0, z: 0}
+  _currentPlot: {fileID: 0}
+  _currentLevel: 0
+  _slotUnlockLevels: 0a00000019000000i
+  _milestoneRules:
+  - {fileID: 11400000, guid: c25f742da4c690c4b81cc7abce02c195, type: 2}
+  - {fileID: 11400000, guid: 727a0c73c6fe0884cb9f7bb4a693c162, type: 2}
+  - {fileID: 11400000, guid: 6e2014f84af6d264ca0c742bba39745b, type: 2}
+  - {fileID: 11400000, guid: 5d53dc1b6a688394eaab286e6becff16, type: 2}
+  _pendingOrders: 0
+  _requireOrderToMine: 1
+  _progressVisualHeight: 1.6
+  _progressCubeSize: 0.35
+  _showProgressVisual: 1
+  _useVibrantGreenColor: 1
+  _vibrantProgressColor: {r: 0.4862745, g: 0.9882354, b: 0, a: 1}
+  _progressOpacity: 1
+  _containerOpacity: 0.1
+  _fillOpacity: 0.8
+--- !u!65 &53886631385050301
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3628066050344421151}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &6129540351278001477
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3535816351286673511}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3535816351286673511
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6129540351278001477}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3798418620023231650}
+  m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
+--- !u!1001 &4176885237126679939
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 3798418620023231650}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+      propertyPath: m_Name
+      value: Stone_block_model
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+--- !u!1 &3834304015396466898 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+  m_PrefabInstance: {fileID: 4176885237126679939}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &4503036141691153000 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: f9436a18f4a52084fa0492e24ea8a3ae, type: 3}
+  m_PrefabInstance: {fileID: 4176885237126679939}
+  m_PrefabAsset: {fileID: 0}

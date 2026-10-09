@@ -3,7 +3,7 @@ title: "MineMart: Pocket Workshop — Game Design Document"
 subtitle: "Single-Screen Incremental Tycoon (Academic & Production Specification)"
 version: "1.0.0-PROD"
 date: "2026-09-24"
-author: "AI Game Designer & Miyuki"
+author: "AI Game Designer & Miyuki(Lâm Tuyết Nhi)"
 status: "Final Approved for Phase 1 Submission"
 target_platform: "Android / PC (Offline Single-screen)"
 evaluation_deadline: "2026-10-01"
@@ -22,17 +22,17 @@ evaluation_deadline: "2026-10-01"
 **MineMart: Pocket Workshop** là tựa game mô phỏng quản lý kinh doanh nhàn rỗi (Single-screen Idle Tycoon) kết hợp điều khiển Arcade trên một màn hình dọc tĩnh, nơi người chơi xây dựng, tự động hóa và tối ưu hóa xưởng chế tác khối vuông (Voxel Block Workshop) phục vụ khách hàng Dân làng (Villagers), mang lại trải nghiệm kinh tế lũy tiến bùng nổ cùng cảm giác tương tác vật lý cực kỳ thỏa mãn (Juicy Feel).
 
 ### 1.2 Trụ Cột Trải Nghiệm (Core Pillars)
-1. **Tinh Gọn Trong 1 Màn Hình (Single-Screen Completeness)**: Toàn bộ vòng lặp sản xuất, vận chuyển, nâng cấp và dòng tiền diễn ra liền mạch trong một góc nhìn Top-Down 2.5D tĩnh duy nhất. Không chuyển cảnh, không tải map, không phân tán sự tập trung.
-2. **Tiến Trình Lũy Tiến Gây Nghiện (Exponential Dopamine Curve)**: Công thức tăng giá và mốc nhân đột phá (Milestone Multipliers x2, x4, x10) tạo ra những cú hích doanh thu rõ rệt, biến từng đồng tiền lẻ ban đầu thành dòng tiền triệu vàng cuồn cuộn.
-3. **Phản Hồi Giác Quan Đậm Đặc (Juicy Micro-interactions)**: Áp dụng triệt để "Quy tắc Số Ba" (Rule of Three) — mọi cú chạm tay, khối quặng nảy, block xếp chồng và tiếng leng keng của tiền xu đều mang lại khoái cảm thính giác và xúc giác tối đa.
+1. **Tinh Gọn Trong 1 Màn Hình (Single-Screen Completeness)**: Toàn bộ dây chuyền chuỗi cung ứng (Đào mỏ $\rightarrow$ Trung chuyển $\rightarrow$ Phục vụ khách) và dòng tiền hiển thị trực quan trong một góc nhìn Top-Down 2.5D tĩnh duy nhất. Thao tác mượt mà bằng một ngón tay cái, không chuyển cảnh, không gây nhiễu thị giác.
+2. **Sự Tương Hỗ Giữa Can Thiệp Tay (Active) & Tự Động (Idle)**: Chế độ can thiệp tay không phải "cho vui" mà mang lại **Giá Trị Thặng Dư Vượt Trội (x2 Tốc Độ Đào, Giải Tỏa Nút Thắt Cổ Chai & Bonus +20% Tiền Tip)**. Người chơi can thiệp để tối đa hóa lợi nhuận thần tốc, buông tay để xưởng tự vận hành ổn định.
+3. **Bài Toán Quản Trị Chuỗi Cung Ứng Thực Tế (Supply-Chain Problem Solving)**: Các loại thợ Dân làng được thiết kế với ưu và nhược điểm riêng biệt (Thợ mỏ chỉ đào không bán, Runner chỉ bán không đào). Người chơi liên tục phải đưa ra quyết định: Bố trí lại vị trí quầy, can thiệp khâu nào khi chuyền sản xuất bị nghẽn.
 
 ### 1.3 Điểm Bán Hàng Độc Nhất (Unique Selling Propositions - USPs)
 
 | STT | Điểm Bán Hàng Độc Nhất (USP) | Bản Chất & Giá Trị Khác Biệt So Với Thị Trường |
 |---|---|---|
-| **USP 1** | **Cơ Chế Điều Khiển Lai Kèm Chuyển Đổi Linh Hoạt (Hybrid Control with Mode Toggle)** | Kết hợp hoàn hảo giữa **Pure-Idle (Rảnh tay 100%)** và **Arcade Active Play (Can thiệp tay)**. Người chơi có thể buông máy để game tự chạy, hoặc kéo Cần gạt nổi (Floating Joystick) để trực tiếp lao vào xưởng tăng gấp đôi tốc độ. Đặc biệt có **nút Bật/Tắt Joystick trong Cài đặt** cho phép người chơi tùy biến phong cách chơi theo ý muốn. |
+| **USP 1** | **Điều Khiển Lai Có Giá Trị Thặng Dư (Hybrid Agency & Active Value)** | Phân định rõ ràng giữa **Pure-Idle (Rảnh tay)** và **Arcade Active (Can thiệp tay)**: Khi người chơi tự điều khiển, nhân vật đóng vai trò là **"Thợ Cả Giải Cứu Nghẽn Hàng"** (Tốc độ đào nhanh gấp đôi thợ thường, có thể giao hàng thẳng nhận tiền tức thì, nhặt tip được bonus thêm +20%). Khi buông tay, hệ thống tự động tiếp quản duy trì nhịp độ cơ bản. |
 | **USP 2** | **Bộ Đệm Xếp Chồng Block 3D Chống Nghẽn (Anti-Deadlock Vertical Stacking Buffer)** | Khắc phục hoàn toàn điểm yếu "đĩa thức ăn phẳng" của *Eatventure*. Block thành phẩm ưu tiên dàn đều ô trống; khi hết chỗ sẽ kích hoạt **xếp chồng thẳng đứng thành cột khối 3D (3–5 tầng)**. Vừa giải quyết bài toán nghẽn chuyền sản xuất, vừa tạo hiệu ứng thị giác xưởng hàng tấp nập, hàng hóa đầy ắp. |
-| **USP 3** | **Thuật Toán Điều Phối Thợ Dân Làng Tối Ưu (Autonomous Task Dispatcher)** | Trí tuệ nhân tạo của Dân làng vận hành theo thuật toán kết hợp **FIFO (Đơn đến trước làm trước) + Distance Tie-breaker (Khoảng cách gần nhất)**. Nhân vật có cơ chế đi xuyên nhau (Pass-through) loại bỏ hoàn toàn tình trạng kẹt đường vật lý. |
+| **USP 3** | **Phân Hóa Nhân Sự & Tối Ưu Quy Hoạch Xưởng (Staff Specialization & Spatial Layout)** | Thợ mỏ (Miner) và Nhân viên bồi bàn (Runner) có ưu/khuyết điểm bù trừ lẫn nhau. Kết hợp cơ chế **Kéo thả hoán đổi trạm mỏ (Swap Stations)**, buộc người chơi phải tư duy sắp xếp bố cục xưởng hợp lý để rút ngắn quãng đường di chuyển và giải tỏa các nút thắt cổ chai. |
 | **USP 4** | **Kiến Trúc Kinh Tế Độc Lập Ngoại Tuyến (100% Offline Persistence & AFK Engine)** | Cắt bỏ hoàn toàn các rào cản mạng, tài khoản, quảng cáo ép buộc hay nạp tiền. Dữ liệu được bảo toàn tuyệt đối trên máy người chơi với thuật toán tính thu nhập ngoại tuyến (AFK Welcome-Back) công bằng và chính xác. |
 
 ---
@@ -40,7 +40,7 @@ evaluation_deadline: "2026-10-01"
 ### 2.1 Sơ Đồ Vận Hành Dây Chuyền Chuỗi Cung Ứng (Supply-Chain Pipeline)
 
 ```mermaid
-graph LR
+graph TD
     subgraph KhuKhaiThac["1. Khu Khai Thác (Hậu Trường)"]
         M["Trạm Mỏ: Đất, Gỗ, Đá"]
         M -->|"Order-Driven: Chỉ đào khi có đơn"| W1["Thợ Mỏ / Người Chơi"]
@@ -79,33 +79,45 @@ Mỗi chu kỳ phục vụ trong tiệm vận hành theo quy trình phân công 
 
 ## 3. Đặc Tả Cơ Chế Gameplay Chi Tiết (Detailed Gameplay Mechanics)
 
-### 3.1 Hệ Thống Điều Khiển Lai & Hút Nam Châm Khóa Chân (Hybrid Control & Pop Snap)
-- **Cơ chế Cần Gạt Nổi (Dynamic Floating Joystick)**:
-  - Khi chạm ngón tay vào bất kỳ điểm nào trên nửa dưới màn hình, tâm Joystick tự động định vị tại đó (Dynamic Origin).
-  - Bán kính nhận diện: $80\text{px}$, vùng đệm chết (Deadzone): $15\text{px}$.
-  - Tốc độ di chuyển nhân vật chính: $4.5\text{ m/s}$.
-- **Cơ chế Hút Dứt Khoát & Khóa Cứng Đào Mỏ (Magnet Pop-Snap & Mining Action Lock)**:
-  - **Chỉ đào khi có Order**: Trạm mỏ chỉ mở tương tác và kích hoạt hút khi khách hàng đang có đơn hàng chờ loại block đó (`NeedsMining = true`). Khi không có ai order, mỏ ở trạng thái IDLE và người chơi di chuyển tự do ngang qua mỏ mà **tuyệt đối không bị hút dính hay khóa chân**.
-  - **Hút Dứt Khoát (Pop Snap)**: Khi người chơi tay trống tiếp cận mỏ đang có order ($R \le 1.6\text{m}$), nhân vật lập tức bị hút dứt khoát "póc" một cái vào đúng điểm neo khai thác (`MinerAnchor`), xoay mặt nhìn thẳng vào khối mỏ, kích hoạt hiệu ứng Squash & Stretch ($0.16\text{s}$) nảy đàn hồi tạo cảm giác dính cộp như nam châm.
-  - **Khóa Cứng Hành Động (Action Freeze/Lock)**: Trong suốt quá trình khai thác (`MiningTimer < BaseCraftTime`), toàn bộ input di chuyển bị vô hiệu hóa và vị trí nhân vật được giữ chặt tại điểm neo. Không cho phép di chuyển lết thết hay vừa đi vừa đào.
-  - **Mở Khóa Tự Động (Auto Unlock on Harvest)**: Ngay khi khối block khai thác xong và nảy lên đỉnh đầu (`CarryAnchor`, kích thước $0.4\text{m}$), hệ thống lập tức mở khóa di chuyển, trừ 1 đơn pending để người chơi tự do mang hàng ra quầy hoặc trao thẳng cho khách.
-- **Tùy Chọn Chuyển Đổi Trong Cài Đặt (Settings Toggle)**:
-  - Trong menu Cài Đặt có nút: **[Bật / Tắt Joystick]** (`isJoystickEnabled`).
-  - **Khi TẮT**: Toàn bộ hệ thống Joystick bị vô hiệu hóa. Nhân vật chính tự động chuyển thành một **Thợ Siêu Cấp Tự Hành (Autonomous Super-Worker)**, tự động tìm đến quầy có giá trị cao nhất hoặc quầy đang bị ứ đọng để hỗ trợ.
+### 3.1 Hệ Thống Điều Khiển Lai & Hủy Đào Tự Do Kèm Bảo Lưu Tiến Độ (Hybrid Control & Free Cancel with Progress Retention)
+
+Hệ thống điều khiển giải quyết triệt để sự xung đột giữa **Can thiệp tay (Active)** và **Tự động hóa (Idle)**:
+
+#### A. Giá Trị Thặng Dư Của Chế Độ Can Thiệp Tay (Active Value Proposition)
+Khi người chơi trực tiếp chạm ngón tay vào màn hình, Cần gạt nổi (**Dynamic Floating Joystick**, bán kính $80\text{px}$, deadzone $15\text{px}$) xuất hiện tức thì tại vị trí chạm:
+- **Nhân đôi tốc độ chế tác (x2 Crafting Speed)**: Nhân vật chính đào mỏ nhanh gấp 2 lần thợ AI thông thường (Thời gian đào Đất giảm từ $1.5\text{s} \rightarrow 0.75\text{s}$, Đá từ $8.0\text{s} \rightarrow 4.0\text{s}$).
+- **Giải tỏa nút thắt cổ chai (Direct Delivery Breaker)**: Người chơi là nhân vật duy nhất có quyền năng **Làm tắt quy trình** — đào xong mang block chạy thẳng ra trao tận tay cho khách tại Quầy tiếp khách để nhận tiền ngay, không bị phụ thuộc vào Quầy trung chuyển khi quầy đang bị đầy ứ.
+- **Thưởng tiền Tip chủ động (+20% Tip Bonus)**: Tiền Tip rơi trên bàn khi người chơi trực tiếp chạy qua chạm vào nhặt sẽ được cộng thêm **+20% giá trị thưởng**.
+
+#### B. Cơ Chế Nam Châm Tiếp Cận & Hủy Đào Tự Do Có Bảo Lưu Tiến Độ (Free Cancel & Progress Retention)
+- **Chỉ kích hoạt khi có Order (`NeedsMining = true`)**: Trạm mỏ chỉ mở tương tác khi có khách đang đặt hàng. Khi không có ai order, mỏ ở trạng thái IDLE và người chơi di chuyển tự do ngang qua mỏ mà **tuyệt đối không bị hút dính**.
+- **Hút nhẹ tiếp cận (Smart Pop-Snap)**: Khi người chơi tiếp cận mỏ đang có order ($R \le 1.6\text{m}$), nhân vật tự động hút nhẹ vào điểm neo khai thác (`MinerAnchor`), xoay mặt nhìn vào khối mỏ và tự động vung cuốc.
+- **Tự do hủy hành động bất kỳ lúc nào (Free Movement Cancel — Giải phóng gò bó)**:
+  - **Tuyệt đối không khóa cứng input**: Bất cứ lúc nào người chơi muốn đi phục vụ khách, nhặt tiền tip hay đổi sang mỏ khác, chỉ cần **kéo cần Joystick di chuyển**, nhân vật lập tức buông cuốc và chạy đi ngay lập tức.
+- **Bảo lưu tiến độ đào dở dang (`SavedCraftTimer` Retention)**:
+  - Khi hành động đào bị ngắt giữa chừng, toàn bộ phần trăm thời gian đã đào (ví dụ đã đào được $5.0\text{s} / 8.0\text{s} = 62.5\%$) được **bảo lưu nguyên vẹn tại khối mỏ**.
+  - Khi người chơi hoặc thợ Dân làng quay lại, nhân vật chỉ cần đào nốt phần thời gian còn lại ($3.0\text{s}$) là block văng ra, triệt tiêu hoàn toàn cảm giác ức chế phải đào lại từ đầu.
+- **Ngắt an toàn khi Quy hoạch mỏ**: Khi người chơi nhấc mỏ lên để dời vị trí hoặc hoán đổi ô đất, hành động đào cũng tự động ngắt an toàn và bảo lưu tiến độ sang vị trí mới.
+
+#### C. Chế Độ Nhàn Rỗi Tự Động (Auto-Pilot / Pure-Idle)
+- Trong menu Cài Đặt có nút **[Bật / Tắt Joystick]**.
+- Khi người chơi buông tay khỏi màn hình quá $1.5\text{s}$ (hoặc gạt Tắt Joystick), nhân vật chính tự động kích hoạt chế độ **Auto-Pilot**, tự tìm đến quầy đang có đơn hàng chưa có người nhận để làm việc, duy trì xưởng vận hành liên tục khi người chơi muốn rảnh tay.
 
 ```gherkin
-Feature: Order-Driven Mining & Magnet Pop-Snap with Action Lock
+Feature: Order-Driven Mining, Free Cancel & Progress Retention
   Scenario: Chạy ngang qua mỏ tự do khi không có Order
     Given trạm Mỏ Đất đã mở khóa nhưng hiện không có khách nào order Đất
     When người chơi điều khiển nhân vật chạy ngang qua Mỏ Đất
     Then nhân vật không bị hút dính vào mỏ và tiếp tục di chuyển tự do
 
-  Scenario: Hút dứt khoát và khóa cứng di chuyển khi có Order cần đào
-    Given có khách hàng đang chờ đơn Block Đất tại Quầy Tiếp Khách
-    When nhân vật bước vào bán kính tương tác của Mỏ Đất
-    Then nhân vật bị hút dứt khoát "póc" vào đúng điểm neo MinerAnchor
-    And input di chuyển bị khóa cứng hoàn toàn trong suốt thời gian đào
-    And khi đào xong, block được nhấc lên đầu, 1 order được tiêu thụ và mở khóa di chuyển
+  Scenario: Tự do ngắt đào khi đang cuốc và bảo lưu tiến độ
+    Given Quầy Mỏ Đá có thời gian chế tác là 8.0 giây
+    And người chơi đang đứng đào mỏ Đá được 5.0 giây (tiến độ đạt 62.5%)
+    When người chơi kéo Joystick di chuyển sang vị trí khác để nhặt tiền Tip
+    Then nhân vật lập tức buông cuốc và di chuyển tự do ngay tức thì
+    And trạm Mỏ Đá bảo lưu tiến độ đào dở dang ở mức 5.0 giây
+    When người chơi quay lại trạm Mỏ Đá tiếp tục đào
+    Then nhân vật chỉ cần đào thêm 3.0 giây để hoàn thành block Đá
 ```
 
 ---
@@ -219,12 +231,35 @@ graph TD
 
 ---
 
-### 3.6 Thuật Toán Điều Phối Thợ Dân Làng (Autonomous Task Dispatcher)
-- **Nguyên tắc điều phối**:
-  1. Khi có đơn hàng từ khách: Đơn được đẩy vào `OrderQueue` theo thứ tự thời gian (**FIFO**).
-  2. Khi một Thợ hoàn thành công việc hoặc vừa được spawn từ Giường: Quét toàn bộ các đơn hàng chưa có người nhận.
-  3. **Phá vỡ thế cân bằng (Distance Tie-breaker)**: Nếu có nhiều đơn hàng ngang hàng, Thợ tự động chọn Quầy nghề ở cự ly gần nhất tính theo khoảng cách Euclid để tối ưu hóa thời gian di chuyển.
-  4. **Di chuyển xuyên thấu (Pass-through Agents)**: Toàn bộ Dân làng và người chơi sử dụng Layer vật lý không va chạm lẫn nhau (chỉ va chạm với tường bao và quầy), triệt tiêu hoàn toàn lỗi kẹt góc hay tắc đường thường gặp trong game mô phỏng.
+### 3.6 Phân Hóa Nhân Sự & Quản Trị Nút Thắt Cổ Chai (Staff Archetypes & Bottleneck Problem Solving)
+
+Game loại bỏ hoàn toàn khái niệm "AI thợ hoàn hảo làm hết mọi việc". Mỗi nhóm nhân sự được thiết kế có **ưu và nhược điểm bù trừ lẫn nhau**, biến xưởng chế tác thành một bài toán quản trị chuỗi cung ứng mà người chơi phải trực tiếp suy nghĩ và can thiệp:
+
+#### A. Bảng Phân Hóa Vai Trò Nhân Sự (Ưu & Nhược Điểm Bù Trừ)
+
+| Nhóm Nhân Sự | Vai Trò & Điểm Mạnh | Khuyết Điểm & Hạn Chế Thiết Kế |
+|---|---|---|
+| **Thợ Mỏ Dân Làng (Miner)** | • Chuyên tâm khai thác mỏ khi có order.<br/>• Tự động tìm mỏ còn trống gần nhất. | • Tốc độ di chuyển chậm ($2.5\text{ m/s}$).<br/>• **Chỉ biết vác block lên Quầy trung chuyển, tuyệt đối không biết bán hàng cho khách**. |
+| **Nhân Viên Shop (Runner)** | • Tốc độ chạy nhanh ($4.0\text{ m/s}$).<br/>• Chuyên trách lấy block từ quầy trung chuyển ra giao cho khách. | • **Tuyệt đối không biết cầm cuốc đào mỏ**.<br/>• Thể lực yếu, chỉ bốc được tối đa 1 block/lần.<br/>• Dễ bị quá tải khi nhiều khách cùng gọi món. |
+| **Người Chơi (Shop Owner / Steve)** | • Đa năng toàn diện: vừa đào mỏ, vừa giao hàng.<br/>• Tốc độ đào nhanh gấp đôi ($x2$).<br/>• Có quyền giao hàng thẳng bỏ qua quầy trung chuyển.<br/>• Nhặt tip được thưởng thêm $+20\%$. | • Chỉ có 1 người duy nhất trên sàn, không thể phân thân ở nhiều vị trí cùng lúc.<br/>• Buộc phải liên tục quan sát xưởng để quyết định can thiệp vào khâu nào. |
+
+#### B. Ba Bài Toán Quản Trị Cốt Lõi Người Chơi Phải Giải Quyết (Core Problem Solving)
+1. **Bài toán Lệch Pha Cung - Cầu (Asymmetric Production Bottleneck)**:
+   - Quầy Đất đào siêu nhanh ($1.5\text{s}$) $\rightarrow$ Dễ làm đầy ứ Quầy trung chuyển ($4\text{ block}$ kim tự tháp). Khi ô quầy bị đầy, Thợ Đất buộc phải đứng chờ, lãng phí nhân công.
+   - Quầy Đá đào lâu ($8.0\text{s}$) $\rightarrow$ Khách gọi Đá phải chờ đợi sốt ruột.
+   - Một mình Runner không thể vừa bốc giải tỏa quầy Đất vừa chạy đi phục vụ khách gọi Đá $\rightarrow$ **Nút thắt cổ chai xuất hiện!**
+   - **Cách giải quyết**: Người chơi phải tự tay lao vào bốc phụ block Đất giao cho khách để giải phóng mặt bàn, hoặc lao vào mỏ Đá đào với tốc độ $x2$ để cứu khách đang chờ.
+2. **Bài toán Quy Hoạch Không Gian (Spatial Layout Optimization)**:
+   - Tận dụng cơ chế **Kéo thả hoán đổi vị trí mỏ (Swap Stations)**, người chơi phải tính toán:
+     - *"Nên đặt mỏ Đất ở gần Quầy trung chuyển để giảm thời gian chạy của Thợ Đất, hay đặt mỏ Đá ở gần để bù lại thời gian đào lâu?"*
+     - Bố trí sai vị trí sẽ khiến thợ mất quá nhiều thời gian chạy bộ, làm giảm $30 - 40\%$ tổng doanh thu toàn xưởng.
+3. **Quyết Định Đầu Tư Nâng Cấp Đúng Thời Điểm**:
+   - Khi xưởng ứ đọng hàng: Ưu tiên mua thêm **Giường Ngủ** để tuyển thêm Runner, thay vì tiếp tục nâng cấp cấp độ quầy mỏ làm hàng tràn ra nhiều hơn.
+
+#### C. Thuật Toán Điều Phối & Di Chuyển Xuyên Thấu (Autonomous Dispatcher)
+- **Hàng đợi đơn hàng trung tâm (FIFO $O(1)$)**: Phân phối đơn hàng công bằng cho các thợ rảnh việc.
+- **Phá vỡ thế cân bằng (Distance Tie-breaker)**: Thợ tự động chọn trạm mỏ ở cự ly gần nhất tính theo khoảng cách Euclid để tối ưu hóa quãng đường.
+- **Di chuyển xuyên thấu (Pass-through Agents)**: Toàn bộ Dân làng và người chơi sử dụng Layer vật lý không va chạm lẫn nhau (Zero Character Collision), triệt tiêu hoàn toàn lỗi kẹt góc hay tắc đường thường gặp trong game mô phỏng.
 
 ---
 
@@ -369,4 +404,104 @@ Feature: Single-Screen Incremental Core Loop & Payout
 
 ---
 
+## 7. Phụ Lục: Trích Lục Nhật Ký Tương Tác & Đồng Sáng Tạo Cùng AI (Human-AI Co-Creation Log)
+
+> **Tuyên ngôn phương pháp luận (Self-Contained Academic & Production Proof)**:  
+> Mục này đóng vai trò là **bằng chứng thực nghiệm khép kín** minh chứng cho quá trình nghiên cứu, phản biện và đồng thiết kế giữa **Tác giả (Miyuki / Lâm Tuyết Nhi)** và **Trợ lý Trí tuệ nhân tạo (AI Game Designer)**.  
+> Toàn bộ các trích đoạn đối thoại dưới đây là **nguyên văn câu lệnh (Raw Prompts)** và phản hồi thực tế trong quá trình xây dựng dự án, khẳng định vai trò làm chủ tư duy, định hướng bài toán của con người kết hợp cùng năng lực mô hình hóa, chuẩn hóa của AI.
+
+---
+
+### 7.1 Nguyên Tắc Phân Định Trách Nhiệm (Human-in-the-Loop Framework)
+
+```
++-----------------------------------------------------------------------------------+
+|                        QUY TRÌNH ĐỒNG THIẾT KẾ (PAIR-DESIGN)                      |
++-----------------------------------------------------------------------------------+
+| 1. CON NGƯỜI (Tác giả Miyuki) : Khởi tạo ý tưởng cốt lõi & Nhận diện rủi ro       |
+|                                 (Product Owner / Creative Lead)                   |
+|                                       │                                           |
+|                                       ▼                                           |
+| 2. TRỢ LÝ AI (AI Designer)    : Phân tích cơ chế, thiết lập công thức toán học    |
+|                                 và chuẩn hóa sơ đồ nghiệp vụ                      |
+|                                       │                                           |
+|                                       ▼                                           |
+| 3. CON NGƯỜI (Tác giả Miyuki) : Phản biện, thanh lọc tính năng & Phê duyệt GDD    |
++-----------------------------------------------------------------------------------+
+```
+
+---
+
+### 7.2 Trích Lục Đối Thoại Thực Tế & Quyết Định Thiết Kế (Prompt-Driven Transcripts)
+
+*(Dưới đây là các mốc trao đổi mang tính bước ngoặt cấu thành trực tiếp nên các cơ chế trong bản GDD_MVP này)*
+
+#### 📌 Mốc 1: Khởi Tạo Đề Tài & Phân Rã Đối Thủ (*Eatventure*)
+- **Nguyên văn câu lệnh của Tác giả (Prompt)**:
+  > *"1 em muốn lấy chủ đề cho game dựa trên một con game khá nổi tiếng là minecraft (kiểu thay vì các quán ăn thì sẽ là các cửa hàng bán theo các block được phân loại theo từng chủ đề của cửa hàng)... 3 có thể thực thi nhưng tạm thời chưa code vội, chúng ta cùng ngồi phân rã điểm mạnh và điểm yếu của con game eatventure để tối ưu những điểm yếu và tăng cường những điểm mạnh"*
+- **Phản hồi & Đóng góp của AI**: Phân tích điểm nghẽn "đĩa phẳng" của *Eatventure* (dễ tràn hàng gây tắc nghẽn dây chuyền) và đề xuất cơ chế sản xuất chỉ kích hoạt khi có đơn đặt hàng từ khách.
+- **Quyết định định hình trong GDD_MVP**: **Mục 1.1 & 1.2** — Xác lập thể loại Single-screen Voxel Idle Tycoon kết hợp Arcade, lấy chủ đề xưởng chế tác khối vuông phục vụ khách hàng Dân làng.
+
+---
+
+#### 📌 Mốc 2: Kiến Trúc Thợ Dân Làng & Xử Lý Va Chạm (Pass-through)
+- **Nguyên văn câu lệnh của Tác giả (Prompt)**:
+  > *"là một người chơi minecraft lâu năm như em, dân làng nên làm thành nhân viên thay vì là khách hàng... bài toán rất tốt, em có thêm một gợi ý nhỏ là cho phép các dân làng đi xuyên qua nhau, mỗi một quầy sau khi nâng cấp sẽ có thêm một block nghề để dân làng đến làm việc, quan trọng nhất là dân làng không sinh ra theo block nghề mà số lượng dân làng cũng nằm trong tiến trình nâng cấp"*
+- **Phản hồi & Đóng góp của AI**: Thiết kế mô hình Trạm nghề đa vị trí (Multi-slot Job-site Workstation) và cơ chế không va chạm vật lý (Zero Character Collision / Layer Mask Bypass) để triệt tiêu hoàn toàn lỗi kẹt góc khi xưởng đông đúc.
+- **Quyết định định hình trong GDD_MVP**: **Mục 1.3 (USP 3) & Mục 3.6** — Thuật toán Autonomous Task Dispatcher điều phối thợ theo FIFO + Khoảng cách gần nhất, nhân vật đi xuyên qua nhau, nâng cấp tuyển thợ thông qua nhánh Giường ngủ.
+
+---
+
+#### 📌 Mốc 3: Đột Phá Cơ Chế Điều Khiển Lai (Hybrid Control)
+- **Nguyên văn câu lệnh của Tác giả (Prompt)**:
+  > *"sẽ ra sao nếu thêm 1 USP nữa là có cả auto và có cả control... trước khi quyết định về hướng control của nhân vật, em muốn hỏi thiết kế game màn hình ngang hay dọc thì hợp lí hơn?... vậy theo chị joystick 4 nút hay joystick tròn?"*
+- **Phản hồi & Đóng góp của AI**: Đề xuất cơ chế điều khiển lai: Buông tay = Auto-Pilot (siêu thợ tự động); Chạm tay = Cần gạt nổi (Dynamic Floating Joystick 360 độ). Phân tích lợi thế màn hình dọc 9:16 tối ưu cho ngón tay cái khi chơi casual.
+- **Quyết định định hình trong GDD_MVP**: **Mục 1.3 (USP 1), Mục 3.1 & Mục 5** — Đặc tả hệ thống Hybrid Control (vận tốc 4.5m/s, bán kính 80px), cơ chế nam châm hút Pop-Snap khi mỏ có order và bố cục màn hình dọc 1 tay.
+
+---
+
+#### 📌 Mốc 4: Quản Trị Rủi Ro & Chiến Lược Cắt Gọt Phạm Vi (Scope Scoping)
+- **Nguyên văn câu lệnh của Tác giả (Prompt)**:
+  > *"được rồi, giờ quay lại ván cờ thực tế, unity không thể import model của blockbench, cũng như không tránh khỏi việc mình sẽ bị gán mác game fake minecraft, thời gian thực hiện dự án có hạn do lịch thời gian biểu cũng như là các vấn đề sức khỏe và tâm lý, vậy rủi ro lớn nhất của dự án này là gì"*
+- **Phản hồi & Đóng góp của AI**: Cảnh báo rủi ro lớn nhất là "quá tải tính năng" (Scope Creep) dẫn đến đứt gãy tiến độ. Đề xuất chiến lược giải cứu: Cắt bỏ toàn bộ các tính năng mở rộng dài hạn (nhiều biome, đồ bộ RPG phức tạp), dồn toàn lực hoàn thiện xuất sắc bản **Single-Screen Scoped MVP**.
+- **Quyết định định hình trong GDD_MVP**: **Mục 3.3** — Cô đọng vòng lặp sản xuất vào đúng 3 Quầy nghề cơ bản (Đất, Gỗ, Đá) trên một mặt phẳng duy nhất, bảo đảm 100% tính khả thi nghiệm thu đúng hạn.
+
+---
+
+#### 📌 Mốc 5: Bộ Đệm Xếp Chồng 3D Chống Nghẽn (Vertical Stacking)
+- **Nguyên văn câu lệnh của Tác giả (Prompt)**:
+  > *"trong lúc chơi eatventure, em còn để ý đến một chi tiết, trong những map có nhiều mặt hàng hóa và có ít ô để hàng ở quầy thì game cho phép hàng hóa này đè lên hàng hóa khác (miễn là trong 1 ô không bị trùng loại mặt hàng)"*
+- **Phản hồi & Đóng góp của AI**: Chuẩn hóa thành cơ chế Bộ đệm xếp chồng khối hộp 3D theo cấu trúc Kim tự tháp tam giác 4 block ($0.4\text{m}$) trên mỗi ô `CounterSlot`, tối ưu hóa hiệu ứng thị giác xưởng hàng đầy ắp.
+- **Quyết định định hình trong GDD_MVP**: **Mục 1.3 (USP 2) & Mục 3.2.A** — Kiến trúc Quầy trung chuyển `CheckoutCounter` với các ô đệm 4 block đồng nhất loại.
+
+---
+
+#### 📌 Mốc 6: Chuẩn Hóa Chuỗi Cung Ứng & Kiến Trúc Trung Gian (Event Channels)
+- **Nguyên văn câu lệnh của Tác giả (Prompt)**:
+  > *"nhưng xác định lại flow core loop 1 chút: khách hàng vào tiệm -> một nhân viên đang idle -> đến nhận order của khách -> nhân viên đi lấy hàng hoặc khai thác hàng -> mang ra đưa cho khách... và code thì luôn thông qua trung gian chứ không trực tiếp cộng tiền trong code giao hàng cho khách"*
+- **Phản hồi & Đóng góp của AI**: Dựng sơ đồ chuỗi cung ứng khép kín 5 bước. Thiết lập nguyên tắc Event-Driven SO: Khi giao hàng chỉ phát sự kiện `OnOrderDelivered`, hệ thống `EconomyManager` độc lập đón nhận sự kiện để cộng tiền, tránh coupling mã nguồn.
+- **Quyết định định hình trong GDD_MVP**: **Mục 2.1, Mục 2.2 & Mục 4.1** — Sơ đồ luồng đơn hàng dây chuyền và mô hình quản lý dữ liệu tĩnh bằng ScriptableObjects.
+
+---
+
+#### 📌 Mốc 7: Lượt Phản Biện Chuyên Môn & Hoàn Thiện Triết Lý Game Design (Mentor Feedback Iteration)
+- **Phản biện từ Giảng viên / Chuyên gia (Mentor Review)**:
+  > *"1. Việc người chơi bắt tay vào điều khiển nhân vật có tạo ra giá trị đặc biệt gì hơn Auto? Nếu không tạo ra sự khác biệt người dùng sẽ nhanh chán... 2. Cơ chế khóa chân khi đào gây cảm giác gò bó... 3. Đối với worker, đừng cố làm nó thông minh nhất có thể. Game tạo ra là để người chơi giải quyết vấn đề. Hãy làm cho worker có hạn chế để người dùng suy nghĩ sắp xếp..."*
+- **Giải pháp & Quyết định tinh chỉnh của Tác giả cùng AI (Iterative Design)**:
+  1. *Làm rõ giá trị thặng dư của Active Play*: Nhân vật người chơi được cấp quyền năng "Thợ Cả" (Tốc độ đào nhanh $x2$, có thể giao thẳng hàng bỏ qua quầy trung chuyển, nhặt tip được bonus $+20\%$).
+  2. *Giải phóng gò bó di chuyển*: Loại bỏ hoàn toàn cơ chế khóa cứng input khi đào mỏ. Chuyển thành cơ chế **Hủy đào tự do kèm Bảo lưu tiến độ (`Progress Retention`)** — người chơi kéo Joystick là hủy ngay tức thì, tiến độ % đào dở được lưu lại trên khối mỏ.
+  3. *Phân hóa khuyết điểm nhân sự*: Chia ranh giới nghiêm ngặt giữa Thợ Mỏ (chỉ đào không bán) và Runner (chỉ bán không đào), tạo ra bài toán lệch pha cung - cầu và bài toán quy hoạch không gian (Swap Plots) buộc người chơi phải liên tục tư duy điều phối.
+- **Quyết định định hình trong GDD_MVP**: **Mục 1.2, Mục 1.3 (USP 1 & 3), Mục 3.1 & Mục 3.6**.
+
+---
+
+### 7.3 Đánh Giá Giá Trị Gia Tăng Từ Việc Ứng Dụng AI
+1. **Đối với Tác giả**: Giúp một nhà phát triển độc lập (Solo Developer) giải tỏa áp lực về tính toán công thức kinh tế, quy chuẩn hóa tài liệu chuyên nghiệp và sở hữu một đối tác phản biện đa chiều (đóng vai người chơi, nhà đầu tư) ngay trong quá trình lên ý tưởng.
+2. **Đối với Sản phẩm**: Rút ngắn thời gian từ ý tưởng thô đến bản đặc tả kỹ thuật khả thi từ vài tuần xuống còn vài ngày, loại bỏ các lỗi thiết kế hệ thống nghiêm trọng (như deadlock chuyền hàng hay coupling mã nguồn) ngay từ khâu thiết kế trên giấy.
+3. **Tính thích ứng qua các vòng lặp (Feedback Agility)**: Thể hiện khả năng tiếp thu phản biện chuyên môn từ Giảng viên/Chuyên gia một cách nhanh chóng, sử dụng AI để phân tích và chuẩn hóa lại tài liệu chỉ trong vài giờ làm việc.
+
+---
+
 *Hết tài liệu Game Design Document.*
+
+
