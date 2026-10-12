@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using MineMart.Core.Events;
 using MineMart.Data;
+using MineMart.Feel;
 using MineMart.Gameplay.Customers;
 using MineMart.Gameplay.Mining;
 using MineMart.Gameplay.Orders;
@@ -27,6 +28,23 @@ namespace MineMart.Gameplay.Checkout {
 
         [Tooltip("Điểm neo trên mặt bàn nơi tiền tip sẽ xuất hiện sau khi phục vụ xong khách")]
         [SerializeField] private Transform _tipAnchor;
+
+        [Header("Tip Gold Particle Effect (Hiệu Ứng Hạt Vàng Tỏa Ra)")]
+        [Tooltip("Prefab model tùy biến cho các hạt vàng tỏa ra khi đưa block cho khách (để trống sẽ dùng thiết lập từ quầy hoặc hạt vàng tròn mặc định)")]
+        [SerializeField] private GameObject _tipParticlePrefab;
+
+        [Tooltip("Số lượng hạt tỏa ra mỗi lần giao hàng thành công")]
+        [SerializeField] private int _tipParticleCount = 6;
+
+        [Header("Tip Pickup System (Hệ Thống Rơi Tiền Tip)")]
+        [Tooltip("Data cấu hình chỉ số tỉ lệ để lại tip thuần (FloatStatSO)")]
+        [SerializeField] private FloatStatSO _tipChanceStat;
+
+        [Tooltip("Prefab tiền tip rơi trên mặt bàn (để trống sẽ tự tạo đồng tiền vàng xoay tròn mặc định)")]
+        [SerializeField] private GameObject _worldTipPrefab;
+
+        [Tooltip("Màu sắc tùy chỉnh của tiền tip fallback khi chưa có Prefab (mặc định: Vàng Gold rực rỡ)")]
+        [SerializeField] private Color _fallbackTipColor = new Color(1.0f, 0.85f, 0.15f, 1.0f);
 
         [Header("3D Order Visual Settings")]
         [Tooltip("Độ cao của bong bóng 3D so với sàn vị trí khách đứng (mặc định: 1.75m)")]
@@ -299,6 +317,21 @@ namespace MineMart.Gameplay.Checkout {
                 Destroy(carriedBlockInstance);
             }
 
+            // 1.5. Phát hiệu ứng các hạt vàng tròn (hoặc model tùy biến) tỏa ra tại vị trí TipAnchor
+            Vector3 tipPos = _tipAnchor != null ? _tipAnchor.position : (CustomerAnchor.position + Vector3.up * 0.8f);
+            GameObject particlePrefab = GetParticlePrefab();
+            TipCoinBurstEffect.Play(tipPos, particlePrefab, _tipParticleCount);
+
+            // 1.6. Kiểm tra tỉ lệ rơi tiền Tip tại quầy (Tỉ lệ đọc trực tiếp từ FloatStatSO.CurrentValue)
+            float tipChance = _tipChanceStat != null ? _tipChanceStat.CurrentValue : 0.15f;
+
+            if (UnityEngine.Random.value <= tipChance) {
+                // Tiền tip = Trung bình cộng giá của toàn bộ block đã mở bán tại shop nhân với 2
+                double tipAmount = MiningStation.CalculateTipAmount();
+                WorldTipPickup.CreateTipInstance(tipPos, tipAmount, _worldTipPrefab, _fallbackTipColor);
+                Debug.Log($"<color=#f1c40f>[CustomerSlot - {name}]</color> 💰 Khách đã để lại {tipAmount} Vàng tiền Tip tại quầy!");
+            }
+
             // 2. Bắn sự kiện thanh toán qua kênh OrderDeliveredEventChannelSO để EconomyManager cộng vàng
             if (orderDeliveredChannel != null) {
                 OrderDeliveryPayload payload = new OrderDeliveryPayload(
@@ -328,6 +361,13 @@ namespace MineMart.Gameplay.Checkout {
             Debug.Log($"[CustomerSlot - {name}] ✅ Giao hàng thành công! Đã nhận {payout} Vàng từ khách!");
 
             return true;
+        }
+
+        private GameObject GetParticlePrefab() {
+            if (_tipParticlePrefab != null) return _tipParticlePrefab;
+            var parentCounter = GetComponentInParent<CustomerCounter>();
+            if (parentCounter != null) return parentCounter.TipParticlePrefab;
+            return null;
         }
 
         /// <summary>

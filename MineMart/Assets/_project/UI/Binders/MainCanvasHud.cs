@@ -36,6 +36,7 @@ namespace MineMart.UI.Binders {
 
         [Header("Event Channels")]
         [SerializeField] private GoldChangedEventChannelSO _goldChangedChannel;
+        [SerializeField] private EmeraldChangedEventChannelSO _emeraldChangedChannel;
 
         [Header("Testing")]
         [Tooltip("Bật phím tắt Space / G trong Editor để test cộng 100 Vàng")]
@@ -51,7 +52,9 @@ namespace MineMart.UI.Binders {
         public event Action OnAdsClicked;
 
         private double _lastGold = -1;
+        private int _lastEmerald = -1;
         private Transform _coinBarTransform;
+        private Transform _emeraldBarTransform;
 
         private void Reset() {
             AutoFindComponents();
@@ -80,6 +83,7 @@ namespace MineMart.UI.Binders {
                     _coinBarTransform = t.transform.parent; // Coin_Bar
                 } else if (_emeraldText == null && t.gameObject.name == "Emerald_Text") {
                     _emeraldText = t;
+                    _emeraldBarTransform = t.transform.parent; // Emerald_Bar
                 }
             }
 
@@ -121,6 +125,14 @@ namespace MineMart.UI.Binders {
                     _goldChangedChannel = UnityEditor.AssetDatabase.LoadAssetAtPath<GoldChangedEventChannelSO>(path);
                 }
             }
+
+            if (_emeraldChangedChannel == null) {
+                string[] guids = UnityEditor.AssetDatabase.FindAssets("t:EmeraldChangedEventChannelSO Event_EmeraldChanged");
+                if (guids != null && guids.Length > 0) {
+                    string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
+                    _emeraldChangedChannel = UnityEditor.AssetDatabase.LoadAssetAtPath<EmeraldChangedEventChannelSO>(path);
+                }
+            }
 #endif
         }
 
@@ -143,6 +155,9 @@ namespace MineMart.UI.Binders {
             if (_goldChangedChannel != null) {
                 _goldChangedChannel.OnGoldChanged += HandleGoldChanged;
             }
+            if (_emeraldChangedChannel != null) {
+                _emeraldChangedChannel.OnEmeraldChanged += HandleEmeraldChanged;
+            }
 
             RegisterButtons();
             ForceSyncGold();
@@ -150,15 +165,29 @@ namespace MineMart.UI.Binders {
 
         private void Start() {
             ForceSyncGold();
+            InitRuntimeControls();
+        }
+
+        private void InitRuntimeControls() {
+            VirtualJoystick.GetOrCreateInScene();
+            SettingsDialogUI.GetOrCreateInScene();
+            EmeraldUpgradeTreePanelUI.GetOrCreateInScene();
+            AfkWelcomeBackPopupUI.GetOrCreateInScene();
         }
 
         private void Update() {
-            // Đọc trực tiếp EconomyManager.Instance.CurrentGold mỗi frame
-            // Đảm bảo CoinText luôn phản hồi 100% thời gian thực
+            // Đọc trực tiếp EconomyManager (Soft Currency) & HardCurrencyManager (Hard Currency) mỗi frame
             if (EconomyManager.Instance != null) {
                 double current = EconomyManager.Instance.CurrentGold;
                 if (Math.Abs(current - _lastGold) > 0.001) {
                     HandleGoldChanged(current);
+                }
+            }
+
+            if (HardCurrencyManager.Instance != null) {
+                int currentEmerald = HardCurrencyManager.Instance.CurrentEmerald;
+                if (currentEmerald != _lastEmerald) {
+                    HandleEmeraldChanged(currentEmerald);
                 }
             }
 
@@ -176,6 +205,9 @@ namespace MineMart.UI.Binders {
         private void OnDisable() {
             if (_goldChangedChannel != null) {
                 _goldChangedChannel.OnGoldChanged -= HandleGoldChanged;
+            }
+            if (_emeraldChangedChannel != null) {
+                _emeraldChangedChannel.OnEmeraldChanged -= HandleEmeraldChanged;
             }
 
             UnregisterButtons();
@@ -195,6 +227,18 @@ namespace MineMart.UI.Binders {
             }
         }
 
+        private void HandleEmeraldChanged(int newAmount) {
+            bool hasChanged = (_lastEmerald >= 0 && newAmount != _lastEmerald);
+            _lastEmerald = newAmount;
+
+            UpdateEmeraldDisplay(newAmount);
+
+            // Hiệu ứng nảy nhẹ thanh Gem khi nhận thêm Gem
+            if (hasChanged) {
+                PunchEmeraldScaleEffect();
+            }
+        }
+
         public void UpdateEmeraldDisplay(int amount) {
             if (_emeraldText != null) {
                 _emeraldText.text = amount.ToString();
@@ -202,13 +246,21 @@ namespace MineMart.UI.Binders {
         }
 
         private void ForceSyncGold() {
+            ForceSyncBalances();
+        }
+
+        private void ForceSyncBalances() {
             if (EconomyManager.Instance != null) {
                 HandleGoldChanged(EconomyManager.Instance.CurrentGold);
             } else {
                 if (_coinText != null) _coinText.text = "0";
             }
 
-            UpdateEmeraldDisplay(0);
+            if (HardCurrencyManager.Instance != null) {
+                HandleEmeraldChanged(HardCurrencyManager.Instance.CurrentEmerald);
+            } else {
+                UpdateEmeraldDisplay(0);
+            }
         }
 
         private void PunchScaleEffect() {
@@ -228,9 +280,29 @@ namespace MineMart.UI.Binders {
             }
         }
 
+        private void PunchEmeraldScaleEffect() {
+            Transform target = _emeraldBarTransform != null ? _emeraldBarTransform : (_emeraldText != null ? _emeraldText.transform : null);
+            if (target != null) {
+                target.localScale = Vector3.one * 1.15f;
+                CancelInvoke(nameof(ResetEmeraldScale));
+                Invoke(nameof(ResetEmeraldScale), 0.1f);
+            }
+        }
+
+        private void ResetEmeraldScale() {
+            Transform target = _emeraldBarTransform != null ? _emeraldBarTransform : (_emeraldText != null ? _emeraldText.transform : null);
+            if (target != null) {
+                target.localScale = Vector3.one;
+            }
+        }
+
         private void RegisterButtons() {
             if (_settingBtn != null) _settingBtn.onClick.AddListener(() => {
                 Debug.Log("[Canvas UI] Bấm nút SettingBtn!");
+                var dialog = SettingsDialogUI.GetOrCreateInScene();
+                if (dialog != null) {
+                    dialog.Toggle();
+                }
                 OnSettingClicked?.Invoke();
             });
 
@@ -246,6 +318,10 @@ namespace MineMart.UI.Binders {
 
             if (_eugtBtn != null) _eugtBtn.onClick.AddListener(() => {
                 Debug.Log("[Canvas UI] Bấm nút EUGTbtn (Emerald Upgrade Tree)!");
+                var eugtPanel = EmeraldUpgradeTreePanelUI.GetOrCreateInScene();
+                if (eugtPanel != null) {
+                    eugtPanel.Toggle();
+                }
                 OnEUGTClicked?.Invoke();
             });
 

@@ -217,7 +217,9 @@ namespace MineMart.UI.Binders {
         public void Show(WorkstationPlot plot) {
             if (plot == null || !plot.IsEmpty) return;
 
-            // Đóng bảng nâng cấp bản đồ nếu đang mở
+            // Chặn mở nếu bất kỳ bảng UI toàn màn hình nào đang mở
+            if (EmeraldUpgradeTreePanelUI.Instance != null && EmeraldUpgradeTreePanelUI.Instance.IsOpen) return;
+            if (SettingsDialogUI.Instance != null && SettingsDialogUI.Instance.IsOpen) return;
             if (MapUpgradePanelUI.Instance != null && MapUpgradePanelUI.Instance.IsOpen) {
                 MapUpgradePanelUI.Instance.Close();
             }
@@ -254,9 +256,7 @@ namespace MineMart.UI.Binders {
         }
 
         /// <summary>
-        /// Đóng bong bóng cửa hàng mỏ.
-        /// Giữ root GameObject luôn Active để tiếp tục lắng nghe sự kiện OnEmptyPlotTapped.
-        /// Ẩn toàn bộ thẻ trong Pool để model 3D không còn hiển thị ngoài màn hình.
+        /// Đóng bong bóng cửa hàng mỏ và dọn dẹp sạch sẽ toàn bộ model 3D.
         /// </summary>
         public void Hide() {
             _currentPlot = null;
@@ -267,9 +267,10 @@ namespace MineMart.UI.Binders {
                 _canvasGroup.blocksRaycasts = false;
             }
 
-            // Ẩn tất cả thẻ trong pool để tắt sạch các model 3D preview
+            // Dọn dẹp sạch sẽ 100% tất cả model 3D của thẻ trong pool
             for (int i = 0; i < _cardPool.Count; i++) {
                 if (_cardPool[i] != null) {
+                    _cardPool[i].Cleanup3DModel();
                     _cardPool[i].gameObject.SetActive(false);
                 }
             }
@@ -286,10 +287,10 @@ namespace MineMart.UI.Binders {
         private void HandleEmptyPlotTapped(WorkstationPlot plot) {
             if (plot == null) return;
 
-            // Nếu bảng nâng cấp map đang mở, không kích hoạt mở shop ô đất
-            if (MapUpgradePanelUI.Instance != null && MapUpgradePanelUI.Instance.IsOpen) {
-                return;
-            }
+            // Nếu bảng nâng cấp map, cây nâng cấp ngọc, hoặc cài đặt đang mở -> không mở shop ô đất
+            if (MapUpgradePanelUI.Instance != null && MapUpgradePanelUI.Instance.IsOpen) return;
+            if (EmeraldUpgradeTreePanelUI.Instance != null && EmeraldUpgradeTreePanelUI.Instance.IsOpen) return;
+            if (SettingsDialogUI.Instance != null && SettingsDialogUI.Instance.IsOpen) return;
 
             // Nếu bấm lại đúng ô đang mở -> đóng; nếu bấm ô khác -> mở ô đó
             if (IsShowing && _currentPlot == plot) {

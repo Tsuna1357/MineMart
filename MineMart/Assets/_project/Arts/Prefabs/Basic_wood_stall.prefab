@@ -60,8 +60,15 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 727a0c73c6fe0884cb9f7bb4a693c162, type: 2}
   - {fileID: 11400000, guid: 6e2014f84af6d264ca0c742bba39745b, type: 2}
   - {fileID: 11400000, guid: 5d53dc1b6a688394eaab286e6becff16, type: 2}
+  - {fileID: 11400000, guid: fbb1fffcb95434c4bb82023a7c450528, type: 2}
   _pendingOrders: 0
   _requireOrderToMine: 1
+  _customProgressBarPrefab: {fileID: 0}
+  _customProgressFillPrefab: {fileID: 0}
+  _customProgressContainerPrefab: {fileID: 0}
+  _fillDirection: 0
+  _keepCustomModelMaterials: 1
+  _billboardToCamera: 0
   _progressVisualHeight: 1.6
   _progressCubeSize: 0.35
   _showProgressVisual: 1
@@ -89,7 +96,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
+  m_Size: {x: 1, y: 3, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &6129540351278001477
 GameObject:

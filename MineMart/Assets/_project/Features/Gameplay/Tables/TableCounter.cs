@@ -26,10 +26,15 @@ namespace MineMart.Gameplay.Tables {
         [Tooltip("Điểm neo nơi nhân viên đứng phục vụ")]
         [SerializeField] private Transform _serverAnchor;
 
+        [Header("Tip Gold Particle Effect (Hiệu Ứng Hạt Vàng Tỏa Ra)")]
+        [Tooltip("Prefab model tùy biến cho các hạt vàng tỏa ra tại bàn khi giao block cho khách (nếu các slot con không gán riêng, sẽ dùng prefab này)")]
+        [SerializeField] private GameObject _tipParticlePrefab;
+
         [Header("Event Channels")]
         [Tooltip("Kênh phát tín hiệu khi đơn hàng được giao thành công cho khách tại bàn")]
         [SerializeField] private OrderDeliveredEventChannelSO _orderDeliveredChannel;
 
+        public GameObject TipParticlePrefab => _tipParticlePrefab;
         public IReadOnlyList<TableSlot> Slots => _slots;
         public int SlotCount => _slots != null ? _slots.Length : 0;
         public OrderDeliveredEventChannelSO OrderDeliveredChannel => _orderDeliveredChannel;

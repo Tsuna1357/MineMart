@@ -98,8 +98,17 @@ namespace MineMart.Data {
         [Tooltip("Số lượng Thợ được kích hoạt thêm mỗi cấp (Dành cho AddWorkers, vd: 1 = active 1 thợ, 2 = active 2 thợ một lúc)")]
         [SerializeField] private int _workersAddedPerLevel = 1;
 
+        [Tooltip("Prefab Thợ tùy biến riêng cho thẻ nâng cấp này. Để trống thì lấy Prefab từ MapManager.")]
+        [SerializeField] private GameObject _workerPrefab;
+
         [Tooltip("Số lượng khách tăng thêm mỗi cấp (Dành cho AddCustomers, vd: 1, 2, 5 khách...)")]
         [SerializeField] private int _customerBonusPerLevel = 1;
+
+        [Tooltip("Có kích hoạt thêm bàn ngoài trời / vật thể ngoại cảnh khi mua thẻ nâng cấp này không (Dành cho AddCustomers)")]
+        [SerializeField] private bool _activateOutdoorTable = false;
+
+        [Tooltip("Chỉ số bàn trong danh sách Customer Outdoor Tables của MapManager (-1 = tự động theo thứ tự các thẻ thêm bàn)")]
+        [SerializeField] private int _outdoorTableIndex = -1;
 
         [Tooltip("Hệ số nhân giá bán block (Dành cho MultiplyBlockPrice, vd: 2.0 = x2 giá)")]
         [SerializeField] private float _priceMultiplierValue = 2.0f;
@@ -121,9 +130,12 @@ namespace MineMart.Data {
         public MapUpgradeScope TargetScope => _targetScope;
         public StallDataSO TargetStall => _targetStall;
         public WorkerRole WorkerRole => _workerRole;
+        public GameObject WorkerPrefab => _workerPrefab;
 
         public int WorkersAddedPerLevel => _workersAddedPerLevel > 0 ? _workersAddedPerLevel : 1;
         public int CustomerBonusPerLevel => _customerBonusPerLevel > 0 ? _customerBonusPerLevel : 1;
+        public bool ActivateOutdoorTable => _activateOutdoorTable;
+        public int OutdoorTableIndex => _outdoorTableIndex;
         public float PriceMultiplierValue => _priceMultiplierValue > 0 ? _priceMultiplierValue : 2.0f;
         public float SpeedBonusPercent => _speedBonusPercent > 0 ? _speedBonusPercent : 20f;
         public float MiningTimeReduction => _miningTimeReduction > 0 ? _miningTimeReduction : 0.2f;
@@ -149,6 +161,10 @@ namespace MineMart.Data {
         [SerializeField] private string _mapId = "map_01";
         [SerializeField] private string _mapName = "Đồng Bằng Khởi Nguyên";
 
+        [Header("Map Audio (BGM)")]
+        [Tooltip("Nhạc nền riêng của Bản đồ này. Sẽ tự động phát khi bước vào Map.")]
+        [SerializeField] private AudioClip _mapBgmClip;
+
         [Header("Stalls on this Map")]
         [Tooltip("Danh sách các mỏ xuất hiện trên Map này kèm chỉ số kinh tế")]
         [SerializeField] private List<StallConfigOnMap> _stalls = new List<StallConfigOnMap>();
@@ -159,6 +175,7 @@ namespace MineMart.Data {
 
         public string MapId => _mapId;
         public string MapName => _mapName;
+        public AudioClip MapBgmClip => _mapBgmClip;
         public IReadOnlyList<StallConfigOnMap> Stalls => _stalls;
         public IReadOnlyList<MapUpgradeConfig> Upgrades => _upgrades;
 

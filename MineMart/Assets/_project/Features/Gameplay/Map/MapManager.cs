@@ -6,6 +6,7 @@ using MineMart.Gameplay.Mining;
 using MineMart.Gameplay.Customers;
 using MineMart.Gameplay.Player;
 using MineMart.Gameplay.Staff;
+using MineMart.Gameplay.Persistence;
 using MineMart.Feel;
 
 namespace MineMart.Gameplay.Map {
@@ -34,18 +35,23 @@ namespace MineMart.Gameplay.Map {
         [Tooltip("Hồ sơ dữ liệu bản đồ hiện tại")]
         [SerializeField] private MapDataSO _currentMapData;
 
-        [Header("Worker Management by Role (AddWorkers Upgrade)")]
-        [Tooltip("Danh sách Thợ Đào (Miner) trên Scene (đang ẩn). Kích hoạt khi mua nâng cấp AddWorkers loại Miner.")]
-        [SerializeField] private List<GameObject> _minerWorkers = new List<GameObject>();
+        [Header("Worker Dynamic Spawning (AddWorkers Upgrade)")]
+        [Tooltip("Transform vị trí xuất hiện của nhân viên khi được Instantiate. Nếu để trống sẽ tự động tìm 'WorkerSpawnPoint' hoặc lấy chính MapManager.")]
+        [SerializeField] private Transform _workerSpawnPoint;
 
-        [Tooltip("Danh sách Thợ Vận Chuyển (Runner) trên Scene (đang ẩn). Kích hoạt khi mua nâng cấp AddWorkers loại Runner.")]
-        [SerializeField] private List<GameObject> _runnerWorkers = new List<GameObject>();
+        [Header("Worker Prefabs")]
+        [Tooltip("Prefab Thợ Đào (Miner).")]
+        [SerializeField] private GameObject _minerPrefab;
 
-        [Tooltip("Danh sách Thợ Bán Trực Tiếp (DirectSeller) trên Scene (đang ẩn). Kích hoạt khi mua nâng cấp AddWorkers loại DirectSeller.")]
-        [SerializeField] private List<GameObject> _directSellerWorkers = new List<GameObject>();
+        [Tooltip("Prefab Thợ Vận Chuyển (Runner).")]
+        [SerializeField] private GameObject _runnerPrefab;
 
-        // Giữ lại trường cũ để tự động chuyển đổi an toàn cho Scene cũ trong OnValidate
-        [SerializeField, HideInInspector] private List<GameObject> _workerPool = new List<GameObject>();
+        [Tooltip("Prefab Thợ Bán Trực Tiếp (DirectSeller).")]
+        [SerializeField] private GameObject _directSellerPrefab;
+
+        // Danh sách nhân viên đang hoạt động được sinh động tại runtime
+        private readonly List<WorkerAgent> _spawnedWorkers = new List<WorkerAgent>();
+        public IReadOnlyList<WorkerAgent> SpawnedWorkers => _spawnedWorkers;
 
         [Header("Customer Outdoor Tables / Props (AddCustomers Upgrade)")]
         [Tooltip("Danh sách GameObject bàn ngoài trời / vật thể Scene tương ứng theo từng cấp nâng cấp khách hàng (Phần tử 0 = Cấp 1, Phần tử 1 = Cấp 2...). Nếu để trống (null) hoặc setActive = false thì bỏ qua.")]
@@ -65,20 +71,60 @@ namespace MineMart.Gameplay.Map {
             }
         }
 
-        public IReadOnlyList<GameObject> MinerWorkers => _minerWorkers;
-        public IReadOnlyList<GameObject> RunnerWorkers => _runnerWorkers;
-        public IReadOnlyList<GameObject> DirectSellerWorkers => _directSellerWorkers;
+        public Transform WorkerSpawnPoint {
+            get {
+                if (_workerSpawnPoint != null) return _workerSpawnPoint;
+                var found = transform.Find("WorkerSpawnPoint");
+                if (found != null) return found;
+                found = transform.Find("StaffSpawnPoint");
+                if (found != null) return found;
+                var sceneObj = GameObject.Find("WorkerSpawnPoint");
+                if (sceneObj != null) return sceneObj.transform;
+                return transform;
+            }
+        }
 
-        /// <summary>
-        /// Danh sách tổng hợp toàn bộ thợ trên Scene (dành cho tương thích ngược).
-        /// </summary>
+        public IReadOnlyList<GameObject> MinerWorkers {
+            get {
+                var list = new List<GameObject>();
+                for (int i = 0; i < _spawnedWorkers.Count; i++) {
+                    if (_spawnedWorkers[i] != null && _spawnedWorkers[i].Role == WorkerRole.Miner)
+                        list.Add(_spawnedWorkers[i].gameObject);
+                }
+                return list;
+            }
+        }
+
+        public IReadOnlyList<GameObject> RunnerWorkers {
+            get {
+                var list = new List<GameObject>();
+                for (int i = 0; i < _spawnedWorkers.Count; i++) {
+                    if (_spawnedWorkers[i] != null && _spawnedWorkers[i].Role == WorkerRole.Runner)
+                        list.Add(_spawnedWorkers[i].gameObject);
+                }
+                return list;
+            }
+        }
+
+        public IReadOnlyList<GameObject> DirectSellerWorkers {
+            get {
+                var list = new List<GameObject>();
+                for (int i = 0; i < _spawnedWorkers.Count; i++) {
+                    if (_spawnedWorkers[i] != null && _spawnedWorkers[i].Role == WorkerRole.DirectSeller)
+                        list.Add(_spawnedWorkers[i].gameObject);
+                }
+                return list;
+            }
+        }
+
         public IReadOnlyList<GameObject> WorkerPool {
             get {
-                var combined = new List<GameObject>(_minerWorkers.Count + _runnerWorkers.Count + _directSellerWorkers.Count);
-                combined.AddRange(_minerWorkers);
-                combined.AddRange(_runnerWorkers);
-                combined.AddRange(_directSellerWorkers);
-                return combined;
+                var list = new List<GameObject>();
+                for (int i = 0; i < _spawnedWorkers.Count; i++) {
+                    if (_spawnedWorkers[i] != null)
+                        list.Add(_spawnedWorkers[i].gameObject);
+                }
+                return list;
             }
         }
 
@@ -99,6 +145,17 @@ namespace MineMart.Gameplay.Map {
         private void Start() {
             ApplyInitialMapSettings();
             EnsureMapCameraController();
+
+            if (MineMart.Economy.EconomyManager.Instance != null && _currentMapData != null) {
+                MineMart.Economy.EconomyManager.Instance.InitializeForMap(_currentMapData.MapId, 0);
+            }
+
+            // Tự động phát nhạc nền riêng của Bản đồ này (nếu có cấu hình trong MapDataSO)
+            if (_currentMapData != null && _currentMapData.MapBgmClip != null) {
+                if (MineMart.Core.Audio.AudioManager.Instance != null) {
+                    MineMart.Core.Audio.AudioManager.Instance.PlayMusic(_currentMapData.MapBgmClip);
+                }
+            }
         }
 
         private void EnsureMapCameraController() {
@@ -284,6 +341,42 @@ namespace MineMart.Gameplay.Map {
         }
 
         /// <summary>
+        /// Lấy toàn bộ danh sách cấp độ các nâng cấp của Map hiện tại để lưu game độc lập cho từng Map.
+        /// </summary>
+        public Dictionary<string, int> GetAllUpgradeLevels() {
+            return new Dictionary<string, int>(_upgradeLevels);
+        }
+
+        /// <summary>
+        /// Nạp lại cấp độ các nâng cấp cho Map hiện tại từ dữ liệu lưu độc lập của Map.
+        /// </summary>
+        public void LoadUpgradeLevels(Dictionary<string, int> loadedLevels) {
+            _upgradeLevels.Clear();
+            if (loadedLevels != null) {
+                foreach (var kvp in loadedLevels) {
+                    if (!string.IsNullOrEmpty(kvp.Key)) {
+                        _upgradeLevels[kvp.Key] = Mathf.Max(0, kvp.Value);
+                    }
+                }
+            }
+            ApplyUpgradeEffectsImmediately();
+        }
+
+        /// <summary>
+        /// Đặt lại toàn bộ nâng cấp của Map này về cấp 0 phục vụ chức năng Reset Tiến Trình.
+        /// </summary>
+        public void ResetAllUpgrades() {
+            _upgradeLevels.Clear();
+            for (int i = _spawnedWorkers.Count - 1; i >= 0; i--) {
+                if (_spawnedWorkers[i] != null) {
+                    Destroy(_spawnedWorkers[i].gameObject);
+                }
+            }
+            _spawnedWorkers.Clear();
+            ApplyUpgradeEffectsImmediately();
+        }
+
+        /// <summary>
         /// Lấy chi phí vàng để nâng cấp lên cấp tiếp theo.
         /// </summary>
         public double GetUpgradeCost(MapUpgradeConfig upgrade) {
@@ -404,58 +497,100 @@ namespace MineMart.Gameplay.Map {
                  + GetUnlockedWorkersCount(WorkerRole.DirectSeller);
         }
 
+        public GameObject GetPrefabForRole(WorkerRole role, GameObject overridePrefab = null) {
+            if (overridePrefab != null) return overridePrefab;
+            switch (role) {
+                case WorkerRole.Miner:
+                    return _minerPrefab;
+                case WorkerRole.Runner:
+                    return _runnerPrefab;
+                case WorkerRole.DirectSeller:
+                    return _directSellerPrefab;
+                default:
+                    return null;
+            }
+        }
+
+        public int GetSpawnedWorkerCount(WorkerRole role) {
+            int count = 0;
+            for (int i = 0; i < _spawnedWorkers.Count; i++) {
+                if (_spawnedWorkers[i] != null && _spawnedWorkers[i].Role == role) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        public int GetTotalSpawnedWorkers() {
+            _spawnedWorkers.RemoveAll(w => w == null);
+            return _spawnedWorkers.Count;
+        }
+
+        /// <summary>
+        /// Lấy dữ liệu lưu trữ số lượng và từng loại worker trên map hiện tại.
+        /// </summary>
+        public List<WorkerCountSaveEntry> GetWorkersCountSaveData() {
+            var list = new List<WorkerCountSaveEntry>();
+            list.Add(new WorkerCountSaveEntry("Miner", GetSpawnedWorkerCount(WorkerRole.Miner)));
+            list.Add(new WorkerCountSaveEntry("Runner", GetSpawnedWorkerCount(WorkerRole.Runner)));
+            list.Add(new WorkerCountSaveEntry("DirectSeller", GetSpawnedWorkerCount(WorkerRole.DirectSeller)));
+            return list;
+        }
+
         private void UpdateWorkerPoolActivation() {
-            UpdateRolePoolActivation(_minerWorkers, WorkerRole.Miner);
-            UpdateRolePoolActivation(_runnerWorkers, WorkerRole.Runner);
-            UpdateRolePoolActivation(_directSellerWorkers, WorkerRole.DirectSeller);
+            _spawnedWorkers.RemoveAll(w => w == null);
+
+            SyncRoleWorkers(WorkerRole.Miner);
+            SyncRoleWorkers(WorkerRole.Runner);
+            SyncRoleWorkers(WorkerRole.DirectSeller);
         }
 
-        private void UpdateRolePoolActivation(List<GameObject> pool, WorkerRole role) {
-            if (pool == null) return;
-            int unlockedCount = GetUnlockedWorkersCount(role);
+        private void SyncRoleWorkers(WorkerRole role) {
+            int targetCount = GetUnlockedWorkersCount(role);
+            int currentCount = GetSpawnedWorkerCount(role);
 
-            for (int i = 0; i < pool.Count; i++) {
-                GameObject workerObj = pool[i];
-                if (workerObj != null) {
-                    bool shouldBeActive = i < unlockedCount;
-                    bool wasActive = workerObj.activeSelf;
+            if (currentCount < targetCount) {
+                int toSpawn = targetCount - currentCount;
+                Transform spawnPt = WorkerSpawnPoint;
+                GameObject prefab = GetPrefabForRole(role);
 
-                    // Đảm bảo WorkerAgent trên GameObject có đúng Role tương ứng với danh sách
+                if (prefab == null) {
+                    Debug.LogWarning($"[MapManager] Không tìm thấy prefab cho thợ loại {role} để Instantiate!");
+                    return;
+                }
+
+                for (int i = 0; i < toSpawn; i++) {
+                    Vector3 spawnPos = spawnPt.position;
+                    if (toSpawn > 1) {
+                        spawnPos += new Vector3(UnityEngine.Random.Range(-0.4f, 0.4f), 0f, UnityEngine.Random.Range(-0.4f, 0.4f));
+                    }
+
+                    GameObject workerObj = Instantiate(prefab, spawnPos, spawnPt.rotation);
+                    workerObj.name = $"{role}_Worker_{_spawnedWorkers.Count + 1}";
+
                     WorkerAgent agent = workerObj.GetComponent<WorkerAgent>();
-                    if (agent != null && agent.Role != role) {
-                        agent.SetRole(role);
+                    if (agent == null) agent = workerObj.AddComponent<WorkerAgent>();
+                    agent.SetRole(role);
+                    workerObj.SetActive(true);
+
+                    _spawnedWorkers.Add(agent);
+
+                    if (Application.isPlaying) {
+                        DropBounceEffect.Play(workerObj.transform, spawnPos, 3.5f, 0.45f);
                     }
-
-                    workerObj.SetActive(shouldBeActive);
-
-                    // Nếu thợ vừa được kích hoạt mới trong khi đang chơi -> hiệu ứng rơi từ trên trời xuống
-                    if (shouldBeActive && !wasActive && Application.isPlaying) {
-                        DropBounceEffect.Play(workerObj.transform, workerObj.transform.position, 3.5f, 0.45f);
+                }
+            } else if (currentCount > targetCount) {
+                int toRemove = currentCount - targetCount;
+                for (int i = _spawnedWorkers.Count - 1; i >= 0 && toRemove > 0; i--) {
+                    if (_spawnedWorkers[i] != null && _spawnedWorkers[i].Role == role) {
+                        Destroy(_spawnedWorkers[i].gameObject);
+                        _spawnedWorkers.RemoveAt(i);
+                        toRemove--;
                     }
                 }
             }
         }
 
-        private void OnValidate() {
-            // Tự động phân loại nếu Scene cũ đã kéo sẵn GameObject vào _workerPool
-            if (_workerPool != null && _workerPool.Count > 0 &&
-                _minerWorkers.Count == 0 && _runnerWorkers.Count == 0 && _directSellerWorkers.Count == 0) {
-                for (int i = 0; i < _workerPool.Count; i++) {
-                    GameObject obj = _workerPool[i];
-                    if (obj == null) continue;
-                    WorkerAgent agent = obj.GetComponent<WorkerAgent>();
-                    if (agent != null) {
-                        switch (agent.Role) {
-                            case WorkerRole.Miner: _minerWorkers.Add(obj); break;
-                            case WorkerRole.Runner: _runnerWorkers.Add(obj); break;
-                            case WorkerRole.DirectSeller: _directSellerWorkers.Add(obj); break;
-                        }
-                    } else {
-                        _minerWorkers.Add(obj);
-                    }
-                }
-            }
-        }
 
         private int GetTotalCustomerUpgradeLevel() {
             if (_currentMapData == null) return 0;
@@ -470,15 +605,45 @@ namespace MineMart.Gameplay.Map {
         }
 
         /// <summary>
-        /// Kích hoạt SetActive(true) các bàn ngoài trời / vật thể Scene tương ứng theo cấp nâng cấp khách hàng.
+        /// Kích hoạt SetActive(true) các bàn ngoài trời / vật thể Scene tương ứng theo các thẻ nâng cấp khách hàng có kích hoạt bàn.
+        /// Chỉ những thẻ có ActivateOutdoorTable == true và đã được người chơi mua (level > 0) mới kích hoạt bàn tương ứng.
         /// </summary>
         private void UpdateCustomerVisualsActivation() {
-            int customerLevel = GetTotalCustomerUpgradeLevel();
+            if (_customerOutdoorTables == null || _customerOutdoorTables.Count == 0) return;
+
+            // Xác định tập các bàn được kích hoạt từ các thẻ nâng cấp AddCustomers
+            bool[] tableActiveFlags = new bool[_customerOutdoorTables.Count];
+            int autoIndexCounter = 0;
+
+            if (_currentMapData != null && _currentMapData.Upgrades != null) {
+                for (int i = 0; i < _currentMapData.Upgrades.Count; i++) {
+                    var up = _currentMapData.Upgrades[i];
+                    if (up == null || up.UpgradeType != MapUpgradeType.AddCustomers) continue;
+
+                    // Chỉ xét những thẻ có chọn kích hoạt bàn ngoài trời
+                    if (!up.ActivateOutdoorTable) continue;
+
+                    int lvl = GetUpgradeLevel(up);
+                    bool isPurchased = lvl > 0;
+
+                    int targetTableIdx = up.OutdoorTableIndex;
+                    if (targetTableIdx < 0) {
+                        targetTableIdx = autoIndexCounter;
+                        autoIndexCounter++;
+                    }
+
+                    if (targetTableIdx >= 0 && targetTableIdx < tableActiveFlags.Length) {
+                        if (isPurchased) {
+                            tableActiveFlags[targetTableIdx] = true;
+                        }
+                    }
+                }
+            }
+
             for (int i = 0; i < _customerOutdoorTables.Count; i++) {
                 var binding = _customerOutdoorTables[i];
                 if (binding != null && binding.targetObject != null) {
-                    // Nếu setActive = true: Active khi cấp độ >= (i + 1). Nếu false: bỏ qua.
-                    bool shouldBeActive = binding.setActive && (i < customerLevel);
+                    bool shouldBeActive = binding.setActive && tableActiveFlags[i];
                     bool wasActive = binding.targetObject.activeSelf;
                     binding.targetObject.SetActive(shouldBeActive);
 

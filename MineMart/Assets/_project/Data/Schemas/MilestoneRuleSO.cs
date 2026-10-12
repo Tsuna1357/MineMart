@@ -9,8 +9,11 @@ namespace MineMart.Data {
     public class MilestoneRuleSO : ScriptableObject {
         [SerializeField] private int _targetLevel;
         [SerializeField] private float _profitMultiplier;
+        [Tooltip("Số lượng Gem / Emerald thưởng cho người chơi khi trạm mỏ đạt mốc đột phá này")]
+        [SerializeField] private int _gemReward = 0;
 
         public int TargetLevel => _targetLevel;
         public float ProfitMultiplier => _profitMultiplier;
+        public int GemReward => _gemReward;
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using MineMart.Core.Events;
+using MineMart.Core.Settings;
 using MineMart.Data;
 using MineMart.Gameplay.Checkout;
 using MineMart.Gameplay.Common;
@@ -252,9 +253,26 @@ namespace MineMart.Gameplay.Player {
             MiningStation.OnStationRelocated -= HandleStationRelocated;
         }
 
+        private void Start() {
+            if (SettingsManager.Instance != null) {
+                SettingsManager.Instance.OnJoystickToggled += HandleJoystickToggled;
+                HandleJoystickToggled(SettingsManager.Instance.IsJoystickEnabled);
+            }
+        }
+
         private void OnDestroy() {
+            if (SettingsManager.Instance != null) {
+                SettingsManager.Instance.OnJoystickToggled -= HandleJoystickToggled;
+            }
+
             if (Instance == this) {
                 Instance = null;
+            }
+        }
+
+        private void HandleJoystickToggled(bool enabled) {
+            if (!enabled) {
+                SettingsManager.VirtualJoystickInput = Vector2.zero;
             }
         }
 
@@ -317,12 +335,20 @@ namespace MineMart.Gameplay.Player {
 
         /// <summary>
         /// Đọc input di chuyển từ New Input System hoặc Fallback Keyboard.
+        /// Tự động tôn trọng cài đặt Bật/Tắt Joystick từ SettingsManager.
         /// </summary>
         private Vector2 ReadMovementInput() {
             Vector2 input = Vector2.zero;
 
-            if (_moveAction != null && _moveAction.action != null) {
+            bool joystickAllowed = SettingsManager.Instance == null || SettingsManager.Instance.IsJoystickEnabled;
+
+            if (joystickAllowed && _moveAction != null && _moveAction.action != null) {
                 input = _moveAction.action.ReadValue<Vector2>();
+            }
+
+            // Đọc thêm từ cần điều khiển cảm ứng ảo (Virtual Joystick) trên màn hình
+            if (joystickAllowed && input == Vector2.zero && SettingsManager.VirtualJoystickInput.sqrMagnitude > 0.001f) {
+                input = SettingsManager.VirtualJoystickInput;
             }
 
             if (input == Vector2.zero && Keyboard.current != null) {

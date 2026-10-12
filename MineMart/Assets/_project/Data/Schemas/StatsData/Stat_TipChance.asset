@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f60718293a4b5c6d7e8f01, type: 3}
+  m_Name: Stat_TipChance
+  m_EditorClassIdentifier: MineMart.Data::MineMart.Data.FloatStatSO
+  _statId: TipChance
+  _statName: "T\u1EC9 L\u1EC7 \u0110\u1EC3 L\u1EA1i Tip"
+  _baseValue: 0.15
+  _minValue: 0
+  _maxValue: 1

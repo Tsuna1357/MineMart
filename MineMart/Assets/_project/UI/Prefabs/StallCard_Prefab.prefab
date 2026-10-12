@@ -155,6 +155,7 @@ MonoBehaviour:
   _costText: {fileID: 1751184360775413778}
   _buyButton: {fileID: 9211836133626043688}
   _buttonBackground: {fileID: 2059911202585882970}
+  _enable3DBlockPreview: 1
   _blockPreviewHolder: {fileID: 5939208894031489203}
   _block3DScale: 35
   _autoRotateBlock: 1

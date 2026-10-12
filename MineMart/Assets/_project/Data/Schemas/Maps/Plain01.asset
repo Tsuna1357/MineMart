@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: MineMart.Data::MineMart.Data.MapDataSO
   _mapId: Plain01
   _mapName: "\u0110\u1ED3ng B\u1EB1ng Kh\u1EDFi Nguy\xEAn"
+  _mapBgmClip: {fileID: 8300000, guid: 9bebb65493ef48f42bbf314d92c8ed7a, type: 3}
   _stalls:
   - _stallData: {fileID: 11400000, guid: 36b8ef9772412dc4a95b86da504682dc, type: 2}
     _stallPrefab: {fileID: 3628066050344421151, guid: 53d5e8698433c7d4285cd53fcdfa6554, type: 3}
@@ -36,74 +37,127 @@ MonoBehaviour:
     _baseCraftTime: 15
     _baseUpgradePrice: 450
     _maxLevel: 100
+  - _stallData: {fileID: 11400000, guid: e82508f78327bac42abd36c270d5e110, type: 2}
+    _stallPrefab: {fileID: 3628066050344421151, guid: d283db0dca491b34d8f79beffb2063f1, type: 3}
+    _buyPrice: 20000
+    _blockBaseValue: 12000
+    _baseCraftTime: 20
+    _baseUpgradePrice: 10000
+    _maxLevel: 100
+  - _stallData: {fileID: 11400000, guid: 93287c5ab59866c4086cffe1a6c11603, type: 2}
+    _stallPrefab: {fileID: 3628066050344421151, guid: af4b590741beecc428916848b5ca599e, type: 3}
+    _buyPrice: 460000
+    _blockBaseValue: 370000
+    _baseCraftTime: 35
+    _baseUpgradePrice: 290000
+    _maxLevel: 100
+  - _stallData: {fileID: 11400000, guid: 324192ee1ae169c4bbeefcfedbb2cfc1, type: 2}
+    _stallPrefab: {fileID: 3628066050344421151, guid: 759e356a23bfb2d4f8ff21b067accc6a, type: 3}
+    _buyPrice: 1000000
+    _blockBaseValue: 900000
+    _baseCraftTime: 50
+    _baseUpgradePrice: 850000
+    _maxLevel: 100
   _upgrades:
-  - _upgradeId: 02
-    _displayName: Better Dirt
+  - _upgradeId: 0
+    _displayName: Admin only
     _icon: {fileID: 0}
-    _description: x2 profit dirt
+    _description: Admin Tool Test
     _upgradeType: 2
-    _targetScope: 0
-    _targetStall: {fileID: 11400000, guid: 36b8ef9772412dc4a95b86da504682dc, type: 2}
+    _targetScope: 1
+    _targetStall: {fileID: 0}
     _workerRole: 0
-    _workersAddedPerLevel: 1
-    _customerBonusPerLevel: 1
-    _priceMultiplierValue: 2
-    _speedBonusPercent: 20
-    _miningTimeReduction: 0.2
-    _price: 100
-  - _upgradeId: 04
-    _displayName: Better Wood
+    _workersAddedPerLevel: 0
+    _workerPrefab: {fileID: 0}
+    _customerBonusPerLevel: 0
+    _activateOutdoorTable: 0
+    _outdoorTableIndex: -1
+    _priceMultiplierValue: 1000
+    _speedBonusPercent: 0
+    _miningTimeReduction: 0
+    _price: 1
+  - _upgradeId: 0
+    _displayName: Admin only customer
     _icon: {fileID: 0}
-    _description: x2 profit wood
-    _upgradeType: 2
-    _targetScope: 0
-    _targetStall: {fileID: 11400000, guid: 7eb0f2b7ec5414c4ca69b2b1a162e382, type: 2}
+    _description: Admin Tool Test
+    _upgradeType: 1
+    _targetScope: 1
+    _targetStall: {fileID: 0}
     _workerRole: 0
-    _workersAddedPerLevel: 1
-    _customerBonusPerLevel: 1
-    _priceMultiplierValue: 2
-    _speedBonusPercent: 20
-    _miningTimeReduction: 0.2
-    _price: 1000
-  - _upgradeId: 03
-    _displayName: Hired Villager
+    _workersAddedPerLevel: 0
+    _workerPrefab: {fileID: 0}
+    _customerBonusPerLevel: 15
+    _activateOutdoorTable: 1
+    _outdoorTableIndex: -1
+    _priceMultiplierValue: 1000
+    _speedBonusPercent: 0
+    _miningTimeReduction: 0
+    _price: 1
+  - _upgradeId: 0
+    _displayName: Admin only worker
     _icon: {fileID: 0}
-    _description: +1 worker
+    _description: Admin Tool Test
     _upgradeType: 0
     _targetScope: 1
-    _targetStall: {fileID: 11400000, guid: 7eb0f2b7ec5414c4ca69b2b1a162e382, type: 2}
+    _targetStall: {fileID: 0}
     _workerRole: 2
-    _workersAddedPerLevel: 1
-    _customerBonusPerLevel: 1
-    _priceMultiplierValue: 5
-    _speedBonusPercent: 20
-    _miningTimeReduction: 0.2
-    _price: 150
-  - _upgradeId: 01
-    _displayName: Talk to friends
+    _workersAddedPerLevel: 8
+    _workerPrefab: {fileID: 0}
+    _customerBonusPerLevel: 10
+    _activateOutdoorTable: 1
+    _outdoorTableIndex: -1
+    _priceMultiplierValue: 1000
+    _speedBonusPercent: 0
+    _miningTimeReduction: 0
+    _price: 1
+  - _upgradeId: 0
+    _displayName: Admin only speed run
+    _icon: {fileID: 0}
+    _description: Admin Tool Test
+    _upgradeType: 3
+    _targetScope: 1
+    _targetStall: {fileID: 0}
+    _workerRole: 2
+    _workersAddedPerLevel: 8
+    _workerPrefab: {fileID: 0}
+    _customerBonusPerLevel: 10
+    _activateOutdoorTable: 1
+    _outdoorTableIndex: -1
+    _priceMultiplierValue: 1000
+    _speedBonusPercent: 1
+    _miningTimeReduction: 0
+    _price: 1
+  - _upgradeId: 0
+    _displayName: Admin only speed mining
+    _icon: {fileID: 0}
+    _description: Admin Tool Test
+    _upgradeType: 4
+    _targetScope: 1
+    _targetStall: {fileID: 11400000, guid: 36b8ef9772412dc4a95b86da504682dc, type: 2}
+    _workerRole: 2
+    _workersAddedPerLevel: 8
+    _workerPrefab: {fileID: 0}
+    _customerBonusPerLevel: 10
+    _activateOutdoorTable: 1
+    _outdoorTableIndex: -1
+    _priceMultiplierValue: 1000
+    _speedBonusPercent: 1
+    _miningTimeReduction: 3
+    _price: 1
+  - _upgradeId: 1
+    _displayName: Talk with friends
     _icon: {fileID: 0}
     _description: +1 customer
     _upgradeType: 1
     _targetScope: 1
-    _targetStall: {fileID: 11400000, guid: 7eb0f2b7ec5414c4ca69b2b1a162e382, type: 2}
-    _workerRole: 0
-    _workersAddedPerLevel: 50
+    _targetStall: {fileID: 11400000, guid: 36b8ef9772412dc4a95b86da504682dc, type: 2}
+    _workerRole: 2
+    _workersAddedPerLevel: 8
+    _workerPrefab: {fileID: 0}
     _customerBonusPerLevel: 1
-    _priceMultiplierValue: 5
-    _speedBonusPercent: 20
-    _miningTimeReduction: 0.2
+    _activateOutdoorTable: 0
+    _outdoorTableIndex: -1
+    _priceMultiplierValue: 1000
+    _speedBonusPercent: 1
+    _miningTimeReduction: 3
     _price: 25
-  - _upgradeId: 05
-    _displayName: Better all
-    _icon: {fileID: 0}
-    _description: x5 all profit
-    _upgradeType: 2
-    _targetScope: 1
-    _targetStall: {fileID: 11400000, guid: 7eb0f2b7ec5414c4ca69b2b1a162e382, type: 2}
-    _workerRole: 0
-    _workersAddedPerLevel: 50
-    _customerBonusPerLevel: 1
-    _priceMultiplierValue: 5
-    _speedBonusPercent: 20
-    _miningTimeReduction: 0.2
-    _price: 10000

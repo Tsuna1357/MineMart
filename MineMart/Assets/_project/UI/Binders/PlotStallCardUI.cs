@@ -20,6 +20,9 @@ namespace MineMart.UI.Binders {
         [SerializeField] private Image _buttonBackground;
 
         [Header("3D Block Model Preview")]
+        [Tooltip("Cho phép sinh model 3D khối block trên thẻ UI hay không.")]
+        [SerializeField] private bool _enable3DBlockPreview = true;
+
         [Tooltip("Transform điểm neo để sinh ra model 3D của khối block (Prefab3D)")]
         [SerializeField] private Transform _blockPreviewHolder;
 
@@ -36,6 +39,8 @@ namespace MineMart.UI.Binders {
         private Action<StallConfigOnMap> _onBuyCallback;
         private Color _canAffordColor;
         private Color _cannotAffordColor;
+        private RectTransform _viewportRect;
+        private CanvasGroup _parentCanvasGroup;
 
         private void Awake() {
             AutoFindReferences();
@@ -87,47 +92,44 @@ namespace MineMart.UI.Binders {
                 _blockInfoText.text = blockName;
             }
 
-            // TÁI SỬ DỤNG MODEL 3D: Nếu cùng loại Prefab thì giữ nguyên, không Destroy/Instantiate lại!
-            GameObject targetPrefab = config.StallData?.ProducedBlock?.Prefab3D;
-            if (targetPrefab != null) {
-                if (_currentBlockPrefab != targetPrefab || _spawnedBlockModel == null) {
-                    // Chỉ hủy và sinh mới nếu khác loại block
-                    if (_spawnedBlockModel != null) {
-                        Destroy(_spawnedBlockModel);
-                        _spawnedBlockModel = null;
-                    }
-
-                    if (_blockPreviewHolder != null) {
-                        _spawnedBlockModel = Instantiate(targetPrefab, _blockPreviewHolder);
-
-                        // Gỡ toàn bộ Collider để không vướng physics/raycast
-                        var colliders = _spawnedBlockModel.GetComponentsInChildren<Collider>();
-                        for (int i = 0; i < colliders.Length; i++) {
-                            Destroy(colliders[i]);
-                        }
-
-                        // Tắt hoàn toàn việc đổ bóng xuống map và nhận bóng
-                        var renderers = _spawnedBlockModel.GetComponentsInChildren<Renderer>();
-                        for (int i = 0; i < renderers.Length; i++) {
-                            renderers[i].shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                            renderers[i].receiveShadows = false;
-                        }
-
-                        _spawnedBlockModel.transform.localPosition = new Vector3(0f, 0f, -15f);
-                        _spawnedBlockModel.transform.localRotation = Quaternion.Euler(20f, 45f, 0f);
-                        _spawnedBlockModel.transform.localScale = Vector3.one * _block3DScale;
-
-                        SetLayerRecursively(_spawnedBlockModel, _blockPreviewHolder.gameObject.layer);
-                    }
-                    _currentBlockPrefab = targetPrefab;
-                } else {
-                    // Nếu đúng loại cũ thì chỉ cần bật lên và reset góc xoay
-                    _spawnedBlockModel.SetActive(true);
-                    _spawnedBlockModel.transform.localRotation = Quaternion.Euler(20f, 45f, 0f);
-                }
+            // XỬ LÝ MODEL 3D: Mặc định tắt để không đè lên các UI mới khác
+            if (!_enable3DBlockPreview) {
+                Cleanup3DModel();
             } else {
-                if (_spawnedBlockModel != null) {
-                    _spawnedBlockModel.SetActive(false);
+                GameObject targetPrefab = config.StallData?.ProducedBlock?.Prefab3D;
+                if (targetPrefab != null) {
+                    if (_currentBlockPrefab != targetPrefab || _spawnedBlockModel == null) {
+                        Cleanup3DModel();
+
+                        if (_blockPreviewHolder != null) {
+                            _spawnedBlockModel = Instantiate(targetPrefab, _blockPreviewHolder);
+
+                            // Gỡ toàn bộ Collider để không vướng physics/raycast
+                            var colliders = _spawnedBlockModel.GetComponentsInChildren<Collider>();
+                            for (int i = 0; i < colliders.Length; i++) {
+                                Destroy(colliders[i]);
+                            }
+
+                            // Tắt hoàn toàn việc đổ bóng xuống map và nhận bóng
+                            var renderers = _spawnedBlockModel.GetComponentsInChildren<Renderer>();
+                            for (int i = 0; i < renderers.Length; i++) {
+                                renderers[i].shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                                renderers[i].receiveShadows = false;
+                            }
+
+                            _spawnedBlockModel.transform.localPosition = new Vector3(0f, 0f, -15f);
+                            _spawnedBlockModel.transform.localRotation = Quaternion.Euler(20f, 45f, 0f);
+                            _spawnedBlockModel.transform.localScale = Vector3.one * _block3DScale;
+
+                            SetLayerRecursively(_spawnedBlockModel, _blockPreviewHolder.gameObject.layer);
+                        }
+                        _currentBlockPrefab = targetPrefab;
+                    } else {
+                        _spawnedBlockModel.SetActive(true);
+                        _spawnedBlockModel.transform.localRotation = Quaternion.Euler(20f, 45f, 0f);
+                    }
+                } else {
+                    Cleanup3DModel();
                 }
             }
 
@@ -145,6 +147,7 @@ namespace MineMart.UI.Binders {
             }
 
             RefreshAffordability();
+            UpdateViewportCulling();
         }
 
         public void RefreshAffordability() {
@@ -169,28 +172,119 @@ namespace MineMart.UI.Binders {
         }
 
         private void Update() {
-            if (_autoRotateBlock && _spawnedBlockModel != null && _spawnedBlockModel.activeSelf) {
+            if (_enable3DBlockPreview && _autoRotateBlock && _spawnedBlockModel != null && _spawnedBlockModel.activeSelf) {
                 _spawnedBlockModel.transform.Rotate(Vector3.up, _rotateSpeed * Time.deltaTime, Space.Self);
             }
         }
 
-        private void OnDisable() {
-            if (_spawnedBlockModel != null) {
-                _spawnedBlockModel.SetActive(false);
+        private void LateUpdate() {
+            UpdateViewportCulling();
+        }
+
+        private void EnsureViewportRef() {
+            if (_viewportRect == null) {
+                var sr = GetComponentInParent<ScrollRect>();
+                if (sr != null) {
+                    _viewportRect = sr.viewport != null ? sr.viewport : sr.GetComponent<RectTransform>();
+                }
+                if (_viewportRect == null && PlotStallShopBubble.Instance != null) {
+                    _viewportRect = PlotStallShopBubble.Instance.GetComponent<RectTransform>();
+                }
+            }
+            if (_parentCanvasGroup == null) {
+                _parentCanvasGroup = GetComponentInParent<CanvasGroup>();
             }
         }
 
-        private void OnEnable() {
-            if (_spawnedBlockModel != null && _config != null && _config.StallData?.ProducedBlock?.Prefab3D != null) {
-                _spawnedBlockModel.SetActive(true);
+        /// <summary>
+        /// Tự động ẩn hoặc thu nhỏ khối block 3D khi thẻ bị cuộn ra ngoài khung nhìn của Viewport
+        /// để block không bao giờ bị lộ ra ngoài viền cửa sổ popup.
+        /// </summary>
+        public void UpdateViewportCulling() {
+            if (!_enable3DBlockPreview || _spawnedBlockModel == null) return;
+
+            EnsureViewportRef();
+
+            // Nếu popup đang đóng hoặc mờ dần thì tắt model ngay
+            if (_parentCanvasGroup != null && _parentCanvasGroup.alpha < 0.05f) {
+                if (_spawnedBlockModel.activeSelf) _spawnedBlockModel.SetActive(false);
+                return;
+            }
+
+            if (_viewportRect == null) return;
+
+            Transform holder = _blockPreviewHolder != null ? _blockPreviewHolder : transform;
+            Vector3 localPos = _viewportRect.InverseTransformPoint(holder.position);
+            Rect vRect = _viewportRect.rect;
+
+            // Tính khoảng cách từ tâm holder tới 4 cạnh của Viewport
+            float distLeft = localPos.x - vRect.xMin;
+            float distRight = vRect.xMax - localPos.x;
+            float distBottom = localPos.y - vRect.yMin;
+            float distTop = vRect.yMax - localPos.y;
+
+            float minDistX = Mathf.Min(distLeft, distRight);
+            float minDistY = Mathf.Min(distBottom, distTop);
+
+            // Nếu tâm holder đã vượt ra ngoài viền Viewport thì ẩn hoàn toàn
+            if (minDistX <= 0f || minDistY <= 0f) {
+                if (_spawnedBlockModel.activeSelf) _spawnedBlockModel.SetActive(false);
+                return;
+            }
+
+            // Khoảng đệm thu nhỏ dần (smooth fade scale) khi trượt sát mép viền để không bị lộ mép cắt
+            const float fadeMargin = 50f;
+            float edgeDist = Mathf.Min(minDistX, minDistY);
+
+            if (edgeDist < fadeMargin) {
+                float t = Mathf.Clamp01(edgeDist / fadeMargin);
+                t = Mathf.SmoothStep(0f, 1f, t);
+
+                if (t < 0.05f) {
+                    if (_spawnedBlockModel.activeSelf) _spawnedBlockModel.SetActive(false);
+                } else {
+                    if (!_spawnedBlockModel.activeSelf) _spawnedBlockModel.SetActive(true);
+                    _spawnedBlockModel.transform.localScale = Vector3.one * (_block3DScale * t);
+                }
+            } else {
+                if (!_spawnedBlockModel.activeSelf) _spawnedBlockModel.SetActive(true);
+                _spawnedBlockModel.transform.localScale = Vector3.one * _block3DScale;
             }
         }
 
-        private void OnDestroy() {
+        /// <summary>
+        /// Dọn dẹp sạch sẽ model 3D khối block để không bao giờ đè lên các UI khác.
+        /// </summary>
+        public void Cleanup3DModel() {
             if (_spawnedBlockModel != null) {
                 Destroy(_spawnedBlockModel);
                 _spawnedBlockModel = null;
             }
+            if (_blockPreviewHolder != null) {
+                for (int i = _blockPreviewHolder.childCount - 1; i >= 0; i--) {
+                    var child = _blockPreviewHolder.GetChild(i);
+                    if (child != null) {
+                        Destroy(child.gameObject);
+                    }
+                }
+            }
+            _currentBlockPrefab = null;
+        }
+
+        private void OnDisable() {
+            Cleanup3DModel();
+        }
+
+        private void OnEnable() {
+            EnsureViewportRef();
+            if (_enable3DBlockPreview && _config != null && _config.StallData?.ProducedBlock?.Prefab3D != null) {
+                Bind(_config, _canAffordColor, _cannotAffordColor, _onBuyCallback);
+            }
+            UpdateViewportCulling();
+        }
+
+        private void OnDestroy() {
+            Cleanup3DModel();
         }
 
         private static void SetLayerRecursively(GameObject obj, int layer) {

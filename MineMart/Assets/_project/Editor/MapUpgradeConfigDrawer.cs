@@ -38,11 +38,17 @@ namespace MineMart.Editor {
                 case MapUpgradeType.AddWorkers:
                     totalHeight += PropH("_workerRole");
                     totalHeight += PropH("_workersAddedPerLevel");
+                    totalHeight += PropH("_workerPrefab");
                     totalHeight += (line * 2.2f) + spacing; // Helpbox
                     break;
 
                 case MapUpgradeType.AddCustomers:
                     totalHeight += PropH("_customerBonusPerLevel");
+                    totalHeight += PropH("_activateOutdoorTable");
+                    var actProp = property.FindPropertyRelative("_activateOutdoorTable");
+                    if (actProp != null && actProp.boolValue) {
+                        totalHeight += PropH("_outdoorTableIndex");
+                    }
                     totalHeight += (line * 2.2f) + spacing; // Helpbox for outdoor tables
                     break;
 
@@ -128,22 +134,28 @@ namespace MineMart.Editor {
             switch (upgradeType) {
                 case MapUpgradeType.AddWorkers: {
                     DrawProp("_workerRole", "Loại Thợ Kích Hoạt");
-                    DrawProp("_workersAddedPerLevel", "+ Số Thợ Active Mỗi Cấp");
+                    DrawProp("_workersAddedPerLevel", "+ Số Thợ Sinh Ra Mỗi Cấp");
+                    DrawProp("_workerPrefab", "Prefab Thợ (Để trống = Mặc định)");
                     float helpH = line * 2.2f;
                     Rect helpRect = new Rect(position.x, currentY, position.width, helpH);
                     var roleProp = property.FindPropertyRelative("_workerRole");
                     string roleName = roleProp != null && roleProp.enumDisplayNames.Length > roleProp.enumValueIndex
                         ? roleProp.enumDisplayNames[roleProp.enumValueIndex] : "Worker";
-                    EditorGUI.HelpBox(helpRect, $"ℹ️ Nâng cấp sẽ lần lượt kích hoạt SetActive(true) số lượng Thợ loại '{roleName}' từ danh sách tương ứng trong MapManager.", MessageType.Info);
+                    EditorGUI.HelpBox(helpRect, $"ℹ️ Nâng cấp sẽ Instantiate số lượng Thợ loại '{roleName}' tại điểm WorkerSpawnPoint của MapManager.", MessageType.Info);
                     currentY += helpH + spacing;
                     break;
                 }
 
                 case MapUpgradeType.AddCustomers: {
                     DrawProp("_customerBonusPerLevel", "+ Khách Thêm Mỗi Cấp");
+                    DrawProp("_activateOutdoorTable", "Kích Hoạt Bàn Ngoài Trời?");
+                    var actProp = property.FindPropertyRelative("_activateOutdoorTable");
+                    if (actProp != null && actProp.boolValue) {
+                        DrawProp("_outdoorTableIndex", "Chỉ Số Bàn (-1 = Tự Động)");
+                    }
                     float helpH = line * 2.2f;
                     Rect helpRect = new Rect(position.x, currentY, position.width, helpH);
-                    EditorGUI.HelpBox(helpRect, "ℹ️ Bàn ngoài trời / vật thể trên Scene được gán tại 'Customer Outdoor Tables' trên MapManager (Scene) để tự động SetActive(true).", MessageType.Info);
+                    EditorGUI.HelpBox(helpRect, "ℹ️ Chỉ khi tích 'Kích Hoạt Bàn Ngoài Trời' thì nâng cấp này mới SetActive(true) bàn tương ứng trong Scene. Nếu bỏ tích, chỉ tăng số lượng khách mà không thêm bàn.", MessageType.Info);
                     currentY += helpH + spacing;
                     break;
                 }

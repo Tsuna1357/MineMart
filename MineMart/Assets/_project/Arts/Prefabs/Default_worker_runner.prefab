@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5795885585206747335}
   m_Layer: 0
-  m_Name: Default_worker
+  m_Name: Default_worker_runner
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -139,7 +139,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 47320d82202b9c24abf47bd04eecffd7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MineMart.Gameplay::MineMart.Gameplay.Staff.WorkerAgent
-  _role: 0
+  _role: 1
   _orderTakeTime: 1.5
   _moveSpeed: 5
   _stoppingDistance: 0.5

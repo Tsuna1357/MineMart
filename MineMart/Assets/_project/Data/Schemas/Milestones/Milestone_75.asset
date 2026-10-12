@@ -14,4 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: MineMart.Data::MineMart.Data.MilestoneRuleSO
   _targetLevel: 75
   _profitMultiplier: 2
-  _description: 
+  _gemReward: 1

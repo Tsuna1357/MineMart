@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using MineMart.Data;
 using MineMart.Gameplay.Orders;
+using MineMart.Economy;
 using MineMart.Feel;
 using UnityEngine;
 
@@ -146,14 +147,42 @@ namespace MineMart.Gameplay.Mining {
         [Tooltip("Bắt buộc phải có order từ khách mới cho phép khai thác (mặc định = false để đào tự do trong giai đoạn test)")]
         [SerializeField] private bool _requireOrderToMine = false;
 
-        [Header("3D Mining Progress Visual (Thanh Tiến Trình Hình Cube)")]
-        [Tooltip("Độ cao của thanh Cube tiến trình so với mặt đất (mặc định: 1.6m)")]
+    /// <summary>
+    /// Hướng tràn/dâng đầy của thanh tiến trình khai thác.
+    /// </summary>
+    public enum ProgressBarFillDirection {
+        VerticalY = 0,     // Dâng từ dưới lên trên (Bottom to Top)
+        HorizontalX = 1,   // Tràn từ trái sang phải (Left to Right)
+        DepthZ = 2,        // Tràn từ sau ra trước (Back to Front)
+        ScaleUniform = 3   // Phóng to đều cả 3 chiều theo tỉ lệ 0 -> 1
+    }
+
+    [Header("3D Mining Progress Visual (Thanh Tiến Trình Hình Cube hoặc Model Tùy Chọn)")]
+        [Tooltip("Prefab thanh tiến trình riêng do bạn tự cài đặt model 3D vào. Nếu prefab có object con mang tên 'Fill', 'Bar', hoặc 'Progress', script sẽ tự động điều khiển phần đó để dâng đầy theo tiến độ. Nếu để trống, sẽ dùng 2 khối Cube mặc định.")]
+        [SerializeField] private GameObject _customProgressBarPrefab;
+
+        [Tooltip("Prefab riêng cho phần ruột/mực dâng lên (Fill Model). Dùng khi bạn chỉ muốn thay ruột bằng model riêng.")]
+        [SerializeField] private GameObject _customProgressFillPrefab;
+
+        [Tooltip("Prefab riêng cho phần khung/vỏ bọc ngoài (Container / Frame).")]
+        [SerializeField] private GameObject _customProgressContainerPrefab;
+
+        [Tooltip("Hướng dâng đầy của thanh tiến trình (mặc định: VerticalY - dâng từ dưới lên)")]
+        [SerializeField] private ProgressBarFillDirection _fillDirection = ProgressBarFillDirection.VerticalY;
+
+        [Tooltip("Giữ nguyên Material/Texture gốc của Model tùy biến của bạn thay vì tự động đổi màu")]
+        [SerializeField] private bool _keepCustomModelMaterials = true;
+
+        [Tooltip("Tự động xoay mặt thanh tiến trình hướng thẳng về Camera chính")]
+        [SerializeField] private bool _billboardToCamera = false;
+
+        [Tooltip("Độ cao của thanh tiến trình so với mặt đất (mặc định: 1.6m)")]
         [SerializeField] private float _progressVisualHeight = 1.6f;
 
         [Tooltip("Kích thước của khối Cube tiến trình (mặc định: 0.35m)")]
         [SerializeField] private float _progressCubeSize = 0.35f;
 
-        [Tooltip("Cho phép hiển thị thanh Cube 3D khi có người đào")]
+        [Tooltip("Cho phép hiển thị thanh tiến trình 3D khi có người đào")]
         [SerializeField] private bool _showProgressVisual = true;
 
         [Tooltip("Sử dụng màu xanh tươi sáng rực rỡ (Bright Emerald) để dễ nhìn nhất")]
@@ -181,6 +210,13 @@ namespace MineMart.Gameplay.Mining {
         private GameObject _progressFillCube;
         private Material _fillMaterial;
         private Material _containerMaterial;
+
+        // Quản lý biến cho Model tùy chọn (Custom Progress Bar)
+        private GameObject _customProgressBarInstance;
+        private Transform _customFillTransform;
+        private Vector3 _customFillInitialScale = Vector3.one;
+        private Vector3 _customFillInitialLocalPos = Vector3.zero;
+        private bool _isUsingCustomVisual = false;
 
         public float ProgressOpacity {
             get => _progressOpacity;
@@ -453,7 +489,7 @@ namespace MineMart.Gameplay.Mining {
         }
 
         // =========================================================================
-        // 3D PROGRESS CUBE VISUAL SYSTEM
+        // 3D PROGRESS VISUAL SYSTEM (HỖ TRỢ CẢ MODEL TÙY CHỈNH LẪN CUBE MẶC ĐỊNH)
         // =========================================================================
 
         private void EnsureProgressVisualSetup() {
@@ -464,6 +500,56 @@ namespace MineMart.Gameplay.Mining {
             _progressVisualRoot.transform.SetParent(transform, false);
             _progressVisualRoot.transform.localPosition = new Vector3(0f, _progressVisualHeight, 0f);
             _progressVisualRoot.transform.localRotation = Quaternion.Euler(20f, 45f, 0f);
+
+            bool hasCustomPrefab = _customProgressBarPrefab != null || _customProgressFillPrefab != null || _customProgressContainerPrefab != null;
+
+            if (hasCustomPrefab) {
+                _isUsingCustomVisual = true;
+
+                if (_customProgressBarPrefab != null) {
+                    _customProgressBarInstance = Instantiate(_customProgressBarPrefab, _progressVisualRoot.transform, false);
+                    _customProgressBarInstance.name = "CustomProgressBar";
+                    _customProgressBarInstance.transform.localPosition = Vector3.zero;
+
+                    // Gỡ toàn bộ Collider để không vướng click
+                    Collider[] colliders = _customProgressBarInstance.GetComponentsInChildren<Collider>(true);
+                    for (int i = 0; i < colliders.Length; i++) {
+                        Destroy(colliders[i]);
+                    }
+
+                    // Tự động tìm child đại diện cho phần ruột/mực Fill dâng lên
+                    _customFillTransform = FindFillChildTransform(_customProgressBarInstance.transform);
+                    if (_customFillTransform != null) {
+                        _customFillInitialScale = _customFillTransform.localScale;
+                        _customFillInitialLocalPos = _customFillTransform.localPosition;
+                    }
+                } else {
+                    if (_customProgressContainerPrefab != null) {
+                        var containerInstance = Instantiate(_customProgressContainerPrefab, _progressVisualRoot.transform, false);
+                        containerInstance.name = "CustomContainer";
+                        containerInstance.transform.localPosition = Vector3.zero;
+                        Collider[] cols = containerInstance.GetComponentsInChildren<Collider>(true);
+                        for (int i = 0; i < cols.Length; i++) Destroy(cols[i]);
+                    }
+
+                    if (_customProgressFillPrefab != null) {
+                        var fillInstance = Instantiate(_customProgressFillPrefab, _progressVisualRoot.transform, false);
+                        fillInstance.name = "CustomFill";
+                        fillInstance.transform.localPosition = Vector3.zero;
+                        Collider[] cols = fillInstance.GetComponentsInChildren<Collider>(true);
+                        for (int i = 0; i < cols.Length; i++) Destroy(cols[i]);
+
+                        _customFillTransform = fillInstance.transform;
+                        _customFillInitialScale = _customFillTransform.localScale;
+                        _customFillInitialLocalPos = _customFillTransform.localPosition;
+                    }
+                }
+
+                _progressVisualRoot.SetActive(false);
+                return;
+            }
+
+            _isUsingCustomVisual = false;
 
             // 2. Tạo Shader tương thích
             Shader unlitShader = Shader.Find("Sprites/Default") 
@@ -511,6 +597,38 @@ namespace MineMart.Gameplay.Mining {
             }
 
             _progressVisualRoot.SetActive(false);
+        }
+
+        private Transform FindFillChildTransform(Transform root) {
+            if (root == null) return null;
+            // 1. Quét tìm object con có tên chứa từ khóa
+            string[] keywords = new string[] { "fill", "bar", "progress", "slider", "amount", "inner" };
+            Transform found = SearchTransformRecursive(root, keywords);
+            if (found != null && found != root) return found;
+
+            // 2. Nếu có child và không tìm ra tên keyword, ưu tiên child có Renderer
+            for (int i = 0; i < root.childCount; i++) {
+                Transform child = root.GetChild(i);
+                if (child.GetComponent<Renderer>() != null) return child;
+            }
+
+            // 3. Fallback về child đầu tiên hoặc chính root
+            return root.childCount > 0 ? root.GetChild(0) : root;
+        }
+
+        private Transform SearchTransformRecursive(Transform parent, string[] keywords) {
+            for (int i = 0; i < parent.childCount; i++) {
+                Transform child = parent.GetChild(i);
+                string childName = child.name.ToLowerInvariant();
+                for (int k = 0; k < keywords.Length; k++) {
+                    if (childName.Contains(keywords[k])) {
+                        return child;
+                    }
+                }
+                Transform sub = SearchTransformRecursive(child, keywords);
+                if (sub != null) return sub;
+            }
+            return null;
         }
 
         private Material CreateTransparentMaterial(Shader shader, Color initialColor, int renderQueue) {
@@ -577,14 +695,84 @@ namespace MineMart.Gameplay.Mining {
                 _progressVisualRoot.SetActive(true);
             }
 
+            // === A. TRƯỜNG HỢP MODEL TÙY CHỌN (CUSTOM MODEL PREFAB) ===
+            if (_isUsingCustomVisual) {
+                if (_customFillTransform != null) {
+                    if (progress > 0.005f) {
+                        if (!_customFillTransform.gameObject.activeSelf) _customFillTransform.gameObject.SetActive(true);
+
+                        float p = Mathf.Clamp01(progress);
+                        switch (_fillDirection) {
+                            case ProgressBarFillDirection.VerticalY: {
+                                float bottomY = _customFillInitialLocalPos.y - _customFillInitialScale.y * 0.5f;
+                                float curHeight = _customFillInitialScale.y * p;
+                                _customFillTransform.localPosition = new Vector3(
+                                    _customFillInitialLocalPos.x,
+                                    bottomY + curHeight * 0.5f,
+                                    _customFillInitialLocalPos.z
+                                );
+                                _customFillTransform.localScale = new Vector3(
+                                    _customFillInitialScale.x,
+                                    Mathf.Max(0.0001f, curHeight),
+                                    _customFillInitialScale.z
+                                );
+                                break;
+                            }
+                            case ProgressBarFillDirection.HorizontalX: {
+                                float leftX = _customFillInitialLocalPos.x - _customFillInitialScale.x * 0.5f;
+                                float curWidth = _customFillInitialScale.x * p;
+                                _customFillTransform.localPosition = new Vector3(
+                                    leftX + curWidth * 0.5f,
+                                    _customFillInitialLocalPos.y,
+                                    _customFillInitialLocalPos.z
+                                );
+                                _customFillTransform.localScale = new Vector3(
+                                    Mathf.Max(0.0001f, curWidth),
+                                    _customFillInitialScale.y,
+                                    _customFillInitialScale.z
+                                );
+                                break;
+                            }
+                            case ProgressBarFillDirection.DepthZ: {
+                                float backZ = _customFillInitialLocalPos.z - _customFillInitialScale.z * 0.5f;
+                                float curDepth = _customFillInitialScale.z * p;
+                                _customFillTransform.localPosition = new Vector3(
+                                    _customFillInitialLocalPos.x,
+                                    _customFillInitialLocalPos.y,
+                                    backZ + curDepth * 0.5f
+                                );
+                                _customFillTransform.localScale = new Vector3(
+                                    _customFillInitialScale.x,
+                                    _customFillInitialScale.y,
+                                    Mathf.Max(0.0001f, curDepth)
+                                );
+                                break;
+                            }
+                            case ProgressBarFillDirection.ScaleUniform: {
+                                _customFillTransform.localScale = _customFillInitialScale * p;
+                                break;
+                            }
+                        }
+                    } else {
+                        if (_customFillTransform.gameObject.activeSelf) _customFillTransform.gameObject.SetActive(false);
+                    }
+                }
+
+                if (!_keepCustomModelMaterials) {
+                    ApplyProgressVisualColors();
+                }
+                return;
+            }
+
+            // === B. TRƯỜNG HỢP CUBE MẶC ĐỊNH ===
             float innerSize = _progressCubeSize * 0.94f;
             float currentHeight = innerSize * Mathf.Clamp01(progress);
-            float bottomY = -innerSize * 0.5f;
+            float bottomYCube = -innerSize * 0.5f;
 
             if (_progressFillCube != null) {
                 if (progress > 0.005f) {
                     if (!_progressFillCube.activeSelf) _progressFillCube.SetActive(true);
-                    _progressFillCube.transform.localPosition = new Vector3(0f, bottomY + currentHeight * 0.5f, 0f);
+                    _progressFillCube.transform.localPosition = new Vector3(0f, bottomYCube + currentHeight * 0.5f, 0f);
                     _progressFillCube.transform.localScale = new Vector3(innerSize * 0.98f, Mathf.Max(0.001f, currentHeight), innerSize * 0.98f);
                 } else {
                     if (_progressFillCube.activeSelf) _progressFillCube.SetActive(false);
@@ -618,7 +806,11 @@ namespace MineMart.Gameplay.Mining {
 
         private void LateUpdate() {
             if (_progressVisualRoot != null && _progressVisualRoot.activeSelf) {
-                _progressVisualRoot.transform.rotation = Quaternion.Euler(20f, 45f, 0f);
+                if (_billboardToCamera && Camera.main != null) {
+                    _progressVisualRoot.transform.rotation = Camera.main.transform.rotation;
+                } else {
+                    _progressVisualRoot.transform.rotation = Quaternion.Euler(20f, 45f, 0f);
+                }
             }
         }
 
@@ -1018,6 +1210,34 @@ namespace MineMart.Gameplay.Mining {
         }
 
         /// <summary>
+        /// Tính trung bình cộng giá bán của toàn bộ block đã mở bán tại shop (trên các mỏ đã mở khóa).
+        /// </summary>
+        public static double CalculateAverageUnlockedBlockPrice() {
+            double total = 0;
+            int count = 0;
+            for (int i = 0; i < s_allStations.Count; i++) {
+                MiningStation st = s_allStations[i];
+                if (st != null && st.IsUnlocked && st.ProducedBlock != null) {
+                    total += st.GetFinalSellPrice();
+                    count++;
+                }
+            }
+
+            if (count == 0) {
+                return 3.0; // Fallback an toàn
+            }
+
+            return total / count;
+        }
+
+        /// <summary>
+        /// Tính số tiền tip mặc định = Trung bình cộng giá của toàn bộ block đã mở bán nhân với 2.
+        /// </summary>
+        public static double CalculateTipAmount() {
+            return Math.Round(CalculateAverageUnlockedBlockPrice() * 2.0);
+        }
+
+        /// <summary>
         /// Thời gian đào của block tại trạm này (đã trừ nâng cấp giảm giờ đào từ MapManager).
         /// </summary>
         public float GetBaseCraftTime() {
@@ -1081,6 +1301,13 @@ namespace MineMart.Gameplay.Mining {
                 MilestoneRuleSO rule = milestones[i];
                 if (rule != null && _currentLevel == rule.TargetLevel) {
                     _currentProfitMultiplier = CalculateMilestoneMultiplierForLevel(_currentLevel);
+
+                    // Thưởng Gem / Emerald cho người chơi khi trạm mỏ đạt mốc đột phá
+                    if (rule.GemReward > 0 && HardCurrencyManager.Instance != null) {
+                        HardCurrencyManager.Instance.AddEmerald(rule.GemReward);
+                        Debug.Log($"<color=#2ecc71>[MiningStation]</color> Trạm '{gameObject.name}' đạt mốc Level {rule.TargetLevel}! Thưởng {rule.GemReward} Gem (Emerald).");
+                    }
+
                     OnMilestoneReached?.Invoke(rule);
                 }
             }

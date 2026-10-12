@@ -234,7 +234,9 @@ namespace MineMart.UI.Binders {
         public void Show(MiningStation station) {
             if (station == null || !station.IsUnlocked) return;
 
-            // Đóng bảng nâng cấp bản đồ nếu đang mở
+            // Chặn mở nếu bất kỳ bảng UI toàn màn hình nào đang mở
+            if (EmeraldUpgradeTreePanelUI.Instance != null && EmeraldUpgradeTreePanelUI.Instance.IsOpen) return;
+            if (SettingsDialogUI.Instance != null && SettingsDialogUI.Instance.IsOpen) return;
             if (MapUpgradePanelUI.Instance != null && MapUpgradePanelUI.Instance.IsOpen) {
                 MapUpgradePanelUI.Instance.Close();
             }
@@ -293,10 +295,10 @@ namespace MineMart.UI.Binders {
         private void HandleStationTapped(MiningStation station) {
             if (station == null) return;
 
-            // Nếu bảng nâng cấp map đang mở, không mở bong bóng trạm
-            if (MapUpgradePanelUI.Instance != null && MapUpgradePanelUI.Instance.IsOpen) {
-                return;
-            }
+            // Nếu bảng nâng cấp map, cây nâng cấp ngọc, hoặc cài đặt đang mở -> không mở bong bóng trạm
+            if (MapUpgradePanelUI.Instance != null && MapUpgradePanelUI.Instance.IsOpen) return;
+            if (EmeraldUpgradeTreePanelUI.Instance != null && EmeraldUpgradeTreePanelUI.Instance.IsOpen) return;
+            if (SettingsDialogUI.Instance != null && SettingsDialogUI.Instance.IsOpen) return;
 
             // Nếu chạm lại đúng mỏ đang mở -> đóng lại; nếu mỏ khác -> mở mỏ mới
             if (IsShowing && _currentStation == station) {
