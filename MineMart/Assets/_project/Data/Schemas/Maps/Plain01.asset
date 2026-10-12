@@ -76,7 +76,7 @@ MonoBehaviour:
     _speedBonusPercent: 0
     _miningTimeReduction: 0
     _price: 1
-  - _upgradeId: 0
+  - _upgradeId: 1
     _displayName: Admin only customer
     _icon: {fileID: 0}
     _description: Admin Tool Test
@@ -93,7 +93,7 @@ MonoBehaviour:
     _speedBonusPercent: 0
     _miningTimeReduction: 0
     _price: 1
-  - _upgradeId: 0
+  - _upgradeId: 2
     _displayName: Admin only worker
     _icon: {fileID: 0}
     _description: Admin Tool Test
@@ -110,7 +110,7 @@ MonoBehaviour:
     _speedBonusPercent: 0
     _miningTimeReduction: 0
     _price: 1
-  - _upgradeId: 0
+  - _upgradeId: 3
     _displayName: Admin only speed run
     _icon: {fileID: 0}
     _description: Admin Tool Test
@@ -127,7 +127,7 @@ MonoBehaviour:
     _speedBonusPercent: 1
     _miningTimeReduction: 0
     _price: 1
-  - _upgradeId: 0
+  - _upgradeId: 4
     _displayName: Admin only speed mining
     _icon: {fileID: 0}
     _description: Admin Tool Test
@@ -144,7 +144,7 @@ MonoBehaviour:
     _speedBonusPercent: 1
     _miningTimeReduction: 3
     _price: 1
-  - _upgradeId: 1
+  - _upgradeId: 5
     _displayName: Talk with friends
     _icon: {fileID: 0}
     _description: +1 customer
