@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 312c9d370bd83fe41a4ff2af64a3e5cc, type: 3}
   m_Name: Stall_Heart_Pink_Diamond_Ore
   m_EditorClassIdentifier: MineMart.Data::MineMart.Data.StallDataSO
-  _stallId: 0001
-  _stallName: Oak Wood
+  _stallId: 6
+  _stallName: Diamond ore
   _producedBlock: {fileID: 11400000, guid: a6015ba232f0eff4587ac9439a774152, type: 2}
