@@ -31,41 +31,22 @@ namespace MineMart.Economy {
         [SerializeField] private EmeraldChangedEventChannelSO _emeraldChangedChannel;
 
         [Header("Balance")]
-        [Tooltip("Số dư Hard Currency hiện tại (chỉ lưu trong phiên chơi RAM, không tự tiện lưu PlayerPrefs)")]
+        [Tooltip("Số dư Hard Currency hiện tại trong phiên chơi")]
         [SerializeField] private int _currentEmerald = 0;
 
         public int CurrentEmerald => _currentEmerald;
-        public int CurrentHardCurrency => _currentEmerald;
 
         public event Action<int> OnEmeraldChanged;
-
-        private const string PREF_KEY_HARD_CURRENCY = "MineMart_Global_Emerald";
 
         private void Awake() {
             if (_instance == null) {
                 _instance = this;
                 transform.SetParent(null);
                 DontDestroyOnLoad(gameObject);
-                
-                // Dọn sạch toàn bộ dữ liệu PlayerPrefs cũ nếu trước đó đã từng lưu
-                if (PlayerPrefs.HasKey(PREF_KEY_HARD_CURRENCY)) {
-                    PlayerPrefs.DeleteKey(PREF_KEY_HARD_CURRENCY);
-                    PlayerPrefs.Save();
-                }
             } else if (_instance != this) {
                 Destroy(gameObject);
                 return;
             }
-
-#if UNITY_EDITOR
-            if (_emeraldChangedChannel == null) {
-                string[] guids = UnityEditor.AssetDatabase.FindAssets("t:EmeraldChangedEventChannelSO Event_EmeraldChanged");
-                if (guids != null && guids.Length > 0) {
-                    string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
-                    _emeraldChangedChannel = UnityEditor.AssetDatabase.LoadAssetAtPath<EmeraldChangedEventChannelSO>(path);
-                }
-            }
-#endif
         }
 
         private void Start() {
@@ -75,7 +56,7 @@ namespace MineMart.Economy {
         }
 
         /// <summary>
-        /// Cộng Hard Currency (Gem / Emerald) vào ví trong phiên chơi.
+        /// Cộng Hard Currency (Emerald) vào ví trong phiên chơi.
         /// </summary>
         public void AddEmerald(int amount) {
             if (amount <= 0) return;
@@ -84,8 +65,6 @@ namespace MineMart.Economy {
             _emeraldChangedChannel?.RaiseEvent(_currentEmerald);
             OnEmeraldChanged?.Invoke(_currentEmerald);
         }
-
-        public void AddHardCurrency(int amount) => AddEmerald(amount);
 
         /// <summary>
         /// Tiêu Hard Currency khi mua nâng cấp vĩnh viễn (EUGT) hoặc tính năng đặc biệt.
@@ -105,8 +84,6 @@ namespace MineMart.Economy {
             return false;
         }
 
-        public bool TrySpendHardCurrency(int amount) => TrySpendEmerald(amount);
-
         /// <summary>
         /// Đặt lại số dư Hard Currency.
         /// </summary>
@@ -115,7 +92,5 @@ namespace MineMart.Economy {
             _emeraldChangedChannel?.RaiseEvent(_currentEmerald);
             OnEmeraldChanged?.Invoke(_currentEmerald);
         }
-
-        public void SetHardCurrency(int amount) => SetEmerald(amount);
     }
 }

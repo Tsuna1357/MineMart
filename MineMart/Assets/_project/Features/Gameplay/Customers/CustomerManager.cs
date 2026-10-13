@@ -47,14 +47,32 @@ namespace MineMart.Gameplay.Customers {
         private List<BlockDataSO> _unlockedBlocks = new List<BlockDataSO>();
         private float _spawnTimer = 0f;
 
+        private int _baseMaxCustomers = 1;
+
         public IReadOnlyList<BlockDataSO> UnlockedBlocks => _unlockedBlocks;
         public int MaxCustomers {
             get => _maxCustomers;
             set => _maxCustomers = Mathf.Max(1, value);
         }
 
+        /// <summary>
+        /// Đồng bộ và tính toán lại số lượng khách tối đa dựa trên giá trị gốc cộng thưởng nâng cấp từ MapManager.
+        /// </summary>
+        public void RefreshMaxCustomers() {
+            if (_baseMaxCustomers <= 0) {
+                _baseMaxCustomers = Mathf.Max(1, _maxCustomers);
+            }
+
+            int bonus = 0;
+            if (MapManager.Instance != null) {
+                bonus = MapManager.Instance.GetTotalCustomerBonus();
+            }
+            _maxCustomers = Mathf.Max(1, _baseMaxCustomers + bonus);
+            Debug.Log($"<color=#38BDF8>[CustomerManager]</color> Cập nhật số lượng khách tối đa: {_maxCustomers} (Gốc: {_baseMaxCustomers} + Nâng cấp Map: {bonus})");
+        }
+
         public void AddMaxCustomers(int count) {
-            _maxCustomers = Mathf.Max(1, _maxCustomers + count);
+            RefreshMaxCustomers();
         }
 
         private void Awake() {
@@ -64,6 +82,8 @@ namespace MineMart.Gameplay.Customers {
                 Destroy(gameObject);
                 return;
             }
+
+            _baseMaxCustomers = Mathf.Max(1, _maxCustomers);
 
             // Tương thích ngược: Nếu _customerPrefabs rỗng nhưng scene cũ có _customerPrefab
             if ((_customerPrefabs == null || _customerPrefabs.Count == 0) && _customerPrefab != null) {
@@ -123,6 +143,7 @@ namespace MineMart.Gameplay.Customers {
 
         private void Start() {
             RefreshUnlockedBlocks();
+            RefreshMaxCustomers();
 
             // 1. Lắng nghe sự kiện mở khóa hoặc lên cấp toàn cục từ bất kỳ MiningStation nào
             MiningStation.OnAnyStationUnlocked += HandleAnyStationUnlocked;

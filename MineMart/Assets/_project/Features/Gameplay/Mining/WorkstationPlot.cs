@@ -38,8 +38,27 @@ namespace MineMart.Gameplay.Mining {
         [Tooltip("GameObject hiển thị viền/mặt nền highlight khi đang kéo trạm mỏ đến gần")]
         [SerializeField] private GameObject _highlightRoot;
         [SerializeField] private Renderer _highlightRenderer;
-        [SerializeField] private Color _validHighlightColor = new Color(0.2f, 0.9f, 0.3f, 0.5f);
-        [SerializeField] private Color _swapHighlightColor = new Color(1f, 0.75f, 0.2f, 0.5f);
+        [SerializeField] private Color _validHighlightColor = new Color(0.2f, 0.9f, 0.3f, 0.25f);
+        [SerializeField] private Color _swapHighlightColor = new Color(1f, 0.75f, 0.2f, 0.25f);
+
+        [Header("Minecraft Particle Boundary (Hiệu Ứng Hạt Viền Vuông Minecraft)")]
+        [Tooltip("Bật hiệu ứng hạt particle hình vuông phong cách Minecraft bao quanh viền ô đất thay thế mảng xanh đặc")]
+        [SerializeField] private bool _useMinecraftParticleGuide = true;
+
+        [Tooltip("Ẩn khối Quad/Cube mesh cũ để không che khuất sàn")]
+        [SerializeField] private bool _hideLegacyHighlightMesh = true;
+
+        private ParticleSystem _particleBoundary;
+        private ParticleSystem.MainModule _psMain;
+        private ParticleSystem.EmissionModule _psEmission;
+        private ParticleSystem.ShapeModule _psShape;
+
+        private bool _isGuideActive = false;
+        private bool _isHovered = false;
+
+        private static readonly Color COLOR_EMERALD_BRIGHT = new Color(0.18f, 0.98f, 0.42f, 0.95f);
+        private static readonly Color COLOR_AMBER_SWAP = new Color(1.0f, 0.72f, 0.15f, 0.95f);
+        private static readonly Color COLOR_RESTING_GUIDE = new Color(0.35f, 0.88f, 0.85f, 0.6f);
 
         private static readonly List<WorkstationPlot> s_allPlots = new List<WorkstationPlot>();
         public static IReadOnlyList<WorkstationPlot> AllPlots => s_allPlots;
@@ -90,7 +109,7 @@ namespace MineMart.Gameplay.Mining {
 
         private void Awake() {
             if (string.IsNullOrEmpty(_plotId)) {
-                _plotId = $"Plot_{gameObject.name}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+                _plotId = gameObject.name;
             }
 
             if (_snapAnchor == null) {
@@ -223,15 +242,167 @@ namespace MineMart.Gameplay.Mining {
         }
 
         /// <summary>
-        /// Bật/Tắt hiệu ứng ánh sáng viền khi người chơi rê trạm mỏ lướt qua.
+        /// Bật/Tắt hướng dẫn hiển thị đồng loạt cho tất cả các ô trên bản đồ khi người chơi nhấc một trạm mỏ lên.
+        /// Giúp người chơi lập tức nhìn thấy các ô đích có thể thả hoặc swap vào!
         /// </summary>
-        public void SetHighlight(bool active, bool isSwap = false) {
-            if (_highlightRoot != null) {
-                _highlightRoot.SetActive(active);
+        public static void ShowAllPlotGuides(bool show, MiningStation draggedStation = null) {
+            for (int i = 0; i < s_allPlots.Count; i++) {
+                WorkstationPlot p = s_allPlots[i];
+                if (p != null) {
+                    p.SetGuideActive(show, draggedStation);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Kích hoạt chế độ viền định hướng (Resting Guide) khi một trạm mỏ bất kỳ đang được kéo.
+        /// </summary>
+        public void SetGuideActive(bool active, MiningStation draggedStation = null) {
+            _isGuideActive = active;
+            _isHovered = false;
+
+            if (!active) {
+                if (_particleBoundary != null) {
+                    _particleBoundary.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                }
+                if (_highlightRoot != null) {
+                    _highlightRoot.SetActive(false);
+                }
+                return;
             }
 
-            if (_highlightRenderer != null) {
-                _highlightRenderer.material.color = isSwap ? _swapHighlightColor : _validHighlightColor;
+            if (_useMinecraftParticleGuide) {
+                EnsureParticleBoundary();
+                if (_particleBoundary != null) {
+                    _psMain.startColor = COLOR_RESTING_GUIDE;
+                    _psEmission.rateOverTime = 14f;
+                    if (!_particleBoundary.isPlaying) {
+                        _particleBoundary.Play();
+                    }
+                }
+            }
+
+            // Nếu cho phép hiện mesh cũ thì bật ở mức độ trong suốt nhẹ
+            if (!_hideLegacyHighlightMesh && _highlightRoot != null) {
+                _highlightRoot.SetActive(true);
+                if (_highlightRenderer != null) {
+                    Color c = _validHighlightColor;
+                    c.a = 0.12f;
+                    _highlightRenderer.material.color = c;
+                }
+            } else if (_highlightRoot != null) {
+                _highlightRoot.SetActive(false);
+            }
+        }
+
+        /// <summary>
+        /// Bật/Tắt hiệu ứng khi người chơi rê trạm mỏ lướt trực tiếp qua ô này.
+        /// </summary>
+        public void SetHighlight(bool active, bool isSwap = false) {
+            _isHovered = active;
+
+            if (!active) {
+                // Trở về trạng thái Resting Guide nếu vẫn đang trong lượt kéo thả
+                if (_isGuideActive) {
+                    if (_useMinecraftParticleGuide && _particleBoundary != null) {
+                        _psMain.startColor = COLOR_RESTING_GUIDE;
+                        _psEmission.rateOverTime = 14f;
+                    }
+                    if (!_hideLegacyHighlightMesh && _highlightRoot != null) {
+                        Color c = _validHighlightColor;
+                        c.a = 0.12f;
+                        if (_highlightRenderer != null) _highlightRenderer.material.color = c;
+                    } else if (_highlightRoot != null) {
+                        _highlightRoot.SetActive(false);
+                    }
+                } else {
+                    if (_particleBoundary != null) {
+                        _particleBoundary.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                    }
+                    if (_highlightRoot != null) {
+                        _highlightRoot.SetActive(false);
+                    }
+                }
+                return;
+            }
+
+            // Đang Hover trực tiếp:
+            if (_useMinecraftParticleGuide) {
+                EnsureParticleBoundary();
+                if (_particleBoundary != null) {
+                    _psMain.startColor = isSwap ? COLOR_AMBER_SWAP : COLOR_EMERALD_BRIGHT;
+                    _psEmission.rateOverTime = 40f; // Bùng nổ hạt rực rỡ báo hiệu chuẩn bị hạ cánh
+                    if (!_particleBoundary.isPlaying) {
+                        _particleBoundary.Play();
+                    }
+                }
+            }
+
+            if (!_hideLegacyHighlightMesh && _highlightRoot != null) {
+                _highlightRoot.SetActive(true);
+                if (_highlightRenderer != null) {
+                    _highlightRenderer.material.color = isSwap ? _swapHighlightColor : _validHighlightColor;
+                }
+            } else if (_highlightRoot != null) {
+                _highlightRoot.SetActive(false);
+            }
+        }
+
+        private void EnsureParticleBoundary() {
+            if (_particleBoundary != null) return;
+
+            Transform existing = transform.Find("[MinecraftPlotBoundary]");
+            if (existing != null) {
+                _particleBoundary = existing.GetComponent<ParticleSystem>();
+            }
+
+            if (_particleBoundary == null) {
+                GameObject pGo = new GameObject("[MinecraftPlotBoundary]");
+                pGo.transform.SetParent(transform, false);
+                pGo.transform.localPosition = new Vector3(0f, 0.08f, 0f);
+                pGo.transform.localRotation = Quaternion.identity;
+
+                _particleBoundary = pGo.AddComponent<ParticleSystem>();
+                var renderer = pGo.GetComponent<ParticleSystemRenderer>();
+                renderer.renderMode = ParticleSystemRenderMode.Billboard;
+                renderer.sortingFudge = -5;
+
+                _psMain = _particleBoundary.main;
+                _psMain.loop = true;
+                _psMain.playOnAwake = false;
+                _psMain.duration = 1.0f;
+                _psMain.startLifetime = 0.9f;
+                _psMain.startSpeed = 0.08f;
+                _psMain.startSize = 0.16f; // Hạt voxel vuông nhỏ xinh xắn
+                _psMain.startColor = COLOR_RESTING_GUIDE;
+                _psMain.simulationSpace = ParticleSystemSimulationSpace.World;
+                _psMain.scalingMode = ParticleSystemScalingMode.Hierarchy;
+                _psMain.maxParticles = 60;
+
+                _psShape = _particleBoundary.shape;
+                _psShape.enabled = true;
+                _psShape.shapeType = ParticleSystemShapeType.Box;
+                _psShape.boxThickness = new Vector3(1f, 0f, 1f); // Chỉ phát hạt từ 4 mép viền ngoài!
+                float sizeX = Mathf.Max(1.5f, _plotSize.x);
+                float sizeZ = Mathf.Max(1.5f, _plotSize.z);
+                _psShape.scale = new Vector3(sizeX, 0.05f, sizeZ);
+
+                _psEmission = _particleBoundary.emission;
+                _psEmission.enabled = true;
+                _psEmission.rateOverTime = 14f;
+
+                var colModule = _particleBoundary.colorOverLifetime;
+                colModule.enabled = true;
+                Gradient grad = new Gradient();
+                grad.SetKeys(
+                    new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                    new GradientAlphaKey[] { new GradientAlphaKey(0.2f, 0f), new GradientAlphaKey(1.0f, 0.2f), new GradientAlphaKey(0f, 1f) }
+                );
+                colModule.color = grad;
+            } else {
+                _psMain = _particleBoundary.main;
+                _psEmission = _particleBoundary.emission;
+                _psShape = _particleBoundary.shape;
             }
         }
 
@@ -291,15 +462,45 @@ namespace MineMart.Gameplay.Mining {
         }
 
         /// <summary>
-        /// Tìm ô quy hoạch theo PlotId (phục vụ load savegame).
+        /// Tìm ô quy hoạch theo PlotId hoặc tên GameObject (phục vụ load savegame).
         /// </summary>
         public static WorkstationPlot FindPlotById(string id) {
             if (string.IsNullOrEmpty(id)) return null;
+
+            // Đảm bảo s_allPlots được nạp đầy đủ kể cả khi truy vấn trước OnEnable
+            if (s_allPlots.Count == 0) {
+                WorkstationPlot[] found = FindObjectsByType<WorkstationPlot>(FindObjectsInactive.Include);
+                for (int i = 0; i < found.Length; i++) {
+                    if (found[i] != null && !s_allPlots.Contains(found[i])) {
+                        s_allPlots.Add(found[i]);
+                    }
+                }
+            }
+
+            // 1. Ưu tiên tìm theo tên GameObject (đảm bảo tính độc nhất trong Scene)
             for (int i = 0; i < s_allPlots.Count; i++) {
-                if (s_allPlots[i] != null && s_allPlots[i].PlotId == id) {
+                if (s_allPlots[i] != null && s_allPlots[i].gameObject.name.Equals(id, StringComparison.OrdinalIgnoreCase)) {
                     return s_allPlots[i];
                 }
             }
+
+            // 2. Tìm theo PlotId
+            for (int i = 0; i < s_allPlots.Count; i++) {
+                if (s_allPlots[i] != null && !string.IsNullOrEmpty(s_allPlots[i].PlotId) && s_allPlots[i].PlotId.Equals(id, StringComparison.OrdinalIgnoreCase)) {
+                    return s_allPlots[i];
+                }
+            }
+
+            // 3. Fallback: Nếu id có chứa tên hoặc ngược lại
+            for (int i = 0; i < s_allPlots.Count; i++) {
+                if (s_allPlots[i] != null) {
+                    string gName = s_allPlots[i].gameObject.name;
+                    if (id.EndsWith(gName, StringComparison.OrdinalIgnoreCase) || gName.EndsWith(id, StringComparison.OrdinalIgnoreCase)) {
+                        return s_allPlots[i];
+                    }
+                }
+            }
+
             return null;
         }
 

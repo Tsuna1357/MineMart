@@ -54,8 +54,8 @@ namespace MineMart.Gameplay.Map {
         public IReadOnlyList<WorkerAgent> SpawnedWorkers => _spawnedWorkers;
 
         [Header("Customer Outdoor Tables / Props (AddCustomers Upgrade)")]
-        [Tooltip("Danh sách GameObject bàn ngoài trời / vật thể Scene tương ứng theo từng cấp nâng cấp khách hàng (Phần tử 0 = Cấp 1, Phần tử 1 = Cấp 2...). Nếu để trống (null) hoặc setActive = false thì bỏ qua.")]
-        [SerializeField] private List<CustomerVisualBinding> _customerOutdoorTables = new List<CustomerVisualBinding>();
+        [Tooltip("Danh sách GameObject bàn ngoài trời / vật thể Scene theo thứ tự (Bàn 1, Bàn 2, Bàn 3...). Khi người chơi mua nâng cấp khách hàng có cấu hình thêm bàn, game sẽ kích hoạt lần lượt theo danh sách này.")]
+        [SerializeField] private List<GameObject> _customerOutdoorTables = new List<GameObject>();
 
         // Lưu trữ cấp độ hiện tại của từng loại nâng cấp Map (UpgradeId -> Level)
         private readonly Dictionary<string, int> _upgradeLevels = new Dictionary<string, int>();
@@ -128,7 +128,7 @@ namespace MineMart.Gameplay.Map {
             }
         }
 
-        public IReadOnlyList<CustomerVisualBinding> CustomerOutdoorTables => _customerOutdoorTables;
+        public IReadOnlyList<GameObject> CustomerOutdoorTables => _customerOutdoorTables;
 
         private void Awake() {
             if (Instance == null) {
@@ -429,6 +429,10 @@ namespace MineMart.Gameplay.Map {
 
             ExecuteUpgradeEffect(upgrade, newLevel);
             OnUpgradePurchased?.Invoke(upgrade, newLevel);
+
+            if (SaveManager.Instance != null) {
+                SaveManager.Instance.SaveGame();
+            }
             return true;
         }
 
@@ -446,12 +450,7 @@ namespace MineMart.Gameplay.Map {
                     break;
 
                 case MapUpgradeType.AddCustomers:
-                    // Tăng giới hạn số lượng khách tối đa
-                    if (CustomerManager.Instance != null) {
-                        int addedCount = upgrade.CustomerBonusPerLevel;
-                        CustomerManager.Instance.AddMaxCustomers(addedCount);
-                    }
-                    UpdateCustomerVisualsActivation();
+                    UpdateCustomerCapacity();
                     break;
 
                 case MapUpgradeType.IncreaseAISpeed:
@@ -468,7 +467,7 @@ namespace MineMart.Gameplay.Map {
 
         private void ApplyUpgradeEffectsImmediately() {
             UpdateWorkerPoolActivation();
-            UpdateCustomerVisualsActivation();
+            UpdateCustomerCapacity();
             RefreshAllMovementSpeeds();
         }
 
@@ -568,15 +567,19 @@ namespace MineMart.Gameplay.Map {
                     GameObject workerObj = Instantiate(prefab, spawnPos, spawnPt.rotation);
                     workerObj.name = $"{role}_Worker_{_spawnedWorkers.Count + 1}";
 
-                    WorkerAgent agent = workerObj.GetComponent<WorkerAgent>();
-                    if (agent == null) agent = workerObj.AddComponent<WorkerAgent>();
-                    agent.SetRole(role);
-                    workerObj.SetActive(true);
-
+                    WorkerAgent agent = SetupWorkerInstance(workerObj, role);
                     _spawnedWorkers.Add(agent);
 
                     if (Application.isPlaying) {
-                        DropBounceEffect.Play(workerObj.transform, spawnPos, 3.5f, 0.45f);
+                        agent.SetSpawning(true);
+                        DropBounceEffect.Play(workerObj.transform, spawnPos, 3.5f, 0.45f, onComplete: () => {
+                            if (agent != null) {
+                                agent.SetSpawning(false);
+                                agent.WarpToNavMesh();
+                            }
+                        });
+                    } else {
+                        agent.WarpToNavMesh();
                     }
                 }
             } else if (currentCount > targetCount) {
@@ -591,6 +594,74 @@ namespace MineMart.Gameplay.Map {
             }
         }
 
+        /// <summary>
+        /// Khởi tạo và làm sạch cấu hình Worker: loại bỏ NavMeshAgent thừa ở child, tắt applyRootMotion.
+        /// </summary>
+        public static WorkerAgent SetupWorkerInstance(GameObject instance, WorkerRole role) {
+            if (instance == null) return null;
+
+            // Xóa triệt để các WorkerAgent hoặc NavMeshAgent con bị gắn nhầm trong Model/Armature
+            WorkerAgent[] childAgents = instance.GetComponentsInChildren<WorkerAgent>(true);
+            for (int i = 0; i < childAgents.Length; i++) {
+                if (childAgents[i] != null && childAgents[i].gameObject != instance) {
+                    DestroyImmediate(childAgents[i]);
+                }
+            }
+
+            UnityEngine.AI.NavMeshAgent[] childNavs = instance.GetComponentsInChildren<UnityEngine.AI.NavMeshAgent>(true);
+            for (int i = 0; i < childNavs.Length; i++) {
+                if (childNavs[i] != null && childNavs[i].gameObject != instance) {
+                    DestroyImmediate(childNavs[i]);
+                }
+            }
+
+            // Tắt triệt để Root Motion trên mọi Animator con (nguyên nhân gây khóa cứng vị trí)
+            Animator[] childAnimators = instance.GetComponentsInChildren<Animator>(true);
+            for (int i = 0; i < childAnimators.Length; i++) {
+                if (childAnimators[i] != null) {
+                    childAnimators[i].applyRootMotion = false;
+                }
+            }
+
+            UnityEngine.AI.NavMeshAgent nav = instance.GetComponent<UnityEngine.AI.NavMeshAgent>();
+            if (nav == null) nav = instance.AddComponent<UnityEngine.AI.NavMeshAgent>();
+
+            nav.obstacleAvoidanceType = UnityEngine.AI.ObstacleAvoidanceType.NoObstacleAvoidance;
+            nav.stoppingDistance = 0.2f;
+            nav.speed = 5f;
+            nav.acceleration = 60f;
+            nav.angularSpeed = 3600f;
+            nav.isStopped = false;
+
+            WorkerAgent agent = instance.GetComponent<WorkerAgent>();
+            if (agent == null) agent = instance.AddComponent<WorkerAgent>();
+
+            agent.SetRole(role);
+            return agent;
+        }
+
+        /// <summary>
+        /// Lấy tổng số lượng khách hàng được thưởng thêm từ tất cả các thẻ nâng cấp AddCustomers đã mua trên Map này.
+        /// </summary>
+        public int GetTotalCustomerBonus() {
+            if (_currentMapData == null || _currentMapData.Upgrades == null) return 0;
+            int totalBonus = 0;
+            for (int i = 0; i < _currentMapData.Upgrades.Count; i++) {
+                var up = _currentMapData.Upgrades[i];
+                if (up != null && up.UpgradeType == MapUpgradeType.AddCustomers) {
+                    int lvl = GetUpgradeLevel(up);
+                    totalBonus += lvl * up.CustomerBonusPerLevel;
+                }
+            }
+            return totalBonus;
+        }
+
+        private void UpdateCustomerCapacity() {
+            if (CustomerManager.Instance != null) {
+                CustomerManager.Instance.RefreshMaxCustomers();
+            }
+            UpdateCustomerVisualsActivation();
+        }
 
         private int GetTotalCustomerUpgradeLevel() {
             if (_currentMapData == null) return 0;
@@ -605,52 +676,57 @@ namespace MineMart.Gameplay.Map {
         }
 
         /// <summary>
-        /// Kích hoạt SetActive(true) các bàn ngoài trời / vật thể Scene tương ứng theo các thẻ nâng cấp khách hàng có kích hoạt bàn.
-        /// Chỉ những thẻ có ActivateOutdoorTable == true và đã được người chơi mua (level > 0) mới kích hoạt bàn tương ứng.
+        /// Kích hoạt SetActive(true) các bàn ngoài trời / vật thể Scene theo các thẻ AddCustomers đã mua.
+        /// Thẻ nào có ActivateOutdoorTable = true hoặc OutdoorTablesToActivate > 0 thì mới bật bàn.
         /// </summary>
         private void UpdateCustomerVisualsActivation() {
             if (_customerOutdoorTables == null || _customerOutdoorTables.Count == 0) return;
 
-            // Xác định tập các bàn được kích hoạt từ các thẻ nâng cấp AddCustomers
-            bool[] tableActiveFlags = new bool[_customerOutdoorTables.Count];
-            int autoIndexCounter = 0;
+            // Tập hợp các index của bàn được kích hoạt
+            HashSet<int> activeTableIndices = new HashSet<int>();
+            int nextAutoIndex = 0;
 
             if (_currentMapData != null && _currentMapData.Upgrades != null) {
                 for (int i = 0; i < _currentMapData.Upgrades.Count; i++) {
                     var up = _currentMapData.Upgrades[i];
                     if (up == null || up.UpgradeType != MapUpgradeType.AddCustomers) continue;
 
-                    // Chỉ xét những thẻ có chọn kích hoạt bàn ngoài trời
-                    if (!up.ActivateOutdoorTable) continue;
-
                     int lvl = GetUpgradeLevel(up);
-                    bool isPurchased = lvl > 0;
+                    if (lvl > 0 && (up.ActivateOutdoorTable || up.OutdoorTablesToActivate > 0)) {
+                        int countToAdd = up.OutdoorTablesToActivate;
+                        if (countToAdd <= 0 && up.ActivateOutdoorTable) {
+                            countToAdd = 1;
+                        }
 
-                    int targetTableIdx = up.OutdoorTableIndex;
-                    if (targetTableIdx < 0) {
-                        targetTableIdx = autoIndexCounter;
-                        autoIndexCounter++;
-                    }
-
-                    if (targetTableIdx >= 0 && targetTableIdx < tableActiveFlags.Length) {
-                        if (isPurchased) {
-                            tableActiveFlags[targetTableIdx] = true;
+                        if (countToAdd > 0) {
+                            // Tự động kích hoạt số lượng bàn cấu hình chưa được bật
+                            for (int c = 0; c < countToAdd; c++) {
+                                while (nextAutoIndex < _customerOutdoorTables.Count && activeTableIndices.Contains(nextAutoIndex)) {
+                                    nextAutoIndex++;
+                                }
+                                if (nextAutoIndex < _customerOutdoorTables.Count) {
+                                    activeTableIndices.Add(nextAutoIndex);
+                                    nextAutoIndex++;
+                                }
+                            }
+                        } else if (up.OutdoorTableIndex >= 0 && up.OutdoorTableIndex < _customerOutdoorTables.Count) {
+                            activeTableIndices.Add(up.OutdoorTableIndex);
                         }
                     }
                 }
             }
 
             for (int i = 0; i < _customerOutdoorTables.Count; i++) {
-                var binding = _customerOutdoorTables[i];
-                if (binding != null && binding.targetObject != null) {
-                    bool shouldBeActive = binding.setActive && tableActiveFlags[i];
-                    bool wasActive = binding.targetObject.activeSelf;
-                    binding.targetObject.SetActive(shouldBeActive);
+                GameObject tableObj = _customerOutdoorTables[i];
+                if (tableObj == null) continue;
 
-                    // Nếu bàn ghế/vật thể vừa được kích hoạt mới trong khi đang chơi -> hiệu ứng rơi từ trên trời xuống
-                    if (shouldBeActive && !wasActive && Application.isPlaying) {
-                        DropBounceEffect.Play(binding.targetObject.transform, binding.targetObject.transform.position, 3.5f, 0.45f);
-                    }
+                bool shouldBeActive = activeTableIndices.Contains(i);
+                bool wasActive = tableObj.activeSelf;
+                tableObj.SetActive(shouldBeActive);
+
+                // Nếu bàn ghế vừa được kích hoạt mới trong khi đang chơi -> hiệu ứng rơi từ trên trời xuống
+                if (shouldBeActive && !wasActive && Application.isPlaying) {
+                    DropBounceEffect.Play(tableObj.transform, tableObj.transform.position, 3.5f, 0.45f);
                 }
             }
         }

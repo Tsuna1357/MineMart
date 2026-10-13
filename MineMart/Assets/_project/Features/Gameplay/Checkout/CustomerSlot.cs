@@ -102,9 +102,12 @@ namespace MineMart.Gameplay.Checkout {
             AutoDiscoverAnchors();
         }
 
+        private Camera _mainCamera;
+
         private void Awake() {
             AutoDiscoverAnchors();
             EnsureVisualSetup();
+            _mainCamera = Camera.main;
         }
 
         private void Start() {
@@ -120,8 +123,9 @@ namespace MineMart.Gameplay.Checkout {
             if (_visualRoot == null || !_visualRoot.activeSelf) return;
 
             // 1. Luôn xoay mặt về Camera chính để người chơi nhìn rõ nhất (Billboarding)
-            if (Camera.main != null) {
-                _visualRoot.transform.rotation = Camera.main.transform.rotation;
+            if (_mainCamera == null) _mainCamera = Camera.main;
+            if (_mainCamera != null) {
+                _visualRoot.transform.rotation = _mainCamera.transform.rotation;
             }
 
             // 2. Chuyển động bập bồng nhẹ nhàng (Bobbing)

@@ -94,6 +94,15 @@ Mọi đơn hàng vận hành theo một quy trình 5 bước được giám sá
 - **Cài đặt Bật/Tắt Joystick**:
   - Người chơi có thể gạt tắt Joystick trong menu Cài Đặt để thưởng thức phong cách Pure-Idle màn hình dọc truyền thống.
 
+- **Thuật Toán Leo Bậc Thang Voxel 1m Tự Động (Auto-Step Climb for CharacterController)**:
+  - Khắc phục hạn chế góc cản của PhysX Capsule: Sử dụng hệ thống 3 tia Raycast (Foot, Head, StepTop) phát hiện các khối bậc thang có độ cao từ $0.08\text{m}$ đến $1.15\text{m}$.
+  - Khi người chơi đi thẳng vào mặt đứng của bậc thang Voxel 1m, nhân vật tự động nhấc chân lướt lên đỉnh bậc mượt mà mà không bị dội ngược hay khựng lại.
+
+- **Chuỗi Khởi Động Chuẩn Studio (Studio Splash & Loading Screen Flow)**:
+  - **Giai đoạn 1 (Studio Splash)**: Hiển thị nhận diện Studio (Miyuki Studio) kèm model 3D đại diện, hỗ trợ click/chạm để skip nhanh.
+  - **Giai đoạn 2 (Loading Screen)**: Nền xanh Forest Green, thanh Slider Progress Bar mượt mà từ 0% đến 100% qua hàm nội suy SmoothStep, hiển thị luân phiên các câu Mẹo chơi game (Tips).
+  - **Giai đoạn 3 (Cross-Fade Transition)**: Làm mờ dần màn hình loading để hé lộ thế giới game, bảo đảm 100% không bị lộ cảnh gameplay khi chưa nạp xong tài nguyên.
+
 ```gherkin
 Feature: Order-Driven Mining & Magnet Pop-Snap with Action Lock
   Scenario: Chạy ngang qua mỏ tự do khi không có Order
@@ -164,6 +173,23 @@ Feature: Two-Counter Logistics Pipeline, Direct Handover & Tip Drop
     And khách hàng rời khỏi ô, giải phóng ô cho khách tiếp theo
 ```
 
+#### C. Quầy Bàn Ăn Dùng Bữa Tại Chỗ & Bàn Ngoài Trời (Dine-in Table Counter & Outdoor Tables — `TableCounter` & `TableSlot`)
+- **Vị trí & Bố Cục**: Bố trí tại khu vực ăn uống trong nhà và sân vườn ngoài trời (`CustomerOutdoorTables`).
+- **Quy Tắc Vận Hành Khắc Cốt Ghi Tâm — Tuyệt Đối Không Có Hàng Đợi (No Queue Policy)**:
+  - Khác biệt hoàn toàn với Quầy Tiếp Khách (`CustomerCounter`), bàn ăn vận hành theo quy tắc **Một Ghế - Một Khách**.
+  - Mỗi ô ghế (`TableSlot`) chỉ đón đúng 1 khách ngồi. Khi toàn bộ ghế của bàn đã có người ngồi (`IsOccupied = true`), bàn được coi là **KÍN CHỖ**.
+  - Khách mới đến nếu thấy bàn kín chỗ sẽ **không bao giờ xếp hàng đứng đợi sau lưng khách đang ngồi**, mà tự động tìm bàn khác hoặc chờ ở khu vực sảnh.
+- **Bộ Ba Điểm Neo Chuẩn Hóa Trên Mỗi Ô Ghế (`TableSlot`)**:
+  - `CustomerAnchor`: Vị trí đặt ghế nơi khách ngồi và quay mặt vào bàn.
+  - `ServerAnchor`: Vị trí bồi bàn / người chơi đứng trước bàn để phục vụ món ăn tận nơi.
+  - `TipAnchor`: Vị trí trên mặt bàn nơi tiền tip xuất hiện sau khi khách ăn xong.
+- **Cơ Chế Bàn Ngoài Trời (Outdoor Tables Activation)**:
+  - Các bàn ngoài trời được cấu hình ẩn lúc đầu và tự động kích hoạt tuần tự theo các mốc thẻ nâng cấp bản đồ (`MapUpgradeConfig.ActivateOutdoorTable` và `OutdoorTablesToActivate`).
+  - Khi mở khóa, bàn rơi nảy từ trên trời xuống với hiệu ứng `DropBounceEffect` cực kỳ bắt mắt.
+- **Cơ Chế Thu Gom Tiền Tip Kép (Dual Tip Pickup Mechanics — `WorldTipPickup`)**:
+  - **Cách 1 — Tự Động Hút Khi Lái Tay (Proximity Magnet)**: Khi người chơi tự điều khiển di chuyển tới gần tiền tip ($R \le 2.0\text{m}$), tip tự bay vào ví. Cơ chế này **tự động tắt khi ở chế độ AI Auto-Pilot** để tránh làm phân tán nhịp chạy của AI.
+  - **Cách 2 — Chạm / Tap Màn Hình Trực Tiếp (Screen-Space Direct Tap)**: Bật **100% thời gian** (kể cả khi AI Auto-Pilot đang chạy). Người chơi có thể chạm ngón tay hoặc click chuột trực tiếp vào bọc tiền tip trên màn hình (bán kính chạm $85\text{px}$ và RaycastAll) để nhặt ngay từ xa, kích hoạt hiệu ứng nổ hạt tung tóe (`TipCoinBurstEffect`).
+
 ---
 
 ### 3.3 Phân Loại 3 Cấu Trúc Map (Map Archetypes & Roles)
@@ -198,6 +224,26 @@ Game hỗ trợ 3 kiểu cấu trúc mặt bằng tiệm để đổi mới tr�
   - **Nội suy chuyển động mượt mà (Kinematic Interpolation)**: Nhân vật lướt từ tâm ô hiện tại sang tâm ô kế tiếp trong thời gian cố định ($0.25\text{s/ô}$ theo tốc độ cơ bản $4.0\text{m/s}$), kết hợp nhịp lắc lư (Bobbing) vui mắt. Khi dừng lại, vị trí logic và Transform luôn được chốt cứng tại tọa độ số nguyên tròn trịa $1:1$.
 - **Đi xuyên thấu (Pass-through Agents)**:
   - Toàn bộ Dân làng và người chơi không va chạm vật lý với nhau (Zero Character Collision), loại bỏ triệt để lỗi kẹt đường, nghẽn lối đi trên lưới.
+
+---
+
+### 3.4.B Hệ Sinh Thái 3 Vai Trò Thợ Dân Làng Chuyên Biệt (Worker Roles: Miner, Runner, DirectSeller)
+
+Hệ thống phân định rạch ròi 3 vai trò thợ (`WorkerRole`), kết hợp với cơ chế sinh động (Dynamic Instantiate) theo thẻ nâng cấp map:
+
+1. **Thợ Mỏ (Miner)**:
+   - **Nhiệm vụ**: Chuyên trách khai thác tại các Trạm Mỏ (`MiningStation`).
+   - **Luồng việc**: Đợi có đơn hàng $\rightarrow$ Đến mỏ nhận đơn $\rightarrow$ Khai thác block $\rightarrow$ Mang lên đặt vào ô phù hợp của Quầy Trung Chuyển (`CheckoutCounter`).
+   - **Cơ chế Fallback thông minh**: Nếu cửa hàng không có Quầy Trung Chuyển, Thợ mỏ tự động chuyển sang mang hàng giao trực tiếp cho khách tại Quầy Tiếp Khách.
+2. **Nhân Viên Chạy Bàn / Tiếp Tân (Runner)**:
+   - **Nhiệm vụ**: Chuyên trách khâu giao nhận và phục vụ khách.
+   - **Luồng việc**: Đến Quầy Trung Chuyển rút block mà khách đang đợi $\rightarrow$ Mang ra Quầy Tiếp Khách (`CustomerCounter`) hoặc Bàn Ăn (`TableCounter`) giao tận tay $\rightarrow$ Hoàn tất đơn hàng.
+3. **Thợ Đa Năng / Bán Trực Tiếp (DirectSeller)**:
+   - **Nhiệm vụ**: Mô hình kiêm nhiệm khép kín — tự tiếp khách, tự khai thác, tự giao hàng.
+   - **Luồng việc**: Đứng tại Quầy/Bàn tiếp nhận order từ khách $\rightarrow$ Chạy thẳng ra mỏ tương ứng đào đúng block đó $\rightarrow$ Chạy ngược lại giao tận tay cho khách. Rất hiệu quả cho các layout xưởng nhỏ hoặc giai đoạn đầu game.
+- **Triệu Hồi Động (Dynamic Worker Spawning)**:
+  - Thợ không đặt tĩnh trên scene mà được sinh ra động tại điểm xuất hiện (`WorkerSpawnPoint`) kèm hiệu ứng rơi nảy `DropBounceEffect` khi người chơi mua thẻ nâng cấp `AddStaff` trong bảng Map Upgrades.
+  - Số lượng và vai trò của từng loại thợ được lưu chính xác trong file save và khôi phục khi vào lại game.
 
 ---
 
@@ -319,11 +365,21 @@ $\rightarrow$ Vừa chống ngợp, vừa biến các slot trang bị thành ph�
   - **Lv 50**: Giá trị doanh thu $\times 2$ (Cộng dồn thành $\times 8$).
   - **Lv 100**: Giá trị doanh thu $\times 3$ (Cộng dồn thành $\times 24$).
 
-#### Tầng 2: Cây Nâng Cấp Xưởng Màn Chơi (In-Stage Upgrades bằng Vàng)
-- Mua thêm Giường ngủ (Triệu hồi thêm Thợ dân làng, tối đa 4 thợ).
-- Lát sàn đá mịn (Tăng 30% tốc độ chạy toàn xưởng).
-- Biển hiệu cửa hàng (Tăng 50% tần suất khách ghé tiệm).
-- Mua thêm Quầy Tiếp Khách phụ (Phục vụ 2 khách song song) & Mở rộng thêm ô Quầy Trung Chuyển.
+#### Tầng 2: Cây Nâng Cấp Xưởng Màn Chơi 5 Loại (In-Stage Map Upgrades bằng Vàng)
+Các nâng cấp cục bộ trong màn chơi được cấu hình chi tiết qua `MapDataSO` và hiển thị trên giao diện `MapUpgradePanelUI`, bao gồm 5 nhánh chủ lực:
+
+1. **Thêm Nhân Viên (AddStaff — Triệu Hồi Thợ Dân Làng Động)**:
+   - Mua thẻ nâng cấp sẽ lập tức sinh ra một thợ Dân Làng mới tại điểm Spawn (`WorkerSpawnPoint`) kèm hiệu ứng rơi nảy `DropBounceEffect`.
+   - Hỗ trợ chỉ định cụ thể vai trò (`Miner`, `Runner`, hoặc `DirectSeller`) và Prefab ngoại hình riêng biệt cho từng thẻ.
+2. **Tăng Sức Chứa Khách Hàng & Mở Khóa Bàn Ngoài Trời (AddCustomers & Outdoor Tables)**:
+   - Tăng số lượng khách hàng tối đa ghé tiệm cùng lúc (`+CustomersBonus`).
+   - Tùy chọn kích hoạt thêm các Bàn Ngoài Trời (`ActivateOutdoorTable = true` kèm số lượng bàn `OutdoorTablesToActivate`), giúp mở rộng diện tích đón tiếp thực khách.
+3. **Tăng Tốc Độ Di Chuyển Xưởng (IncreaseAISpeed)**:
+   - Gia tăng tốc độ chạy của toàn bộ nhân viên Dân làng và người chơi (`+AISpeedBonusPercent`, ví dụ $+20\%, +35\%$), giúp chuỗi giao nhận block diễn ra thần tốc.
+4. **Tăng Tốc Độ Khai Thác (IncreaseOreSpeed)**:
+   - Giảm thời gian chế tác/đào block tại các quầy mỏ (`+OreSpeedMultiplier`), giải tỏa dứt điểm nút thắt cổ chai sản xuất.
+5. **Mở Khóa Quầy Mới Theo Tiến Trình (UnlockStalls)**:
+   - Mở khóa các ô đất quầy mỏ tiếp theo trên bản đồ khi người chơi đạt đủ điều kiện kinh tế.
 
 #### Tầng 3: Cây Nâng Cấp Vĩnh Viễn The Vault & Cơ Chế "Hạ Cánh Mềm" (Soft Landing)
 *Trị dứt điểm "Hố sâu Cú sốc mất trắng khi reset Biome"*:
@@ -395,58 +451,61 @@ Hệ thống phân định rạch ròi thành **3 Trụ Cột Độc Lập**, b�
 - `emerald_vault_upgrades`: Cấp độ các node nâng cấp vĩnh viễn đã mua trong The Vault.
 - `settings`: Trạng thái Bật/Tắt Joystick, Bật/Tắt Rung Haptics, Âm lượng.
 
-### 5.3 Nhóm 3: Stage State (Trạng Thái Màn Đang Chơi — Lưu Vào `savedata.json`)
-- `current_stage_id`: Mã màn đang mở (`"stage_01_plains"`).
-- `stage_gold`: Tiền Vàng của màn hiện tại (được lưu riêng biệt).
-- `stallManagerMap(n)`: Mảng trạng thái các quầy (`id_stall`, `stall_Unlocked`, `stall_level`).
-- `stage_upgrades_purchased`: Danh sách các nâng cấp xưởng đã mua bằng Tiền Vàng trong màn.
-- `last_offline_timestamp`: Dấu thời gian Unix thoát game để tính tiền nhàn rỗi.
-- `active_weekend_event`: Nhánh lưu trữ độc lập khi người chơi tham gia Sự Kiện Cuối Tuần (`eventId`, `eventToken`, `eventStalls`).
+### 5.3 Nhóm 3: Stage State (Trạng Thái Màn Đang Chơi — Lưu Vào `savegame.json`)
+- `mapId`: Mã bản đồ đang hoạt động (`"map_01"`, `"event_map"`).
+- `gold`: Tiền Vàng tích lũy của bản đồ hiện tại.
+- `stations`: Danh sách trạng thái các mỏ khai thác trên map (`stallId`, `currentLevel`, `isUnlocked`).
+- `upgrades`: Cấp độ các thẻ nâng cấp Map đã mua (`upgradeId`, `currentLevel`).
+- `workers`: Danh sách số lượng thợ dân làng theo từng vai trò (`role`, `count`).
 
-### 5.4 Cấu Trúc File Lưu Trữ Thực Tế `savedata.json`
+---
+
+### 5.4 Công Thức Toán Học Thu Hoạch Thu Nhập Ngoại Tuyến (Offline AFK Cash Formula)
+Khi người chơi tắt game hoặc tạm dừng và quay trở lại, hệ thống tính toán thu nhập ngoại tuyến công bằng dựa trên năng lực sản xuất thực tế của xưởng:
+
+$$\text{AFK Cash} = (\text{AvgPrice của các Stall đã mở bán}) \times \left( \frac{\text{Thời gian AFK hợp lệ (giây)}}{\text{AvgCraftTime của các Stall đã mở bán}} \right)$$
+
+- **Quy tắc chặn trần**: Thời gian AFK hợp lệ tối đa là $2\text{ giờ}$ ($7200\text{s}$).
+- **Popup Chào Mừng (`AfkWelcomeBackPopupUI`)**: Hiển thị số giờ vắng mặt và số vàng thu hoạch được, cho phép người chơi chọn:
+  - **Nhận Bình Thường (Claim Regular)**: Nhận đúng $100\%$ số vàng tính toán.
+  - **Nhận Nhân Đôi (Claim x2 via Rewarded Ad)**: Xem 1 video quảng cáo nhận ngay $\times 2$ tổng số vàng.
+
+---
+
+### 5.5 Cấu Trúc File Lưu Trữ Thực Tế `savegame.json`
 
 ```json
 {
-  "saveVersion": 2,
-  "lastOfflineTimestamp": 1727180000,
-  
-  "globalProfile": {
-    "emeralds": 120,
-    "settings": {
-      "isJoystickEnabled": true,
-      "isHapticsEnabled": true,
-      "masterVolume": 0.8,
-      "sfxVolume": 1.0
-    },
-    "unlockedGearSlots": ["MainHand", "Helmet", "Pet"],
-    "guestBook": ["iron_golem_vip"],
-    "piggyBankEmeralds": 240,
-    "emeraldVaultUpgrades": {
-      "ad_boost_multiplier": 2,
-      "seed_capital_level": 3,
-      "max_afk_hours": 2
-    },
-    "inventory": [
-      { "id": "iron_pickaxe", "level": 5, "slot": "MainHand" },
-      { "id": "dog_pet", "level": 1, "slot": "Pet" }
-    ]
-  },
-
-  "currentStage": {
-    "stageId": "stage_01_plains",
-    "stageGold": "25400",
-    "stallManagerMap": [
-      { "id_stall": "stall_dirt", "stall_Unlocked": true, "stall_level": 50 },
-      { "id_stall": "stall_wood", "stall_Unlocked": true, "stall_level": 25 },
-      { "id_stall": "stall_stone", "stall_Unlocked": false, "stall_level": 0 }
-    ],
-    "stageUpgradesPurchased": [
-      "upgrade_bed_1",
-      "upgrade_smooth_stone_floor"
-    ]
-  },
-
-  "activeWeekendEvent": null
+  "saveVersion": 1,
+  "lastSaveTimestamp": 1728770000,
+  "emerald": 150,
+  "currentMapId": "map_01",
+  "mapsProgress": [
+    {
+      "mapId": "map_01",
+      "gold": 4520.0,
+      "stations": [
+        { "stallId": "stall_dirt", "currentLevel": 12, "isUnlocked": true },
+        { "stallId": "stall_stone", "currentLevel": 5, "isUnlocked": true }
+      ],
+      "upgrades": [
+        { "upgradeId": "upgrade_customers_01", "currentLevel": 2 },
+        { "upgradeId": "upgrade_staff_miner_01", "currentLevel": 1 }
+      ],
+      "workers": [
+        { "role": 0, "count": 2 },
+        { "role": 1, "count": 1 }
+      ]
+    }
+  ],
+  "eugtUpgrades": [
+    { "upgradeId": "eugt_profit_boost_01", "currentLevel": 1, "isUnlocked": true }
+  ],
+  "settings": {
+    "isJoystickEnabled": true,
+    "isMusicEnabled": true,
+    "isSfxEnabled": true
+  }
 }
 ```
 

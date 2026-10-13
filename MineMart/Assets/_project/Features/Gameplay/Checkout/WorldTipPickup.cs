@@ -46,6 +46,8 @@ namespace MineMart.Gameplay.Checkout {
         public double TipAmount => _tipAmount;
         public bool IsCollected => _isCollected;
 
+        private Camera _mainCamera;
+
         private void Awake() {
             _collider = GetComponent<Collider>();
             if (_collider != null) {
@@ -55,6 +57,7 @@ namespace MineMart.Gameplay.Checkout {
                 _visualHolder = transform;
             }
             _initialLocalPos = _visualHolder.localPosition;
+            _mainCamera = Camera.main;
         }
 
         private void Start() {
@@ -117,15 +120,6 @@ namespace MineMart.Gameplay.Checkout {
             }
         }
 
-        /// <summary>
-        /// Cách 2: Bấm / tap trực tiếp vào Tip bằng chuột hoặc màn hình cảm ứng (hoạt động mọi lúc kể cả khi AI đang chạy).
-        /// </summary>
-        private void OnMouseDown() {
-            if (!_isCollected) {
-                Collect();
-            }
-        }
-
         private void CheckDirectPointerClick() {
             Vector2 pointerPos = Vector2.zero;
             bool isPointerDown = false;
@@ -149,7 +143,10 @@ namespace MineMart.Gameplay.Checkout {
                 return;
             }
 
-            Camera cam = Camera.main;
+            if (_mainCamera == null) {
+                _mainCamera = Camera.main;
+            }
+            Camera cam = _mainCamera;
             if (cam == null) return;
 
             // 1. Quét khoảng cách trên màn hình (Screen Space Touch Radius):

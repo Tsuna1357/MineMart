@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using MineMart.Data;
 using MineMart.Economy;
+using MineMart.Gameplay.Customers;
 using MineMart.Gameplay.Map;
 using MineMart.Gameplay.Mining;
 using UnityEngine;
@@ -107,11 +109,25 @@ namespace MineMart.Gameplay.Persistence {
             SaveGame();
         }
 
-        private void ScanMiningStationsIfEmpty() {
-            if (_miningStations == null || _miningStations.Count == 0) {
-                MiningStation[] foundStations = FindObjectsByType<MiningStation>();
-                _miningStations = new List<MiningStation>(foundStations);
+        public List<MiningStation> GetAllMiningStationsInScene() {
+            var list = new List<MiningStation>();
+            for (int i = 0; i < MiningStation.AllStations.Count; i++) {
+                var st = MiningStation.AllStations[i];
+                if (st != null && !list.Contains(st)) {
+                    list.Add(st);
+                }
             }
+            MiningStation[] foundStations = FindObjectsByType<MiningStation>(FindObjectsInactive.Include);
+            for (int i = 0; i < foundStations.Length; i++) {
+                if (foundStations[i] != null && !list.Contains(foundStations[i])) {
+                    list.Add(foundStations[i]);
+                }
+            }
+            return list;
+        }
+
+        private void ScanMiningStationsIfEmpty() {
+            _miningStations = GetAllMiningStationsInScene();
         }
 
         private string GetCurrentMapId() {
@@ -146,8 +162,6 @@ namespace MineMart.Gameplay.Persistence {
         /// </summary>
         public void SaveGame() {
             try {
-                ScanMiningStationsIfEmpty();
-
                 GameSaveData saveData = ReadExistingSaveDataOrNew();
                 string currentMapId = GetCurrentMapId();
                 saveData.currentActiveMapId = currentMapId;
@@ -160,15 +174,21 @@ namespace MineMart.Gameplay.Persistence {
                 }
 
                 mapEntry.stations.Clear();
-                for (int i = 0; i < _miningStations.Count; i++) {
-                    MiningStation station = _miningStations[i];
+                var currentStations = GetAllMiningStationsInScene();
+                for (int i = 0; i < currentStations.Count; i++) {
+                    MiningStation station = currentStations[i];
                     if (station == null) continue;
 
                     string stationId = (station.StationData != null && !string.IsNullOrEmpty(station.StationData.StallId))
                         ? station.StationData.StallId
-                        : station.gameObject.name;
+                        : ((station.StationData != null && !string.IsNullOrEmpty(station.StationData.StallName))
+                            ? station.StationData.StallName
+                            : station.gameObject.name);
 
-                    string plotId = (station.CurrentPlot != null) ? station.CurrentPlot.PlotId : null;
+                    string plotId = (station.CurrentPlot != null)
+                        ? (!string.IsNullOrEmpty(station.CurrentPlot.PlotId) ? station.CurrentPlot.PlotId : station.CurrentPlot.gameObject.name)
+                        : null;
+
                     mapEntry.stations.Add(new StationSaveEntry(stationId, station.CurrentLevel, plotId));
                 }
 
@@ -266,36 +286,96 @@ namespace MineMart.Gameplay.Persistence {
                         MapManager.Instance.LoadUpgradeLevels(upgradeMap);
                     }
 
-                    // Nạp cấp độ và vị trí ô quy hoạch của từng mỏ trên Map này
-                    Dictionary<string, StationSaveEntry> stationEntryMap = new Dictionary<string, StationSaveEntry>();
-                    if (mapEntry.stations != null) {
+                    // Nạp cấp độ và sinh lại các mỏ trên Map này
+                    if (mapEntry.stations != null && mapEntry.stations.Count > 0) {
+                        var existingStations = GetAllMiningStationsInScene();
+
                         for (int i = 0; i < mapEntry.stations.Count; i++) {
                             StationSaveEntry entry = mapEntry.stations[i];
-                            if (entry != null && !string.IsNullOrEmpty(entry.stationId)) {
-                                stationEntryMap[entry.stationId] = entry;
+                            if (entry == null || string.IsNullOrEmpty(entry.stationId)) continue;
+
+                            // 1. Kiểm tra xem trạm đã tồn tại trong scene chưa
+                            MiningStation station = null;
+                            for (int s = 0; s < existingStations.Count; s++) {
+                                var st = existingStations[s];
+                                if (st != null) {
+                                    string stId = st.StationData != null ? st.StationData.StallId : null;
+                                    string stName = st.StationData != null ? st.StationData.StallName : null;
+                                    if (stId == entry.stationId || stName == entry.stationId || st.gameObject.name == entry.stationId || st.gameObject.name.Contains(entry.stationId)) {
+                                        station = st;
+                                        break;
+                                    }
+                                }
                             }
-                        }
-                    }
 
-                    for (int i = 0; i < _miningStations.Count; i++) {
-                        MiningStation station = _miningStations[i];
-                        if (station == null) continue;
-
-                        string stationId = (station.StationData != null && !string.IsNullOrEmpty(station.StationData.StallId))
-                            ? station.StationData.StallId
-                            : station.gameObject.name;
-
-                        if (stationEntryMap.TryGetValue(stationId, out StationSaveEntry entry)) {
-                            station.SetLevel(entry.level);
-
+                            // 2. Tìm ô đất quy hoạch theo plotId
+                            WorkstationPlot targetPlot = null;
                             if (!string.IsNullOrEmpty(entry.plotId)) {
-                                WorkstationPlot plot = WorkstationPlot.FindPlotById(entry.plotId);
-                                if (plot != null) {
-                                    plot.SnapStation(station, false);
+                                targetPlot = WorkstationPlot.FindPlotById(entry.plotId);
+                            }
+
+                            // 3. Nếu trạm chưa có trong Scene (vì mỏ mua động tại runtime) -> Sinh lại mỏ vào ô đất!
+                            if (station == null && MapManager.Instance != null && MapManager.Instance.CurrentMapData != null) {
+                                StallConfigOnMap stallCfg = null;
+                                var stalls = MapManager.Instance.CurrentMapData.Stalls;
+                                if (stalls != null) {
+                                    for (int k = 0; k < stalls.Count; k++) {
+                                        var cfg = stalls[k];
+                                        if (cfg != null && cfg.StallData != null) {
+                                            if (cfg.StallData.StallId == entry.stationId ||
+                                                cfg.StallData.StallName == entry.stationId ||
+                                                (cfg.StallPrefab != null && cfg.StallPrefab.name == entry.stationId)) {
+                                                stallCfg = cfg;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (stallCfg != null) {
+                                    // Nếu plot đã lưu không còn trống hoặc không tìm thấy, tìm plot trống đầu tiên
+                                    if (targetPlot == null || !targetPlot.IsEmpty) {
+                                        for (int p = 0; p < WorkstationPlot.AllPlots.Count; p++) {
+                                            var pPlot = WorkstationPlot.AllPlots[p];
+                                            if (pPlot != null && pPlot.IsEmpty) {
+                                                targetPlot = pPlot;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    if (targetPlot != null) {
+                                        station = MapManager.Instance.SpawnStallAtPlot(stallCfg, targetPlot);
+                                        if (station != null) {
+                                            existingStations.Add(station);
+                                            Debug.Log($"<color=#10B981>[SaveManager]</color> Khôi phục thành công mỏ: {stallCfg.StallData?.StallName} tại ô đất: {targetPlot.name}");
+                                        }
+                                    } else {
+                                        Debug.LogWarning($"[SaveManager] Không còn ô đất trống để khôi phục mỏ: {entry.stationId}");
+                                    }
+                                } else {
+                                    Debug.LogWarning($"[SaveManager] Không tìm thấy cấu hình mỏ tương ứng với id: {entry.stationId}");
+                                }
+                            }
+
+                            // 4. Cập nhật cấp độ và snap vào plot
+                            if (station != null) {
+                                int lvl = entry.level > 0 ? entry.level : 1;
+                                station.SetLevel(lvl);
+
+                                if (targetPlot != null && station.CurrentPlot != targetPlot) {
+                                    targetPlot.SnapStation(station, false);
                                 }
                             }
                         }
                     }
+                }
+
+                // Cập nhật lại danh sách mỏ để tính toán chính xác AFK và đón khách
+                _miningStations = GetAllMiningStationsInScene();
+                if (CustomerManager.Instance != null) {
+                    CustomerManager.Instance.RefreshUnlockedBlocks();
+                    CustomerManager.Instance.RefreshMaxCustomers();
                 }
 
                 // 3. Tính toán tiền tích lũy ngoại tuyến (AFK Welcome Back)

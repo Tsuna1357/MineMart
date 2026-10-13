@@ -30,33 +30,10 @@ namespace MineMart.Economy {
         private void Awake() {
             if (Instance == null) {
                 Instance = this;
-                // Dọn sạch dữ liệu tiền lưu tạm từ trước nếu còn lưu trong PlayerPrefs
-                if (PlayerPrefs.HasKey(PREF_KEY_GOLD_PREFIX + "default_map")) {
-                    PlayerPrefs.DeleteKey(PREF_KEY_GOLD_PREFIX + "default_map");
-                    PlayerPrefs.Save();
-                }
             } else {
                 Destroy(gameObject);
                 return;
             }
-
-#if UNITY_EDITOR
-            if (_orderDeliveredChannel == null) {
-                string[] guids = UnityEditor.AssetDatabase.FindAssets("t:OrderDeliveredEventChannelSO Event_OrderDelivered");
-                if (guids != null && guids.Length > 0) {
-                    string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
-                    _orderDeliveredChannel = UnityEditor.AssetDatabase.LoadAssetAtPath<OrderDeliveredEventChannelSO>(path);
-                }
-            }
-
-            if (_goldChangedChannel == null) {
-                string[] guids = UnityEditor.AssetDatabase.FindAssets("t:GoldChangedEventChannelSO Event_GoldChanged");
-                if (guids != null && guids.Length > 0) {
-                    string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
-                    _goldChangedChannel = UnityEditor.AssetDatabase.LoadAssetAtPath<GoldChangedEventChannelSO>(path);
-                }
-            }
-#endif
         }
 
         private void OnEnable() {
@@ -117,8 +94,6 @@ namespace MineMart.Economy {
             return false;
         }
 
-        private const string PREF_KEY_GOLD_PREFIX = "MineMart_Gold_";
-
         /// <summary>
         /// ID của bản đồ đang hoạt động (ví dụ: "map_01", "event_halloween"...).
         /// </summary>
@@ -126,17 +101,11 @@ namespace MineMart.Economy {
 
         /// <summary>
         /// Khởi tạo số dư tiền vàng cho Map hiện tại.
-        /// Không tự động lưu ngầm PlayerPrefs để trao quyền quyết định hệ thống lưu cho em.
         /// </summary>
         public void InitializeForMap(string mapId, double defaultStartingGold = 0) {
             ActiveMapId = string.IsNullOrEmpty(mapId) ? "default_map" : mapId;
-            _currentGold = defaultStartingGold;
-
-            // Xóa sạch key cũ nếu máy còn sót lại từ lần test trước
-            string key = PREF_KEY_GOLD_PREFIX + ActiveMapId;
-            if (PlayerPrefs.HasKey(key)) {
-                PlayerPrefs.DeleteKey(key);
-                PlayerPrefs.Save();
+            if (_currentGold <= 0) {
+                _currentGold = defaultStartingGold;
             }
 
             _goldChangedChannel?.RaiseEvent(_currentGold);
@@ -163,16 +132,6 @@ namespace MineMart.Economy {
         public void SetGold(double amount) {
             _currentGold = Math.Max(0, amount);
             _goldChangedChannel?.RaiseEvent(_currentGold);
-        }
-
-        [ContextMenu("Xóa Sạch Dữ Liệu Lưu Vàng Cũ (Reset PlayerPrefs Gold)")]
-        public void ClearOldSavedGold() {
-            PlayerPrefs.DeleteKey(PREF_KEY_GOLD_PREFIX + ActiveMapId);
-            PlayerPrefs.DeleteKey(PREF_KEY_GOLD_PREFIX + "default_map");
-            PlayerPrefs.Save();
-            _currentGold = 0;
-            _goldChangedChannel?.RaiseEvent(_currentGold);
-            Debug.Log("[EconomyManager] Đã dọn sạch dữ liệu tiền vàng lưu ngầm cũ trong PlayerPrefs!");
         }
 
         private void OnDestroy() {

@@ -20,18 +20,21 @@ namespace MineMart.UI.Binders {
         [Tooltip("CanvasGroup của Panel Studio Splash (Miyuki Studio)")]
         [SerializeField] private CanvasGroup _studioSplashGroup;
 
+        [Tooltip("CanvasGroup của phần nội dung Studio (Logo, Tên, Subtitle) để từ từ hiện lên rồi từ từ ẩn đi trên nền tối")]
+        [SerializeField] private CanvasGroup _studioContentGroup;
+
         [Tooltip("CanvasGroup của Panel Loading Screen")]
         [SerializeField] private CanvasGroup _loadingScreenGroup;
 
         [Header("Studio Splash Settings")]
         [Tooltip("Thời gian làm mờ hiện ra (giây) của logo Studio")]
-        [SerializeField] private float _studioFadeInDuration = 0.6f;
+        [SerializeField] private float _studioFadeInDuration = 0.8f;
 
         [Tooltip("Thời gian dừng hiển thị logo Studio (giây)")]
-        [SerializeField] private float _studioStayDuration = 1.8f;
+        [SerializeField] private float _studioStayDuration = 1.6f;
 
-        [Tooltip("Thời gian chuyển tiếp mờ (Fade) từ màn hình Studio sang màn hình Loading (giây)")]
-        [SerializeField] private float _studioFadeOutDuration = 0.5f;
+        [Tooltip("Thời gian làm mờ ẩn đi (giây) của logo Studio")]
+        [SerializeField] private float _studioFadeOutDuration = 0.6f;
 
         [Tooltip("Cho phép người chơi chạm màn hình/bấm chuột để bỏ qua nhanh màn hình Studio")]
         [SerializeField] private bool _allowSkipStudio = true;
@@ -83,13 +86,33 @@ namespace MineMart.UI.Binders {
         private bool _isSequenceFinished = false;
         public bool IsSequenceFinished => _isSequenceFinished;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void InitializeTargetFrameRate() {
+            // Khóa mượt mà 60 FPS trên thiết bị di động (Android / iOS) và chống hiện tượng giật micro-stuttering
+            Application.targetFrameRate = 60;
+            QualitySettings.vSyncCount = 0;
+        }
+
+        private CanvasGroup _backdropGroup;
+        private int _frameCounter = 0;
+        private float _skipGraceTimer = 0f;
+        private const float SKIP_GRACE_DURATION = 0.6f;
+
         private void Awake() {
+            // Đảm bảo thiết lập 60 FPS luôn có hiệu lực
+            Application.targetFrameRate = 60;
+            QualitySettings.vSyncCount = 0;
+
             if (Instance == null) {
                 Instance = this;
             } else if (Instance != this) {
                 Destroy(gameObject);
                 return;
             }
+
+            // Tạo hoặc đảm bảo tấm rèm nền đen bảo vệ (Backdrop) nằm dưới cùng của Canvas
+            // để TUYỆT ĐỐI KHÔNG BAO GIỜ bị lộ cảnh game 3D khi Studio Panel bắt đầu từ Alpha = 0!
+            EnsureBackdropExists();
 
             // Tự động tìm Model 3D nếu người dùng kéo vào con của panel hoặc chưa gán
             if (_studio3DModel == null && _studioSplashGroup != null) {
@@ -99,11 +122,25 @@ namespace MineMart.UI.Binders {
                 }
             }
 
-            // Đảm bảo Canvas khởi động luôn ở trạng thái chuẩn bị
+            // Panel Studio Splash bắt đầu ở mức 0% hoàn toàn (vô hình) để từ từ hiện lên!
             if (_studioSplashGroup != null) {
                 _studioSplashGroup.alpha = 0f;
                 _studioSplashGroup.gameObject.SetActive(true);
                 _studioSplashGroup.blocksRaycasts = true;
+
+                // Tự động tìm hoặc gắn CanvasGroup cho Studio_Content nếu có
+                if (_studioContentGroup == null) {
+                    Transform contentTr = _studioSplashGroup.transform.Find("Studio_Content");
+                    if (contentTr != null) {
+                        _studioContentGroup = contentTr.GetComponent<CanvasGroup>();
+                    }
+                }
+
+                if (_studioContentGroup != null) {
+                    _studioContentGroup.alpha = 1f; // Content luôn 100% bên trong Panel để panel điều khiển toàn bộ
+                    _studioContentGroup.transform.localScale = new Vector3(0.92f, 0.92f, 1f);
+                }
+
                 if (_studio3DModel != null) {
                     _studio3DModel.SetActive(true);
                 }
@@ -116,13 +153,50 @@ namespace MineMart.UI.Binders {
             }
         }
 
+        private void EnsureBackdropExists() {
+            Transform backdropTr = transform.Find("Panel_BlackBackdrop");
+            if (backdropTr == null) {
+                GameObject backdropGo = new GameObject("Panel_BlackBackdrop", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(CanvasGroup));
+                backdropGo.transform.SetParent(transform, false);
+                backdropGo.transform.SetAsFirstSibling(); // Nằm dưới cùng đè lên cảnh 3D nhưng dưới Studio & Loading
+
+                RectTransform rt = backdropGo.GetComponent<RectTransform>();
+                rt.anchorMin = Vector2.zero;
+                rt.anchorMax = Vector2.one;
+                rt.sizeDelta = Vector2.zero;
+
+                Image img = backdropGo.GetComponent<Image>();
+                img.color = new Color(0.04f, 0.06f, 0.09f, 1f); // Nền tối đen sạch sẽ sang trọng
+
+                _backdropGroup = backdropGo.GetComponent<CanvasGroup>();
+                _backdropGroup.alpha = 1f;
+                _backdropGroup.blocksRaycasts = true;
+            } else {
+                backdropTr.SetAsFirstSibling();
+                _backdropGroup = backdropTr.GetComponent<CanvasGroup>();
+                if (_backdropGroup == null) {
+                    _backdropGroup = backdropTr.gameObject.AddComponent<CanvasGroup>();
+                }
+                _backdropGroup.alpha = 1f;
+            }
+        }
+
         private void Start() {
             StartCoroutine(RunStartupSequenceRoutine());
         }
 
         private void Update() {
+            // Chờ ít nhất 30 frame và 0.6s sau khi bật game để tránh nhận nhầm cú click chuột bấm nút "Play" trong Unity Editor
+            _frameCounter++;
+            if (_frameCounter < 30) return;
+
             // Cho phép người chơi chạm màn hình/click để bỏ qua logo Studio
             if (_allowSkipStudio && !_isStudioSkipped && _studioSplashGroup != null && _studioSplashGroup.gameObject.activeSelf) {
+                _skipGraceTimer += Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+                if (_skipGraceTimer < SKIP_GRACE_DURATION) {
+                    return;
+                }
+
                 bool isPressed = false;
                 if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) {
                     isPressed = true;
@@ -137,66 +211,104 @@ namespace MineMart.UI.Binders {
         }
 
         private IEnumerator RunStartupSequenceRoutine() {
+            // 1. Chờ 2 frame sau khi Scene khởi động để Unity nạp xong tài nguyên,
+            // ổn định FPS và triệt tiêu hoàn toàn cú giật lag / cold-start spike của frame 0
+            yield return null;
+            yield return null;
+
             // ==========================================
             // GIAI ĐOẠN 1: MIYUKI STUDIO SPLASH PANEL
             // ==========================================
             if (_studioSplashGroup != null) {
                 _studioSplashGroup.gameObject.SetActive(true);
+                _studioSplashGroup.alpha = 0f; // Bắt đầu chính xác từ Alpha = 0
+
                 if (_studio3DModel != null) {
                     _studio3DModel.SetActive(true);
                 }
 
-                // Fade In Studio Logo
-                yield return StartCoroutine(FadeCanvasGroup(_studioSplashGroup, 0f, 1f, _studioFadeInDuration));
+                Transform contentTr = _studioContentGroup != null 
+                    ? _studioContentGroup.transform 
+                    : _studioSplashGroup.transform.Find("Studio_Content");
 
-                // Dừng hiển thị logo theo thời gian cấu hình (hoặc người chơi bấm Skip)
+                // 1. TỪ TỪ HIỆN LÊN (FADE IN): Alpha chạy từ 0 -> 1 (Kèm hiệu ứng phóng nhẹ cinematic 0.92 -> 1.0)
+                yield return StartCoroutine(FadeStudioRoutine(_studioSplashGroup, contentTr, 0f, 1f, _studioFadeInDuration, true));
+
+                // 2. DỪNG HIỂN THỊ LOGO (STAY / HOLD) ở Alpha = 1
                 float elapsed = 0f;
                 while (elapsed < _studioStayDuration && !_isStudioSkipped) {
-                    elapsed += Time.unscaledDeltaTime;
+                    elapsed += Mathf.Min(Time.unscaledDeltaTime, 0.05f);
                     yield return null;
+                }
+
+                // 3. TỪ TỪ ẨN ĐI (FADE OUT): Alpha chạy từ 1 -> 0
+                yield return StartCoroutine(FadeStudioRoutine(_studioSplashGroup, contentTr, _studioSplashGroup.alpha, 0f, _studioFadeOutDuration, false));
+
+                // Dừng nhẹ 0.1s sau khi logo đã ẩn hoàn toàn
+                if (!_isStudioSkipped) {
+                    yield return new WaitForSecondsRealtime(0.1f);
+                }
+
+                _studioSplashGroup.gameObject.SetActive(false);
+                if (_studio3DModel != null) {
+                    _studio3DModel.SetActive(false);
                 }
             }
 
             // ==========================================
             // GIAI ĐOẠN 2: LOADING SCREEN PANEL
-            // Giữ nguyên nền tối Studio bên dưới, cho Loading Screen Fade In đè lên trên
-            // để TUYỆT ĐỐI KHÔNG BỊ LỘ CẢNH GAME đằng sau!
+            // Đè lên nền Backdrop đen bên dưới, TUYỆT ĐỐI KHÔNG LỘ CẢNH GAME
             // ==========================================
             if (_loadingScreenGroup != null) {
                 _loadingScreenGroup.gameObject.SetActive(true);
-                _loadingScreenGroup.transform.SetAsLastSibling(); // Đảm bảo Loading Panel luôn nằm trên cùng đè lên Studio
+                _loadingScreenGroup.transform.SetAsLastSibling();
                 _loadingScreenGroup.alpha = 0f;
 
                 // Chọn ngẫu nhiên một câu Tip
                 PickRandomTip();
 
-                // Fade In Loading Screen (đè dần lên nền Studio)
+                // Fade In Loading Screen: 0 -> 1
                 yield return StartCoroutine(FadeCanvasGroup(_loadingScreenGroup, 0f, 1f, _studioFadeOutDuration));
             }
 
-            // Khi Loading Screen đã hiện hoàn toàn (alpha = 1 che kín 100% màn hình),
-            // an toàn tắt hoàn toàn Panel Studio và Model 3D
-            if (_studioSplashGroup != null) {
-                _studioSplashGroup.gameObject.SetActive(false);
-            }
-            if (_studio3DModel != null) {
-                _studio3DModel.SetActive(false);
-            }
-
             if (_loadingScreenGroup != null) {
-                // Chạy tiến trình Loading
+                // Chạy tiến trình Loading giả lập
                 yield return StartCoroutine(SimulateLoadingProcessRoutine());
 
                 // Dừng nhẹ 0.35s ở mốc 100% để tạo cảm giác đã nạp trọn vẹn
                 yield return new WaitForSecondsRealtime(0.35f);
 
-                // Fade Out Loading Screen để hé lộ thế giới game
-                yield return StartCoroutine(FadeCanvasGroup(_loadingScreenGroup, 1f, 0f, _loadingFadeOutDuration));
+                // ==========================================
+                // GIAI ĐOẠN 3: FADE OUT HÉ LỘ THẾ GIỚI GAME
+                // Cả Loading Screen và Backdrop đen cùng mờ dần về 0
+                // ==========================================
+                float fadeTimer = 0f;
+                float startLoadingAlpha = _loadingScreenGroup.alpha;
+                float startBackdropAlpha = _backdropGroup != null ? _backdropGroup.alpha : 0f;
+
+                while (fadeTimer < _loadingFadeOutDuration) {
+                    float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+                    fadeTimer += dt;
+                    float t = Mathf.Clamp01(fadeTimer / _loadingFadeOutDuration);
+                    float smoothT = Mathf.SmoothStep(0f, 1f, t);
+
+                    _loadingScreenGroup.alpha = Mathf.Lerp(startLoadingAlpha, 0f, smoothT);
+                    if (_backdropGroup != null) {
+                        _backdropGroup.alpha = Mathf.Lerp(startBackdropAlpha, 0f, smoothT);
+                    }
+                    yield return null;
+                }
+
+                _loadingScreenGroup.alpha = 0f;
                 _loadingScreenGroup.gameObject.SetActive(false);
+                if (_backdropGroup != null) {
+                    _backdropGroup.alpha = 0f;
+                    _backdropGroup.gameObject.SetActive(false);
+                }
             }
 
             // ==========================================
-            // GIAI ĐOẠN 3: VÀO GAME HOÀN TẤT
+            // GIAI ĐOẠN 4: VÀO GAME HOÀN TẤT
             // ==========================================
             _isSequenceFinished = true;
             OnStartupSequenceCompleted?.Invoke();
@@ -284,12 +396,63 @@ namespace MineMart.UI.Binders {
             group.alpha = from;
 
             while (timer < duration) {
-                timer += Time.unscaledDeltaTime;
-                group.alpha = Mathf.Lerp(from, to, timer / duration);
+                float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+                timer += dt;
+                float t = Mathf.Clamp01(timer / duration);
+                float smoothT = Mathf.SmoothStep(0f, 1f, t);
+                group.alpha = Mathf.Lerp(from, to, smoothT);
                 yield return null;
             }
 
             group.alpha = to;
+        }
+
+        private IEnumerator FadeStudioRoutine(CanvasGroup group, Transform contentTr, float from, float to, float duration, bool withScale) {
+            if (group == null) yield break;
+
+            // Đặt alpha khởi điểm ngay lập tức
+            group.alpha = from;
+
+            if (_isStudioSkipped) {
+                group.alpha = to;
+                yield break;
+            }
+
+            if (duration <= 0f) {
+                group.alpha = to;
+                yield break;
+            }
+
+            Vector3 startScale = withScale ? new Vector3(0.92f, 0.92f, 1f) : Vector3.one;
+            Vector3 endScale = Vector3.one;
+            if (contentTr != null && withScale) {
+                contentTr.localScale = startScale;
+            }
+
+            float timer = 0f;
+
+            while (timer < duration && !_isStudioSkipped) {
+                // Kẹp tối đa 50ms mỗi frame để chống mọi hiện tượng frame lag / spike làm tua nhanh hiệu ứng
+                float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+                timer += dt;
+                float t = Mathf.Clamp01(timer / duration);
+                float smoothT = Mathf.SmoothStep(0f, 1f, t);
+
+                group.alpha = Mathf.Lerp(from, to, smoothT);
+                if (contentTr != null && withScale) {
+                    contentTr.localScale = Vector3.Lerp(startScale, endScale, smoothT);
+                }
+                yield return null;
+            }
+
+            if (_isStudioSkipped) {
+                group.alpha = 0f;
+            } else {
+                group.alpha = to;
+                if (contentTr != null && withScale) {
+                    contentTr.localScale = endScale;
+                }
+            }
         }
     }
 }

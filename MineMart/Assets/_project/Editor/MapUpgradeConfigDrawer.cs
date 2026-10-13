@@ -45,8 +45,8 @@ namespace MineMart.Editor {
                 case MapUpgradeType.AddCustomers:
                     totalHeight += PropH("_customerBonusPerLevel");
                     totalHeight += PropH("_activateOutdoorTable");
-                    var actProp = property.FindPropertyRelative("_activateOutdoorTable");
-                    if (actProp != null && actProp.boolValue) {
+                    var actTableProp = property.FindPropertyRelative("_activateOutdoorTable");
+                    if (actTableProp != null && actTableProp.boolValue) {
                         totalHeight += PropH("_outdoorTableIndex");
                     }
                     totalHeight += (line * 2.2f) + spacing; // Helpbox for outdoor tables
@@ -155,7 +155,7 @@ namespace MineMart.Editor {
                     }
                     float helpH = line * 2.2f;
                     Rect helpRect = new Rect(position.x, currentY, position.width, helpH);
-                    EditorGUI.HelpBox(helpRect, "ℹ️ Chỉ khi tích 'Kích Hoạt Bàn Ngoài Trời' thì nâng cấp này mới SetActive(true) bàn tương ứng trong Scene. Nếu bỏ tích, chỉ tăng số lượng khách mà không thêm bàn.", MessageType.Info);
+                    EditorGUI.HelpBox(helpRect, "ℹ️ Bật tùy chọn trên nếu muốn thẻ này mở thêm bàn. Chỉ số bàn -1 sẽ tự động mở bàn tiếp theo trong MapManager.", MessageType.Info);
                     currentY += helpH + spacing;
                     break;
                 }

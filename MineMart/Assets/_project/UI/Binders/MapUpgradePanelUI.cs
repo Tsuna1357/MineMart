@@ -5,6 +5,7 @@ using MineMart.Core.Events;
 using MineMart.Data;
 using MineMart.Economy;
 using MineMart.Gameplay.Map;
+using MineMart.Gameplay.Persistence;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -476,6 +477,12 @@ namespace MineMart.UI.Binders {
 
             // Kích hoạt nâng cấp qua MapManager (tự động áp dụng hiệu ứng sinh thợ, thêm khách, tăng tốc...)
             MapManager.Instance.ApplyUpgradeLevelUp(cfg);
+
+            // Lưu game ngay lập tức để bảo toàn nâng cấp vừa mua
+            if (SaveManager.Instance != null) {
+                SaveManager.Instance.SaveGame();
+            }
+
             Debug.Log($"<color=#10B981>[MapUpgradePanelUI]</color> Mua thành công nâng cấp: {cfg.DisplayName}!");
 
             // Cập nhật lại giao diện ngay

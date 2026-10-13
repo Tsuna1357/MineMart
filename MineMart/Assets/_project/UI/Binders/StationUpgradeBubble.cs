@@ -3,6 +3,7 @@ using MineMart.Core.Events;
 using MineMart.Core.Math;
 using MineMart.Economy;
 using MineMart.Gameplay.Mining;
+using MineMart.Gameplay.Persistence;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -64,6 +65,31 @@ namespace MineMart.UI.Binders {
             }
 
             AutoFindReferences();
+            EnsureButtonHitboxes();
+        }
+
+        private void EnsureButtonHitboxes() {
+            // Nút đóng: Tối thiểu 54x54 px (chuẩn chạm ngón tay trên màn hình di động)
+            if (_closeButton != null) {
+                var rt = _closeButton.GetComponent<RectTransform>();
+                if (rt != null) {
+                    Vector2 sz = rt.sizeDelta;
+                    if (sz.x < 54f || sz.y < 54f) {
+                        rt.sizeDelta = new Vector2(Mathf.Max(54f, sz.x), Mathf.Max(54f, sz.y));
+                    }
+                }
+            }
+
+            // Nút Nâng cấp: Tối thiểu 200x56 px (dễ bấm, chữ và icon rõ ràng trên điện thoại)
+            if (_upgradeButton != null) {
+                var rt = _upgradeButton.GetComponent<RectTransform>();
+                if (rt != null) {
+                    Vector2 sz = rt.sizeDelta;
+                    if (sz.x < 200f || sz.y < 56f) {
+                        rt.sizeDelta = new Vector2(Mathf.Max(200f, sz.x), Mathf.Max(56f, sz.y));
+                    }
+                }
+            }
         }
 
         private void AutoFindReferences() {
@@ -321,6 +347,9 @@ namespace MineMart.UI.Binders {
             double cost = _currentStation.GetUpgradeCost();
             if (EconomyManager.Instance != null && EconomyManager.Instance.TrySpendGold(cost)) {
                 _currentStation.Upgrade();
+                if (SaveManager.Instance != null) {
+                    SaveManager.Instance.SaveGame();
+                }
                 RefreshUI();
                 PunchScaleEffect();
 

@@ -6,6 +6,7 @@ using MineMart.Data;
 using MineMart.Economy;
 using MineMart.Gameplay.Map;
 using MineMart.Gameplay.Mining;
+using MineMart.Gameplay.Persistence;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -75,6 +76,19 @@ namespace MineMart.UI.Binders {
             }
 
             AutoFindReferences();
+            EnsureButtonHitboxes();
+        }
+
+        private void EnsureButtonHitboxes() {
+            if (_closeButton != null) {
+                var rt = _closeButton.GetComponent<RectTransform>();
+                if (rt != null) {
+                    Vector2 sz = rt.sizeDelta;
+                    if (sz.x < 54f || sz.y < 54f) {
+                        rt.sizeDelta = new Vector2(Mathf.Max(54f, sz.x), Mathf.Max(54f, sz.y));
+                    }
+                }
+            }
         }
 
         private void AutoFindReferences() {
@@ -532,6 +546,11 @@ namespace MineMart.UI.Binders {
             // Gọi MapManager sinh ra mỏ mới cắm vào Plot (đã tích hợp hiệu ứng rơi từ trên cao xuống)
             if (MapManager.Instance != null) {
                 MapManager.Instance.SpawnStallAtPlot(cfg, _currentPlot);
+            }
+
+            // Lưu game ngay lập tức để bảo toàn quầy vừa mua
+            if (SaveManager.Instance != null) {
+                SaveManager.Instance.SaveGame();
             }
 
             Debug.Log($"<color=#10B981>[PlotStallShopBubble]</color> Đã mua và xây dựng thành công mỏ: {cfg.StallData?.StallName} trên {_currentPlot.name}");

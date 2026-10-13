@@ -18,7 +18,7 @@ namespace MineMart.Gameplay.Mining {
 
         [Header("Settings")]
         [Tooltip("Thời gian nhấn giữ tối thiểu để bắt đầu nhấc quầy lên di chuyển (giây)")]
-        [SerializeField] private float _holdThreshold = 0.2f;
+        [SerializeField] private float _holdThreshold = 0.35f;
 
         [Tooltip("Độ cao nâng bổng quầy mỏ khi đang kéo (mét)")]
         [SerializeField] private float _liftHeight = 0.5f;
@@ -47,6 +47,11 @@ namespace MineMart.Gameplay.Mining {
         private WorkstationPlot _potentialPlot;
 
         public bool IsDragging => _isDragging;
+
+        /// <summary>
+        /// Cho biết người chơi đang nhấn giữ hoặc đang kéo quầy mỏ (dùng để khóa MapCameraController không bị cuộn tranh tay).
+        /// </summary>
+        public bool IsInteracting => _isDragging || (_isPointerDown && (_potentialTarget != null || _potentialPlot != null));
 
         /// <summary>
         /// Sự kiện phát ra khi người chơi chạm nhẹ (Tap) vào Mỏ hoặc Plot có mỏ để mở Bong bóng nâng cấp.
@@ -192,6 +197,31 @@ namespace MineMart.Gameplay.Mining {
             return false;
         }
 
+        /// <summary>
+        /// Kiểm tra xem con trỏ chuột/ngón tay có đang chạm trúng Quầy Mỏ hoặc Ô Plot hay không.
+        /// Được MapCameraController gọi để ngăn camera cuộn tranh tay người chơi khi muốn tương tác mỏ.
+        /// </summary>
+        public bool IsPointerOverStationOrPlot(Vector2 screenPos) {
+            if (_mainCamera == null) _mainCamera = Camera.main;
+            if (_mainCamera == null) return false;
+            if (IsPointerOverInteractiveUI(screenPos)) return false;
+
+            Ray ray = _mainCamera.ScreenPointToRay(screenPos);
+            if (Physics.Raycast(ray, out RaycastHit hit, 100f)) {
+                if (hit.collider.GetComponentInParent<MiningStation>() != null) return true;
+                WorkstationPlot plot = hit.collider.GetComponentInParent<WorkstationPlot>();
+                if (plot != null) {
+                    if (plot.IsEmpty) return true;
+                    MiningStation st = plot.CurrentStation != null ? plot.CurrentStation : plot.GetComponentInChildren<MiningStation>();
+                    if (st != null) {
+                        float dist = Vector3.Distance(new Vector3(hit.point.x, 0, hit.point.z), new Vector3(st.transform.position.x, 0, st.transform.position.z));
+                        if (dist <= 1.4f) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         private MiningStation RaycastStationOrPlot(Vector2 screenPos, out WorkstationPlot hitPlot) {
             hitPlot = null;
             // Bỏ qua nếu bấm trúng nút bấm UI (Button, Slider...)
@@ -201,24 +231,39 @@ namespace MineMart.Gameplay.Mining {
 
             Ray ray = _mainCamera.ScreenPointToRay(screenPos);
             if (Physics.Raycast(ray, out RaycastHit hit, 100f)) {
-                // Kiểm tra trực tiếp vào MiningStation
+                // 1. Kiểm tra trực tiếp vào MiningStation (chạm trúng khối mỏ 3D)
                 MiningStation station = hit.collider.GetComponentInParent<MiningStation>();
                 if (station != null && station.IsUnlocked) {
                     hitPlot = station.CurrentPlot;
                     return station;
                 }
 
-                // Hoặc kiểm tra vào WorkstationPlot
+                // 2. Kiểm tra vào WorkstationPlot
                 WorkstationPlot plot = hit.collider.GetComponentInParent<WorkstationPlot>();
                 if (plot != null) {
                     hitPlot = plot;
+                    // Nếu ô đất TRỐNG -> trả về null để Update() phát hiện chạm vào ô trống để mở shop mua mỏ
+                    if (plot.IsEmpty) {
+                        return null;
+                    }
+
+                    // Nếu ô đất ĐÃ CÓ MỎ:
+                    // CHỈ nhận diện là chạm vào mỏ nếu điểm bấm nằm trong bán kính 1.4m quanh quầy mỏ!
+                    // Tránh trường hợp ô plot 2.5m - 5m quá to khiến chạm sàn ở đâu cũng nảy bong bóng nâng cấp!
                     MiningStation st = plot.CurrentStation;
                     if (st == null) {
                         st = plot.GetComponentInChildren<MiningStation>();
                     }
                     if (st != null && st.IsUnlocked) {
-                        return st;
+                        float distToStation = Vector3.Distance(new Vector3(hit.point.x, 0, hit.point.z), new Vector3(st.transform.position.x, 0, st.transform.position.z));
+                        if (distToStation <= 1.4f) {
+                            return st;
+                        }
                     }
+
+                    // Bấm ngoài bán kính 1.4m của mỏ -> Coi như bấm sàn bình thường (không kích hoạt popup)
+                    hitPlot = null;
+                    return null;
                 }
             }
             return null;
@@ -237,6 +282,9 @@ namespace MineMart.Gameplay.Mining {
             // Nhấc nhẹ mỏ lên
             Vector3 liftedPos = _originalPosition + Vector3.up * _liftHeight;
             StartCoroutine(AnimateLift(station.transform, liftedPos, 0.12f));
+
+            // Hiển thị đồng loạt viền hướng dẫn hạt vuông Minecraft trên mọi ô quy hoạch để người chơi biết chỗ thả/swap
+            WorkstationPlot.ShowAllPlotGuides(true, station);
 
             OnStationLifted?.Invoke(station);
         }
@@ -332,6 +380,9 @@ namespace MineMart.Gameplay.Mining {
             _hoveredPlot = null;
             _draggedStation = null;
             _originalPlot = null;
+
+            // Tắt toàn bộ viền hướng dẫn hạt vuông Minecraft sau khi hoàn tất thả/swap
+            WorkstationPlot.ShowAllPlotGuides(false);
         }
 
         private IEnumerator AnimateLift(Transform tr, Vector3 targetPos, float duration) {

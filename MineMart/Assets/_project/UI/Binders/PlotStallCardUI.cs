@@ -45,6 +45,7 @@ namespace MineMart.UI.Binders {
         private void Awake() {
             AutoFindReferences();
             SyncCardSize();
+            EnsureViewportRef();
         }
 
         /// <summary>

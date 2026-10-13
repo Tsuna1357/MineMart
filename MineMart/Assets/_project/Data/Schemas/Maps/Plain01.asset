@@ -72,6 +72,7 @@ MonoBehaviour:
     _customerBonusPerLevel: 0
     _activateOutdoorTable: 0
     _outdoorTableIndex: -1
+    _outdoorTablesToActivate: 0
     _priceMultiplierValue: 1000
     _speedBonusPercent: 0
     _miningTimeReduction: 0
@@ -89,6 +90,7 @@ MonoBehaviour:
     _customerBonusPerLevel: 15
     _activateOutdoorTable: 1
     _outdoorTableIndex: -1
+    _outdoorTablesToActivate: 2
     _priceMultiplierValue: 1000
     _speedBonusPercent: 0
     _miningTimeReduction: 0
@@ -102,10 +104,11 @@ MonoBehaviour:
     _targetStall: {fileID: 0}
     _workerRole: 2
     _workersAddedPerLevel: 8
-    _workerPrefab: {fileID: 0}
+    _workerPrefab: {fileID: 30504033644965249, guid: 6e9312c1306bff64d97c377f406ea1ce, type: 3}
     _customerBonusPerLevel: 10
-    _activateOutdoorTable: 1
+    _activateOutdoorTable: 0
     _outdoorTableIndex: -1
+    _outdoorTablesToActivate: 0
     _priceMultiplierValue: 1000
     _speedBonusPercent: 0
     _miningTimeReduction: 0
@@ -121,8 +124,9 @@ MonoBehaviour:
     _workersAddedPerLevel: 8
     _workerPrefab: {fileID: 0}
     _customerBonusPerLevel: 10
-    _activateOutdoorTable: 1
+    _activateOutdoorTable: 0
     _outdoorTableIndex: -1
+    _outdoorTablesToActivate: 0
     _priceMultiplierValue: 1000
     _speedBonusPercent: 1
     _miningTimeReduction: 0
@@ -138,8 +142,9 @@ MonoBehaviour:
     _workersAddedPerLevel: 8
     _workerPrefab: {fileID: 0}
     _customerBonusPerLevel: 10
-    _activateOutdoorTable: 1
+    _activateOutdoorTable: 0
     _outdoorTableIndex: -1
+    _outdoorTablesToActivate: 0
     _priceMultiplierValue: 1000
     _speedBonusPercent: 1
     _miningTimeReduction: 3
@@ -155,8 +160,9 @@ MonoBehaviour:
     _workersAddedPerLevel: 8
     _workerPrefab: {fileID: 0}
     _customerBonusPerLevel: 1
-    _activateOutdoorTable: 0
+    _activateOutdoorTable: 1
     _outdoorTableIndex: -1
+    _outdoorTablesToActivate: 1
     _priceMultiplierValue: 1000
     _speedBonusPercent: 1
     _miningTimeReduction: 3

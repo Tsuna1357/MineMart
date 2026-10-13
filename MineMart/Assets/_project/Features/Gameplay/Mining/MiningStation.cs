@@ -804,10 +804,15 @@ namespace MineMart.Gameplay.Mining {
             return _vibrantProgressColor;
         }
 
+        private Camera _mainCamera;
+
         private void LateUpdate() {
             if (_progressVisualRoot != null && _progressVisualRoot.activeSelf) {
-                if (_billboardToCamera && Camera.main != null) {
-                    _progressVisualRoot.transform.rotation = Camera.main.transform.rotation;
+                if (_billboardToCamera) {
+                    if (_mainCamera == null) _mainCamera = Camera.main;
+                    if (_mainCamera != null) {
+                        _progressVisualRoot.transform.rotation = _mainCamera.transform.rotation;
+                    }
                 } else {
                     _progressVisualRoot.transform.rotation = Quaternion.Euler(20f, 45f, 0f);
                 }

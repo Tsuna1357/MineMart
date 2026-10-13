@@ -28,7 +28,7 @@ namespace MineMart.Core.Audio {
         public AudioClip DefaultCoinBurstClip => _defaultCoinBurstClip;
 
         [Header("Volume Scales")]
-        [Range(0f, 1f)] [SerializeField] private float _musicVolume = 0.85f;
+        [Range(0f, 1f)] [SerializeField] private float _musicVolume = 0.7f;
         [Range(0f, 1f)] [SerializeField] private float _sfxVolume = 1.0f;
 
         public AudioSource MusicSource => _musicSource;
@@ -69,6 +69,17 @@ namespace MineMart.Core.Audio {
                 Instance = this;
                 transform.SetParent(null);
                 DontDestroyOnLoad(gameObject);
+
+#if UNITY_ANDROID || UNITY_IOS
+                // Tối ưu cấu hình âm thanh trên di động:
+                // Đảm bảo DSP Buffer an toàn (>= 1024) tránh buffer underrun gây tiếng nổ lách tách / rè rè
+                AudioConfiguration audioConfig = AudioSettings.GetConfiguration();
+                if (audioConfig.dspBufferSize < 1024) {
+                    audioConfig.dspBufferSize = 1024;
+                    AudioSettings.Reset(audioConfig);
+                }
+#endif
+
                 SetupAudioSources();
             } else if (Instance != this) {
                 // Nếu đã có instance cũ tồn tại, chuyển giao các AudioClip mới được kéo vào Inspector của Scene sang instance chính
@@ -85,17 +96,27 @@ namespace MineMart.Core.Audio {
         private void SetupAudioSources() {
             if (_musicSource == null) {
                 _musicSource = gameObject.AddComponent<AudioSource>();
-                _musicSource.loop = true;
-                _musicSource.playOnAwake = false;
-                _musicSource.volume = _musicVolume;
             }
+            _musicSource.loop = true;
+            _musicSource.playOnAwake = false;
+            _musicSource.volume = _musicVolume;
+            // Ép cấu hình 2D thuần túy, triệt tiêu hoàn toàn Doppler effect và spatial distortion gây rè trên điện thoại
+            _musicSource.spatialBlend = 0f;
+            _musicSource.dopplerLevel = 0f;
+            _musicSource.spread = 0f;
+            _musicSource.priority = 0; // Ưu tiên cao nhất, không bị ngắt tiếng
+            _musicSource.bypassEffects = true;
+            _musicSource.bypassListenerEffects = true;
 
             if (_sfxSource == null) {
                 _sfxSource = gameObject.AddComponent<AudioSource>();
-                _sfxSource.loop = false;
-                _sfxSource.playOnAwake = false;
-                _sfxSource.volume = _sfxVolume;
             }
+            _sfxSource.loop = false;
+            _sfxSource.playOnAwake = false;
+            _sfxSource.volume = _sfxVolume;
+            _sfxSource.spatialBlend = 0f;
+            _sfxSource.dopplerLevel = 0f;
+            _sfxSource.priority = 128;
         }
 
         private void Start() {
@@ -148,11 +169,18 @@ namespace MineMart.Core.Audio {
         /// </summary>
         public void PlayMusic(AudioClip clip, bool loop = true) {
             if (clip == null || _musicSource == null) return;
-            // Nếu đang phát đúng bài này thì tiếp tục phát mượt mà, không giật lại từ đầu
-            if (_musicSource.clip == clip && _musicSource.isPlaying) return;
+            // Nếu đang phát đúng bài này thì tiếp tục phát mượt mà, đồng thời cập nhật volume và thông số 2D
+            if (_musicSource.clip == clip && _musicSource.isPlaying) {
+                _musicSource.volume = _musicVolume;
+                _musicSource.spatialBlend = 0f;
+                _musicSource.dopplerLevel = 0f;
+                return;
+            }
 
             _musicSource.clip = clip;
             _musicSource.loop = loop;
+            _musicSource.spatialBlend = 0f;
+            _musicSource.dopplerLevel = 0f;
             _musicSource.volume = _musicVolume;
             _musicSource.mute = SettingsManager.Instance != null && !SettingsManager.Instance.IsMusicEnabled;
             _musicSource.Play();

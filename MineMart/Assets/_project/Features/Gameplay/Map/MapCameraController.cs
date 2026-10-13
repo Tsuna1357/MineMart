@@ -141,8 +141,8 @@ namespace MineMart.Gameplay.Map {
         }
 
         private void HandleInput() {
-            // 1. Kiểm tra thao tác kéo thả di dời quầy mỏ đang diễn ra -> Không kéo map
-            if (WorkstationPlacementController.Instance != null && WorkstationPlacementController.Instance.IsDragging) {
+            // 1. Kiểm tra thao tác kéo thả di dời quầy mỏ đang diễn ra hoặc đang giữ mỏ -> Không kéo map
+            if (WorkstationPlacementController.Instance != null && (WorkstationPlacementController.Instance.IsDragging || WorkstationPlacementController.Instance.IsInteracting)) {
                 _isDragging = false;
                 return;
             }
@@ -170,6 +170,12 @@ namespace MineMart.Gameplay.Map {
             if (isPointerDown) {
                 // Bỏ qua nếu chạm vào giao diện UI
                 if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) {
+                    _isDragging = false;
+                    return;
+                }
+
+                // Bỏ qua nếu chạm vào Quầy Mỏ hoặc Ô Plot (để người chơi bấm nâng cấp hoặc nhấn giữ kéo quầy mà không bị rung giật camera)
+                if (WorkstationPlacementController.Instance != null && WorkstationPlacementController.Instance.IsPointerOverStationOrPlot(currentScreenPos)) {
                     _isDragging = false;
                     return;
                 }

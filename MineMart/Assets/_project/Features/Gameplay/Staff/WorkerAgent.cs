@@ -43,6 +43,61 @@ namespace MineMart.Gameplay.Staff {
 
         private NavMeshAgent _agent;
         private WorkerState _state = WorkerState.Idle;
+        private bool _isSpawning = false;
+
+        public NavMeshAgent Agent => _agent;
+
+        /// <summary>
+        /// Tạm dừng AI và NavMeshAgent của thợ trong lúc hiệu ứng rơi thả (DropBounceEffect) đang chạy.
+        /// </summary>
+        public void SetSpawning(bool spawning) {
+            _isSpawning = spawning;
+            if (_agent != null) {
+                _agent.enabled = !spawning;
+            }
+        }
+
+        /// <summary>
+        /// Đảm bảo NavMeshAgent được ghim (Warp) chính xác vào mặt phẳng NavMesh gần nhất.
+        /// </summary>
+        public void WarpToNavMesh() {
+            if (_agent == null) {
+                _agent = GetComponent<NavMeshAgent>() ?? GetComponentInChildren<NavMeshAgent>() ?? GetComponentInParent<NavMeshAgent>();
+            }
+            if (_agent == null) return;
+
+            _agent.enabled = true;
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 15.0f, NavMesh.AllAreas)) {
+                _agent.Warp(hit.position);
+            } else if (Map.MapManager.Instance != null && Map.MapManager.Instance.WorkerSpawnPoint != null) {
+                if (NavMesh.SamplePosition(Map.MapManager.Instance.WorkerSpawnPoint.position, out NavMeshHit spawnHit, 15.0f, NavMesh.AllAreas)) {
+                    _agent.Warp(spawnHit.position);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Điều hướng an toàn cho NavMeshAgent, tự động warp lại nếu rơi khỏi NavMesh.
+        /// </summary>
+        public bool SetDestinationSafe(Vector3 target) {
+            if (_agent == null) {
+                _agent = GetComponent<NavMeshAgent>() ?? GetComponentInChildren<NavMeshAgent>() ?? GetComponentInParent<NavMeshAgent>();
+            }
+            if (_agent == null) return false;
+            if (!_agent.enabled) _agent.enabled = true;
+
+            if (!_agent.isOnNavMesh) {
+                WarpToNavMesh();
+                if (!_agent.isOnNavMesh) return false;
+            }
+
+            if (NavMesh.SamplePosition(target, out NavMeshHit hit, 5.0f, NavMesh.AllAreas)) {
+                target = hit.position;
+            }
+
+            _agent.isStopped = false;
+            return _agent.SetDestination(target);
+        }
 
         private static readonly List<WorkerAgent> s_allWorkers = new List<WorkerAgent>();
         public static IReadOnlyList<WorkerAgent> AllWorkers => s_allWorkers;
@@ -66,19 +121,25 @@ namespace MineMart.Gameplay.Staff {
 
         private void Awake() {
             _agent = GetComponent<NavMeshAgent>();
-            // Nhân viên đi nhanh hơn khách một chút để phục vụ cho kịp
-            _agent.speed = _moveSpeed;
-            _agent.angularSpeed = 3600f;
-            _agent.acceleration = 60f;
-            // Cho phép nhân viên đi xuyên qua nhau và xuyên qua khách để không bị kẹt đường
-            _agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
-            // Giảm nửa tầm tương tác (cự ly với) để thợ phải tiến sát vào quầy mới được lấy/đặt đồ
-            _agent.stoppingDistance = _stoppingDistance;
+            if (_agent == null) _agent = GetComponentInChildren<NavMeshAgent>();
+            if (_agent == null) _agent = GetComponentInParent<NavMeshAgent>();
+
+            if (_agent != null) {
+                // Nhân viên đi nhanh hơn khách một chút để phục vụ cho kịp
+                _agent.speed = _moveSpeed;
+                _agent.angularSpeed = 3600f;
+                _agent.acceleration = 60f;
+                // Cho phép nhân viên đi xuyên qua nhau và xuyên qua khách để không bị kẹt đường
+                _agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
+                // Giảm nửa tầm tương tác (cự ly với) để thợ phải tiến sát vào quầy mới được lấy/đặt đồ
+                _agent.stoppingDistance = _stoppingDistance;
+            }
 
             _animController = GetComponent<CharacterAnimationController>();
             if (_animController == null) {
                 _animController = gameObject.AddComponent<CharacterAnimationController>();
             }
+            _animController.AutoDetectMovement = false; // WorkerAgent tự điều khiển trạng thái di chuyển và nhún nảy qua SetMoving
 
             Transform foundAnchor = transform.Find("CarryAnchor");
             if (foundAnchor != null) _carryAnchor = foundAnchor;
@@ -88,6 +149,10 @@ namespace MineMart.Gameplay.Staff {
                 obj.transform.localPosition = new Vector3(0, 1.25f, 0);
                 _carryAnchor = obj.transform;
             }
+        }
+
+        private void Start() {
+            WarpToNavMesh();
         }
 
         private void OnEnable() {
@@ -158,7 +223,7 @@ namespace MineMart.Gameplay.Staff {
                         Transform anchor = station.ClaimSlot(this);
                         _targetMiningStation = station;
                         _state = WorkerState.WalkingToMine;
-                        _agent.SetDestination(anchor.position);
+                        SetDestinationSafe(anchor.position);
                         Debug.Log($"[WorkerAgent] 🏃 Worker {name} tự động chạy sang vị trí mới của [{station.StationData?.StallName ?? station.name}] để tiếp tục đào!");
                     }
                 }
@@ -166,6 +231,13 @@ namespace MineMart.Gameplay.Staff {
         }
 
         private void Update() {
+            if (_isSpawning) return;
+
+            if (_agent != null && !_agent.isOnNavMesh) {
+                WarpToNavMesh();
+                if (!_agent.isOnNavMesh) return;
+            }
+
             switch (_state) {
                 case WorkerState.Idle:
                     UpdateIdle();
@@ -230,7 +302,7 @@ namespace MineMart.Gameplay.Staff {
                     _targetTableSlot = tableSlotNeedsOrder;
                     _targetCustomerSlot = null;
                     _state = WorkerState.WalkingToTakeOrder;
-                    _agent.SetDestination(tableSlotNeedsOrder.ServerAnchor.position);
+                    SetDestinationSafe(tableSlotNeedsOrder.ServerAnchor.position);
                     return;
                 }
 
@@ -241,7 +313,7 @@ namespace MineMart.Gameplay.Staff {
                     _targetCustomerSlot = counterSlotNeedsOrder;
                     _targetTableSlot = null;
                     _state = WorkerState.WalkingToTakeOrder;
-                    _agent.SetDestination(counterSlotNeedsOrder.ServerAnchor.position);
+                    SetDestinationSafe(counterSlotNeedsOrder.ServerAnchor.position);
                     return;
                 }
             }
@@ -261,9 +333,9 @@ namespace MineMart.Gameplay.Staff {
                                     _state = WorkerState.WalkingToCheckoutCounterForPickup;
                                     CounterSlot counterSlot = checkoutCounter.GetSlotAtTakePosition(checkoutCounter.transform.position, 100f);
                                     if (counterSlot != null) {
-                                        _agent.SetDestination(counterSlot.TakeAnchor.position);
+                                        SetDestinationSafe(counterSlot.TakeAnchor.position);
                                     } else {
-                                        _agent.SetDestination(checkoutCounter.transform.position);
+                                        SetDestinationSafe(checkoutCounter.transform.position);
                                     }
                                     return;
                                 }
@@ -285,9 +357,9 @@ namespace MineMart.Gameplay.Staff {
                                     _state = WorkerState.WalkingToCheckoutCounterForPickup;
                                     CounterSlot counterSlot = checkoutCounter.GetSlotAtTakePosition(checkoutCounter.transform.position, 100f);
                                     if (counterSlot != null) {
-                                        _agent.SetDestination(counterSlot.TakeAnchor.position);
+                                        SetDestinationSafe(counterSlot.TakeAnchor.position);
                                     } else {
-                                        _agent.SetDestination(checkoutCounter.transform.position);
+                                        SetDestinationSafe(checkoutCounter.transform.position);
                                     }
                                     return;
                                 }
@@ -307,7 +379,7 @@ namespace MineMart.Gameplay.Staff {
                             Transform anchor = station.ClaimSlot(this);
                             _targetMiningStation = station;
                             _state = WorkerState.WalkingToMine;
-                            _agent.SetDestination(anchor.position);
+                            SetDestinationSafe(anchor.position);
                             return;
                         }
                     }
@@ -318,11 +390,13 @@ namespace MineMart.Gameplay.Staff {
                     MiningStation station = FindStationNeedingMining();
                     if (station != null) {
                         _activeTicket = station.ClaimOrderForMining(this);
-                        if (_activeTicket != null || (tableHasSpace && !station.RequireOrderToMine)) {
+                        // Cho phép thợ đào nếu có đơn hàng chờ HOẶC mỏ không bắt buộc đơn
+                        // (kể cả khi bản đồ không có bàn CheckoutCounter)
+                        if (_activeTicket != null || ((table == null || tableHasSpace) && !station.RequireOrderToMine)) {
                             Transform anchor = station.ClaimSlot(this);
                             _targetMiningStation = station;
                             _state = WorkerState.WalkingToMine;
-                            _agent.SetDestination(anchor.position);
+                            SetDestinationSafe(anchor.position);
                             return;
                         }
                     }
@@ -391,10 +465,10 @@ namespace MineMart.Gameplay.Staff {
                 return;
             }
 
-            if (!_agent.pathPending && _agent.remainingDistance <= _agent.stoppingDistance) {
+            if (!_agent.pathPending && (!_agent.hasPath || _agent.remainingDistance <= _agent.stoppingDistance)) {
                 Transform slotAnchor = _targetMiningStation.GetMinerAnchorFor(this);
                 if (slotAnchor != null && Vector3.Distance(transform.position, slotAnchor.position) > 1.2f) {
-                    _agent.SetDestination(slotAnchor.position);
+                    SetDestinationSafe(slotAnchor.position);
                     return;
                 }
 
@@ -404,7 +478,9 @@ namespace MineMart.Gameplay.Staff {
                 _interruptedStation = null;
 
                 // Quay mặt vào mỏ
-                transform.rotation = slotAnchor.rotation;
+                if (slotAnchor != null) {
+                    transform.rotation = slotAnchor.rotation;
+                }
                 _agent.updateRotation = false; // Tạm tắt xoay của agent để không bị giật
             }
         }
@@ -450,15 +526,34 @@ namespace MineMart.Gameplay.Staff {
 
                 // Chuyển hướng tùy theo Role
                 if (_role == WorkerRole.Miner) {
-                    _state = WorkerState.WalkingToCheckoutCounter;
                     _targetCheckoutCounter = FindAvailableCheckoutCounter();
                     if (_targetCheckoutCounter != null) {
+                        _state = WorkerState.WalkingToCheckoutCounter;
                         // Đi đến phía sau bàn trung chuyển (PlaceAnchor)
                         CounterSlot slot = _targetCheckoutCounter.GetSlotAtPlacePosition(_targetCheckoutCounter.transform.position, 100f);
                         if (slot != null) {
-                            _agent.SetDestination(slot.PlaceAnchor.position);
+                            SetDestinationSafe(slot.PlaceAnchor.position);
                         } else {
-                            _agent.SetDestination(_targetCheckoutCounter.transform.position);
+                            SetDestinationSafe(_targetCheckoutCounter.transform.position);
+                        }
+                    } else {
+                        // Nếu Scene không có bàn trung chuyển CheckoutCounter -> giao thẳng cho khách tại quầy!
+                        _state = WorkerState.WalkingToCustomerCounter;
+                        _targetTableSlot = FindTableSlotNeedingBlock(_carriedBlockData);
+                        if (_targetTableSlot != null) {
+                            _targetCustomerSlot = null;
+                            SetDestinationSafe(_targetTableSlot.ServerAnchor.position);
+                        } else {
+                            _targetCustomerSlot = FindCustomerNeedingBlock(_carriedBlockData);
+                            if (_targetCustomerSlot != null) {
+                                SetDestinationSafe(_targetCustomerSlot.ServerAnchor.position);
+                            } else {
+                                CustomerSlot firstSlot = FindAnyCustomerSlot();
+                                if (firstSlot != null) {
+                                    _targetCustomerSlot = firstSlot;
+                                    SetDestinationSafe(firstSlot.ServerAnchor.position);
+                                }
+                            }
                         }
                     }
                 } else if (_role == WorkerRole.DirectSeller) {
@@ -466,11 +561,11 @@ namespace MineMart.Gameplay.Staff {
                     _targetTableSlot = FindTableSlotNeedingBlock(_carriedBlockData);
                     if (_targetTableSlot != null) {
                         _targetCustomerSlot = null;
-                        _agent.SetDestination(_targetTableSlot.ServerAnchor.position);
+                        SetDestinationSafe(_targetTableSlot.ServerAnchor.position);
                     } else {
                         _targetCustomerSlot = FindCustomerNeedingBlock(_carriedBlockData);
                         if (_targetCustomerSlot != null) {
-                            _agent.SetDestination(_targetCustomerSlot.ServerAnchor.position);
+                            SetDestinationSafe(_targetCustomerSlot.ServerAnchor.position);
                         }
                     }
                 }
@@ -534,9 +629,9 @@ namespace MineMart.Gameplay.Staff {
                         // Lấy xong thì đi giao cho khách
                         _state = WorkerState.WalkingToCustomerCounter;
                         if (_targetTableSlot != null) {
-                            _agent.SetDestination(_targetTableSlot.ServerAnchor.position);
+                            SetDestinationSafe(_targetTableSlot.ServerAnchor.position);
                         } else if (_targetCustomerSlot != null) {
-                            _agent.SetDestination(_targetCustomerSlot.ServerAnchor.position);
+                            SetDestinationSafe(_targetCustomerSlot.ServerAnchor.position);
                         }
                     } else {
                         // Đồ đã bị ai đó lấy mất, quay lại Idle
@@ -691,6 +786,15 @@ namespace MineMart.Gameplay.Staff {
             foreach (var counter in CustomerCounter.AllCounters) {
                 foreach (var slot in counter.Slots) {
                     if (slot != null && slot.CanFulfillWith(block)) return slot;
+                }
+            }
+            return null;
+        }
+
+        private CustomerSlot FindAnyCustomerSlot() {
+            foreach (var counter in CustomerCounter.AllCounters) {
+                if (counter.Slots != null && counter.Slots.Count > 0) {
+                    return counter.Slots[0];
                 }
             }
             return null;

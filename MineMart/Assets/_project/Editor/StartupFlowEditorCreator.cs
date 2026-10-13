@@ -55,6 +55,7 @@ namespace MineMart.Editor {
 
             // Container nội dung ở giữa màn hình
             GameObject studioContent = CreateRect("Studio_Content", studioPanel);
+            var studioContentGroup = studioContent.AddComponent<CanvasGroup>();
             var studioContentRect = studioContent.GetComponent<RectTransform>();
             studioContentRect.anchorMin = new Vector2(0.5f, 0.5f);
             studioContentRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -235,6 +236,7 @@ namespace MineMart.Editor {
             // ========================================================
             SerializedObject so = new SerializedObject(flowUI);
             so.FindProperty("_studioSplashGroup").objectReferenceValue = studioGroup;
+            so.FindProperty("_studioContentGroup").objectReferenceValue = studioContentGroup;
             so.FindProperty("_loadingScreenGroup").objectReferenceValue = loadingGroup;
             so.FindProperty("_loadingBar").objectReferenceValue = slider;
             so.FindProperty("_percentageText").objectReferenceValue = percentTmp;

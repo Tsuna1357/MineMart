@@ -104,11 +104,14 @@ namespace MineMart.Data {
         [Tooltip("Số lượng khách tăng thêm mỗi cấp (Dành cho AddCustomers, vd: 1, 2, 5 khách...)")]
         [SerializeField] private int _customerBonusPerLevel = 1;
 
-        [Tooltip("Có kích hoạt thêm bàn ngoài trời / vật thể ngoại cảnh khi mua thẻ nâng cấp này không (Dành cho AddCustomers)")]
+        [Tooltip("Có kích hoạt thêm bàn ngoài trời (Outdoor Table) khi mua nâng cấp này không?")]
         [SerializeField] private bool _activateOutdoorTable = false;
 
-        [Tooltip("Chỉ số bàn trong danh sách Customer Outdoor Tables của MapManager (-1 = tự động theo thứ tự các thẻ thêm bàn)")]
+        [Tooltip("Chỉ số bàn ngoài trời cụ thể cần bật (-1 = tự động kích hoạt bàn tiếp theo theo thứ tự)")]
         [SerializeField] private int _outdoorTableIndex = -1;
+
+        [Tooltip("Số lượng bàn ngoài trời sẽ kích hoạt khi mua thẻ nâng cấp này (vd: 0 = không thêm bàn, 1 = thêm 1 bàn...).")]
+        [SerializeField] private int _outdoorTablesToActivate = 0;
 
         [Tooltip("Hệ số nhân giá bán block (Dành cho MultiplyBlockPrice, vd: 2.0 = x2 giá)")]
         [SerializeField] private float _priceMultiplierValue = 2.0f;
@@ -136,6 +139,7 @@ namespace MineMart.Data {
         public int CustomerBonusPerLevel => _customerBonusPerLevel > 0 ? _customerBonusPerLevel : 1;
         public bool ActivateOutdoorTable => _activateOutdoorTable;
         public int OutdoorTableIndex => _outdoorTableIndex;
+        public int OutdoorTablesToActivate => _outdoorTablesToActivate;
         public float PriceMultiplierValue => _priceMultiplierValue > 0 ? _priceMultiplierValue : 2.0f;
         public float SpeedBonusPercent => _speedBonusPercent > 0 ? _speedBonusPercent : 20f;
         public float MiningTimeReduction => _miningTimeReduction > 0 ? _miningTimeReduction : 0.2f;
