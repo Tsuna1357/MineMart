@@ -263,37 +263,38 @@ namespace MineMart.UI.Binders {
             }
         }
 
+        private Coroutine _punchRoutine;
+        private Coroutine _emeraldPunchRoutine;
+
         private void PunchScaleEffect() {
             Transform target = _coinBarTransform != null ? _coinBarTransform : (_coinText != null ? _coinText.transform : null);
             if (target != null) {
-                target.localScale = Vector3.one * 1.15f;
-                // Trả về kích thước chuẩn sau 100ms
-                CancelInvoke(nameof(ResetScale));
-                Invoke(nameof(ResetScale), 0.1f);
-            }
-        }
-
-        private void ResetScale() {
-            Transform target = _coinBarTransform != null ? _coinBarTransform : (_coinText != null ? _coinText.transform : null);
-            if (target != null) {
-                target.localScale = Vector3.one;
+                if (_punchRoutine != null) StopCoroutine(_punchRoutine);
+                _punchRoutine = StartCoroutine(SmoothPunchRoutine(target));
             }
         }
 
         private void PunchEmeraldScaleEffect() {
             Transform target = _emeraldBarTransform != null ? _emeraldBarTransform : (_emeraldText != null ? _emeraldText.transform : null);
             if (target != null) {
-                target.localScale = Vector3.one * 1.15f;
-                CancelInvoke(nameof(ResetEmeraldScale));
-                Invoke(nameof(ResetEmeraldScale), 0.1f);
+                if (_emeraldPunchRoutine != null) StopCoroutine(_emeraldPunchRoutine);
+                _emeraldPunchRoutine = StartCoroutine(SmoothPunchRoutine(target));
             }
         }
 
-        private void ResetEmeraldScale() {
-            Transform target = _emeraldBarTransform != null ? _emeraldBarTransform : (_emeraldText != null ? _emeraldText.transform : null);
-            if (target != null) {
-                target.localScale = Vector3.one;
+        private System.Collections.IEnumerator SmoothPunchRoutine(Transform target) {
+            float duration = 0.22f;
+            float elapsed = 0f;
+            while (elapsed < duration) {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float scale = 1.0f + Mathf.Sin(t * Mathf.PI) * 0.22f;
+                if (target != null) {
+                    target.localScale = Vector3.one * scale;
+                }
+                yield return null;
             }
+            if (target != null) target.localScale = Vector3.one;
         }
 
         private void RegisterButtons() {

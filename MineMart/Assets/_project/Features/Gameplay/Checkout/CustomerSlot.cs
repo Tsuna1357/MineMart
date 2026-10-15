@@ -85,7 +85,16 @@ namespace MineMart.Gameplay.Checkout {
 
         public Transform CustomerAnchor => _customerAnchor != null ? _customerAnchor : transform;
         public Transform ServerAnchor => _serverAnchor != null ? _serverAnchor : transform;
-        public Transform TipAnchor => _tipAnchor != null ? _tipAnchor : transform;
+        public Transform TipAnchor {
+            get {
+                if (_tipAnchor == null) AutoDiscoverAnchors();
+                return _tipAnchor != null ? _tipAnchor : transform;
+            }
+        }
+
+        public void SetTipAnchor(Transform anchor) {
+            _tipAnchor = anchor;
+        }
 
         public bool IsOccupied => _queue.Count > 0;
         public int QueueCount => _queue.Count;
@@ -155,11 +164,45 @@ namespace MineMart.Gameplay.Checkout {
             }
 
             if (_tipAnchor == null) {
-                Transform found = transform.Find("TipAnchor");
-                if (found == null) found = transform.Find("TipPoint");
-                if (found == null) found = transform.Find("TableAnchor"); // Tương thích ngược nếu đã đặt tên TableAnchor
-                if (found != null) _tipAnchor = found;
+                _tipAnchor = FindTipTransform();
             }
+        }
+
+        private Transform FindTipTransform() {
+            // 1. Tìm con trực tiếp
+            Transform found = transform.Find("Tip");
+            if (found == null) found = transform.Find("TipAnchor");
+            if (found == null) found = transform.Find("TipPoint");
+            if (found == null) found = transform.Find("TableAnchor");
+            if (found != null) return found;
+
+            // 2. Tìm trên parent (CustomerCounter hoặc Checkout)
+            if (transform.parent != null) {
+                found = transform.parent.Find("Tip");
+                if (found == null) found = transform.parent.Find("TipAnchor");
+                if (found == null) found = transform.parent.Find("TipPoint");
+                if (found != null) return found;
+
+                foreach (Transform child in transform.parent) {
+                    if (child.name.Equals("Tip", StringComparison.OrdinalIgnoreCase)) {
+                        return child;
+                    }
+                }
+            }
+
+            // 3. Tìm trên cụm quầy cha (CustomerCounter hoặc Checkout)
+            CustomerCounter counter = GetComponentInParent<CustomerCounter>();
+            if (counter != null) {
+                if (counter.TipAnchor != null) return counter.TipAnchor;
+                var allTr = counter.GetComponentsInChildren<Transform>(true);
+                foreach (var tr in allTr) {
+                    if (tr.name.Equals("Tip", StringComparison.OrdinalIgnoreCase)) {
+                        return tr;
+                    }
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -321,10 +364,11 @@ namespace MineMart.Gameplay.Checkout {
                 Destroy(carriedBlockInstance);
             }
 
-            // 1.5. Phát hiệu ứng các hạt vàng tròn (hoặc model tùy biến) tỏa ra tại vị trí TipAnchor
-            Vector3 tipPos = _tipAnchor != null ? _tipAnchor.position : (CustomerAnchor.position + Vector3.up * 0.8f);
-            GameObject particlePrefab = GetParticlePrefab();
-            TipCoinBurstEffect.Play(tipPos, particlePrefab, _tipParticleCount);
+            // 1.5. Vị trí tip xuất hiện chuẩn xác tại TipAnchor trên quầy
+            Vector3 tipPos = TipAnchor != null ? TipAnchor.position : transform.position;
+
+            double currentPayout = _currentOrderPrice > 0 ? _currentOrderPrice : MiningStation.GetSellPriceForBlock(_currentOrderBlock);
+            FloatingCashText.Spawn(CustomerAnchor.position + Vector3.up * 1.5f, currentPayout);
 
             // 1.6. Kiểm tra tỉ lệ rơi tiền Tip tại quầy (Tỉ lệ đọc trực tiếp từ FloatStatSO.CurrentValue)
             float tipChance = _tipChanceStat != null ? _tipChanceStat.CurrentValue : 0.15f;
@@ -332,7 +376,8 @@ namespace MineMart.Gameplay.Checkout {
             if (UnityEngine.Random.value <= tipChance) {
                 // Tiền tip = Trung bình cộng giá của toàn bộ block đã mở bán tại shop nhân với 2
                 double tipAmount = MiningStation.CalculateTipAmount();
-                WorldTipPickup.CreateTipInstance(tipPos, tipAmount, _worldTipPrefab, _fallbackTipColor);
+                Transform anchor = (TipAnchor != null && TipAnchor != transform) ? TipAnchor : null;
+                WorldTipPickup.CreateTipInstance(tipPos, tipAmount, _worldTipPrefab, _fallbackTipColor, anchor);
                 Debug.Log($"<color=#f1c40f>[CustomerSlot - {name}]</color> 💰 Khách đã để lại {tipAmount} Vàng tiền Tip tại quầy!");
             }
 

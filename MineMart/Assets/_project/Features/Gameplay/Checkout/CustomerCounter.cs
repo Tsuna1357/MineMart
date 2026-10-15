@@ -25,6 +25,10 @@ namespace MineMart.Gameplay.Checkout {
         [Tooltip("Điểm neo nơi nhân viên đứng phục vụ (dành cho bàn 1 khách)")]
         [SerializeField] private Transform _serverAnchor;
 
+        [Header("Tip Anchor")]
+        [Tooltip("Điểm neo trên quầy nơi tiền tip xuất hiện")]
+        [SerializeField] private Transform _tipAnchor;
+
         [Header("Tip Gold Particle Effect (Hiệu Ứng Hạt Vàng Tỏa Ra)")]
         [Tooltip("Prefab model tùy biến cho các hạt vàng tỏa ra tại quầy khi giao block cho khách (nếu các slot con không gán riêng, sẽ dùng prefab này)")]
         [SerializeField] private GameObject _tipParticlePrefab;
@@ -37,6 +41,7 @@ namespace MineMart.Gameplay.Checkout {
         public IReadOnlyList<CustomerSlot> Slots => _slots;
         public int SlotCount => _slots != null ? _slots.Length : 0;
         public OrderDeliveredEventChannelSO OrderDeliveredChannel => _orderDeliveredChannel;
+        public Transform TipAnchor => _tipAnchor;
 
         public Transform CustomerAnchor {
             get {
@@ -121,10 +126,31 @@ namespace MineMart.Gameplay.Checkout {
                 _slots = new CustomerSlot[] { defaultSlot };
             }
 
-            // Đăng ký sự kiện chuyển tiếp từ các slot
+            // Tự động tìm TipAnchor trên quầy nếu chưa gán
+            if (_tipAnchor == null) {
+                Transform found = transform.Find("Tip");
+                if (found == null && transform.parent != null) found = transform.parent.Find("Tip");
+                if (found == null) {
+                    var allTr = GetComponentsInChildren<Transform>(true);
+                    foreach (var tr in allTr) {
+                        if (tr.name.Equals("Tip", StringComparison.OrdinalIgnoreCase)) {
+                            found = tr;
+                            break;
+                        }
+                    }
+                }
+                if (found != null) _tipAnchor = found;
+            }
+
+            // Đăng ký sự kiện chuyển tiếp từ các slot và đồng bộ TipAnchor
             for (int i = 0; i < _slots.Length; i++) {
                 CustomerSlot slot = _slots[i];
                 if (slot != null) {
+                    slot.AutoDiscoverAnchors();
+                    if (_tipAnchor != null && (slot.TipAnchor == null || slot.TipAnchor == slot.transform)) {
+                        slot.SetTipAnchor(_tipAnchor);
+                    }
+
                     slot.OnOrderPlaced -= ForwardOrderPlaced;
                     slot.OnOrderPlaced += ForwardOrderPlaced;
 
@@ -143,6 +169,14 @@ namespace MineMart.Gameplay.Checkout {
             }
 #endif
         }
+
+#if UNITY_EDITOR
+        private void OnValidate() {
+            if (!Application.isPlaying) {
+                InitializeSlots();
+            }
+        }
+#endif
 
         private void ForwardOrderPlaced(BlockDataSO block) => OnOrderPlaced?.Invoke(block);
         private void ForwardOrderCompleted() => OnOrderCompleted?.Invoke();

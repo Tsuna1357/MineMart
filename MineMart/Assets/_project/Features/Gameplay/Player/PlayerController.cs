@@ -78,6 +78,10 @@ namespace MineMart.Gameplay.Player {
         [Tooltip("Bán kính tương tác với trạm mỏ và quầy thu ngân")]
         [SerializeField] private float _interactionRadius = 0.7f;
 
+        [Header("Player Mining Settings")]
+        [Tooltip("Hệ số nhân tốc độ đào của người chơi (mặc định = 2.0 để người chơi đào nhanh gấp đôi thợ)")]
+        [SerializeField] private float _playerMiningSpeedMultiplier = 2.0f;
+
         private CharacterController _characterController;
         private NavMeshAgent _navMeshAgent;
         private GameObject _carriedBlockInstance;
@@ -211,9 +215,12 @@ namespace MineMart.Gameplay.Player {
                 _animController = gameObject.AddComponent<CharacterAnimationController>();
             }
             _animController.AutoDetectMovement = false; // PlayerController trực tiếp quản lý chuyển động từ Input / AutoPilot
+            _animController.EnableBouncyBobbing = false; // Mặc định khi người chơi tự điều khiển tay thì chạy thẳng bình thường
 
             if (_carryAnchor == null) {
-                Transform foundAnchor = transform.Find("CarryAnchor") ?? transform.Find("GameObject");
+                Transform foundAnchor = CharacterAnimationController.FindChildRecursive(transform, "CarryAnchor") 
+                    ?? CharacterAnimationController.FindChildRecursive(transform, "Block_Positons")
+                    ?? CharacterAnimationController.FindChildRecursive(transform, "GameObject");
                 if (foundAnchor != null) {
                     _carryAnchor = foundAnchor;
                 } else {
@@ -318,19 +325,32 @@ namespace MineMart.Gameplay.Player {
                     _autoState == PlayerAutoState.WalkingToDeliverCheckout
                 );
                 bool isNavMoving = _navMeshAgent != null && _navMeshAgent.enabled && (
-                    _navMeshAgent.velocity.sqrMagnitude > 0.04f || 
-                    _navMeshAgent.desiredVelocity.sqrMagnitude > 0.04f ||
+                    _navMeshAgent.velocity.sqrMagnitude > 0.01f || 
+                    _navMeshAgent.desiredVelocity.sqrMagnitude > 0.01f ||
                     (_navMeshAgent.hasPath && _navMeshAgent.remainingDistance > Mathf.Max(_navMeshAgent.stoppingDistance, 0.1f))
                 );
 
-                bool isPlayerMoving = (_isAutoPiloting && (isWalkingInAuto || isNavMoving)) 
-                    || (!_isAutoPiloting && hasInput);
+                bool isManualMoving = !_isAutoPiloting && (hasInput || (_characterController != null && _characterController.velocity.sqrMagnitude > 0.05f));
+                bool isPlayerMoving = (_isAutoPiloting && (isWalkingInAuto || isNavMoving)) || isManualMoving;
                 float activeSpeed = _isAutoPiloting ? CurrentMoveSpeed : ManualMoveSpeed;
                 _animController.SetMoveSpeed(activeSpeed);
                 _animController.SetMoving(isPlayerMoving);
             }
 
             UpdatePopEffect();
+        }
+
+        private float _autoPilotWaddleTimer = 0f;
+
+        private void LateUpdate() {
+            // Khi ở chế độ AI Auto-Pilot và đang di chuyển: nghiêng lắc lư toàn thân (waddle) như Worker / Customer
+            if (_isAutoPiloting && _animController != null && _animController.IsMoving) {
+                _autoPilotWaddleTimer += Time.deltaTime * 7f;
+                float tiltZ = Mathf.Sin(_autoPilotWaddleTimer) * 8.5f;
+                transform.rotation *= Quaternion.Euler(0f, 0f, -tiltZ);
+            } else {
+                _autoPilotWaddleTimer = 0f;
+            }
         }
 
         /// <summary>
@@ -752,7 +772,11 @@ namespace MineMart.Gameplay.Player {
                 transform.rotation = anchor.rotation;
                 _navMeshAgent.updateRotation = false;
                 _autoState = PlayerAutoState.Mining;
-                _autoActionTimer = _autoTargetMiningStation != null ? _autoTargetMiningStation.CurrentCraftTimer : 0f;
+                var myAutoSlot = _autoTargetMiningStation != null ? _autoTargetMiningStation.GetSlotForWorker(this) : null;
+                float savedTime = _autoTargetMiningStation != null ? _autoTargetMiningStation.GetSavedCraftTimer(this) : 0f;
+                if (savedTime <= 0f && myAutoSlot != null) savedTime = myAutoSlot.CurrentCraftTimer;
+                if (savedTime <= 0f && _autoTargetMiningStation != null) savedTime = _autoTargetMiningStation.CurrentCraftTimer;
+                _autoActionTimer = savedTime;
                 _savedMiningTimer = 0f;
                 _interruptedMiningStation = null;
                 TriggerPopEffect();
@@ -778,8 +802,9 @@ namespace MineMart.Gameplay.Player {
             Transform anchor = _autoTargetMiningStation.GetMinerAnchorFor(this);
             transform.rotation = anchor.rotation;
 
-            bool completed = _autoTargetMiningStation.AddMiningProgress(Time.deltaTime);
-            _autoActionTimer = _autoTargetMiningStation.CurrentCraftTimer;
+            bool completed = _autoTargetMiningStation.AddMiningProgress(this, Time.deltaTime * _playerMiningSpeedMultiplier);
+            var myAutoSlot = _autoTargetMiningStation.GetSlotForWorker(this);
+            _autoActionTimer = myAutoSlot != null ? myAutoSlot.CurrentCraftTimer : _autoTargetMiningStation.CurrentCraftTimer;
 
             if (completed) {
                 PickUpBlockFromStation(_autoTargetMiningStation);
@@ -836,6 +861,7 @@ namespace MineMart.Gameplay.Player {
 
                         _carriedBlockInstance = blockInstance;
                         _carriedBlockData = _autoTargetCustomerSlot.CurrentOrderBlock;
+                        CarriedBlockPriceBadge.Attach(_carriedBlockInstance, _carriedBlockData);
 
                         _autoState = PlayerAutoState.WalkingToDeliverCustomer;
                         SetAutoDestination(_autoTargetCustomerSlot.ServerAnchor.position);
@@ -854,6 +880,7 @@ namespace MineMart.Gameplay.Player {
             if (!_navMeshAgent.pathPending && _navMeshAgent.remainingDistance <= _navMeshAgent.stoppingDistance) {
                 if (_autoTargetCheckoutCounter != null && !_autoTargetCheckoutCounter.IsFull && _carriedBlockInstance != null) {
                     if (_autoTargetCheckoutCounter.TryPlaceBlock(_carriedBlockInstance, _carriedBlockData, out Vector3 targetPos)) {
+                        CarriedBlockPriceBadge.Detach(_carriedBlockInstance);
                         _carriedBlockInstance.transform.SetParent(null);
                         _carriedBlockInstance.transform.position = targetPos;
                         _carriedBlockInstance.transform.rotation = _autoTargetCheckoutCounter.transform.rotation;
@@ -874,6 +901,7 @@ namespace MineMart.Gameplay.Player {
         private void UpdateAutoWaitingForCheckoutSpace() {
             if (_autoTargetCheckoutCounter != null && !_autoTargetCheckoutCounter.IsFull && _carriedBlockInstance != null) {
                 if (_autoTargetCheckoutCounter.TryPlaceBlock(_carriedBlockInstance, _carriedBlockData, out Vector3 targetPos)) {
+                    CarriedBlockPriceBadge.Detach(_carriedBlockInstance);
                     _carriedBlockInstance.transform.SetParent(null);
                     _carriedBlockInstance.transform.position = targetPos;
                     _carriedBlockInstance.transform.rotation = _autoTargetCheckoutCounter.transform.rotation;
@@ -1000,21 +1028,29 @@ namespace MineMart.Gameplay.Player {
                     SnapToAnchorInstant(anchor.position, _currentMiningStation.transform.position);
                     TriggerPopEffect();
                     _isMiningLocked = true;
-                    _miningTimer = _currentMiningStation.CurrentCraftTimer;
+                    var myManualSlot = _currentMiningStation.GetSlotForWorker(this);
+                    float savedManualTime = _currentMiningStation.GetSavedCraftTimer(this);
+                    if (savedManualTime <= 0f && myManualSlot != null) savedManualTime = myManualSlot.CurrentCraftTimer;
+                    if (savedManualTime <= 0f) savedManualTime = _currentMiningStation.CurrentCraftTimer;
+                    _miningTimer = savedManualTime;
                     _savedMiningTimer = 0f;
                     _interruptedMiningStation = null;
                 } else {
-                    float distSqr = (_currentMiningStation.transform.position - transform.position).sqrMagnitude;
-                    if (_currentMiningStation.IsBeingDragged || distSqr > 2.5f * 2.5f) {
+                    Transform anchor = _currentMiningStation.GetMinerAnchorFor(this);
+                    Vector3 anchorPos = anchor != null ? anchor.position : _currentMiningStation.transform.position;
+                    float distSqr = (anchorPos - transform.position).sqrMagnitude;
+                    if (_currentMiningStation.IsBeingDragged || distSqr > 3.0f * 3.0f) {
                         CancelManualMining();
                         return;
                     }
 
-                    Transform anchor = _currentMiningStation.GetMinerAnchorFor(this);
-                    FixPositionAtAnchor(anchor.position);
+                    if (anchor != null) {
+                        FixPositionAtAnchor(anchor.position);
+                    }
 
-                    bool completed = _currentMiningStation.AddMiningProgress(Time.deltaTime);
-                    _miningTimer = _currentMiningStation.CurrentCraftTimer;
+                    bool completed = _currentMiningStation.AddMiningProgress(this, Time.deltaTime * _playerMiningSpeedMultiplier);
+                    var myManualSlot = _currentMiningStation.GetSlotForWorker(this);
+                    _miningTimer = myManualSlot != null ? myManualSlot.CurrentCraftTimer : _currentMiningStation.CurrentCraftTimer;
 
                     if (completed) {
                         _miningTimer = 0f;
@@ -1234,6 +1270,7 @@ namespace MineMart.Gameplay.Player {
             }
 
             _carriedBlockData = blockData;
+            CarriedBlockPriceBadge.Attach(_carriedBlockInstance, blockData);
         }
 
         private void DeliverBlockToCustomer(CustomerCounter counter) {
@@ -1278,6 +1315,7 @@ namespace MineMart.Gameplay.Player {
 
                 _carriedBlockInstance = blockInstance;
                 _carriedBlockData = blockData;
+                CarriedBlockPriceBadge.Attach(_carriedBlockInstance, blockData);
                 _counterActionCooldown = 0.5f;
 
                 TriggerPopEffect();
@@ -1292,6 +1330,7 @@ namespace MineMart.Gameplay.Player {
 
             if (targetSlot != null && targetSlot.CanAcceptBlockType(_carriedBlockData)) {
                 if (targetSlot.TryPlaceBlock(_carriedBlockInstance, _carriedBlockData, out Vector3 targetPosition)) {
+                    CarriedBlockPriceBadge.Detach(_carriedBlockInstance);
                     _carriedBlockInstance.transform.SetParent(null);
                     _carriedBlockInstance.transform.position = targetPosition;
                     _carriedBlockInstance.transform.rotation = counter.transform.rotation;

@@ -20,8 +20,9 @@ Shader "MineMart/Voxel/AtlasTriplanar"
         _StepAO ("Bong Do Chan Bac Thang (Step Occlusion)", Range(0.0, 0.6)) = 0.25
 
         [Header(Lighting Settings)]
-        _MinAmbient ("Min Ambient Light (Do Sang Toi Thieu)", Range(0.2, 0.9)) = 0.50
-        _ShadowStrength ("Shadow Strength (Do Dam Bong Do)", Range(0.0, 1.0)) = 0.35
+        _MinAmbient ("Min Ambient Light (Do Sang Toi Thieu)", Range(0.05, 0.5)) = 0.18
+        _ShadowStrength ("Shadow Strength (Do Dam Bong Do)", Range(0.0, 1.0)) = 0.85
+        _Saturation ("Color Vibrance / Saturation (Do Tuoi Mau)", Range(0.8, 1.4)) = 1.0
         [Toggle] _ReceiveShadows ("Nhan Bong Do Tu Vat The Khac", Float) = 1.0
     }
     SubShader
@@ -45,8 +46,8 @@ Shader "MineMart/Voxel/AtlasTriplanar"
             #pragma fragment frag
 
             // URP Keywords
-            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
-            #pragma multi_compile _ _SHADOWS_SOFT
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+            #pragma multi_compile _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHTS
             #pragma multi_compile_fog
 
@@ -84,6 +85,7 @@ Shader "MineMart/Voxel/AtlasTriplanar"
                 float _StepAO;
                 float _MinAmbient;
                 float _ShadowStrength;
+                float _Saturation;
                 float _ReceiveShadows;
             CBUFFER_END
 
@@ -197,9 +199,14 @@ Shader "MineMart/Voxel/AtlasTriplanar"
                 }
 
                 col *= _BaseColor;
+
+                // Tăng độ tươi sáng màu sắc chuẩn Minecraft BSL
+                half luma = dot(col.rgb, half3(0.2126, 0.7152, 0.0722));
+                col.rgb = saturate(lerp(luma.xxx, col.rgb, _Saturation));
+
                 col.rgb *= (faceShade * aoFactor);
 
-                // BƯỚC 4: HỆ THỐNG ÁNH SÁNG URP CHUẨN VOXEL
+                // BƯỚC 4: HỆ THỐNG ÁNH SÁNG URP CHUẨN VOXEL BSL
                 Light mainLight = GetMainLight();
                 
                 half NdotL = saturate(dot(faceNormalWS, mainLight.direction));
@@ -215,8 +222,9 @@ Shader "MineMart/Voxel/AtlasTriplanar"
                 half3 directLight = mainLight.color * (NdotL * shadowAtten);
 
                 half3 ambientSH = SampleSH(faceNormalWS);
-                half3 ambientMin = half3(_MinAmbient, _MinAmbient, _MinAmbient);
-                half3 finalAmbient = max(ambientSH, ambientMin);
+                // Giữ màu sắc vòm trời dịu mát của BSL trong bóng râm, không bị bệt xám
+                half3 ambientFloor = half3(_MinAmbient * 0.7, _MinAmbient * 0.85, _MinAmbient * 1.0);
+                half3 finalAmbient = max(ambientSH, ambientFloor);
 
                 half3 totalLight = directLight + finalAmbient;
                 half3 finalRGB = col.rgb * totalLight;

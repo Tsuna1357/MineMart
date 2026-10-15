@@ -1,9 +1,13 @@
+
 {
     "name": "MineMart.Feel",
     "rootNamespace": "MineMart.Feel",
     "references": [
         "MineMart.Core",
-        "Unity.Cinemachine"
+        "Unity.Cinemachine",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

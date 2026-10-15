@@ -8,7 +8,10 @@
         "MineMart.UI",
         "Unity.TextMeshPro",
         "UnityEngine.UI",
-        "Unity.AI.Navigation"
+        "Unity.AI.Navigation",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime",
+        "MineMart.Feel"
     ],
     "includePlatforms": [
         "Editor"

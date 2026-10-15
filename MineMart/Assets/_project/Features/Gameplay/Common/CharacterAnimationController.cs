@@ -69,16 +69,61 @@ namespace MineMart.Gameplay.Common {
         private float _manualMoveSpeed = 0f;
 
         private bool _isMoving = false;
+        private bool _isMining = false;
+        private float _miningAnimTimer = 0f;
         private bool _isInitialized = false;
         private bool _hasPlayedInitial = false;
 
         public bool IsMoving => _isMoving;
+        public bool IsMining => _isMining;
         public string IdleClipName => _idleClipName;
         public string RunClipName => _runClipName;
+
+        public void SetMining(bool isMining) {
+            _isMining = isMining;
+            if (!isMining) {
+                _miningAnimTimer = 0f;
+            }
+        }
+
+        public Transform ModelTransform => _modelTransform;
+
+        public void SetModelTransform(Transform model) {
+            if (model == null || model == transform) return;
+            _modelTransform = model;
+            _initialModelPos = _modelTransform.localPosition;
+            _initialModelRot = _modelTransform.localRotation;
+            _initialModelScale = _modelTransform.localScale;
+            _hasModelOriginalTransform = true;
+
+            if (_modelTransform.parent != null && _modelTransform.parent.lossyScale.y > 0.0001f && _modelTransform.parent.lossyScale.y < 0.2f) {
+                _positionScaleFactor = 1.0f / _modelTransform.parent.lossyScale.y;
+            } else if (_initialModelPos.y > 10.0f) {
+                _positionScaleFactor = 100.0f;
+            } else {
+                _positionScaleFactor = 1.0f;
+            }
+
+            Debug.Log($"<color=#38BDF8>[CharacterAnimationController]</color> {name}: SetModelTransform='{_modelTransform.name}', ScaleFactor={_positionScaleFactor:F1}, InitialPos={_initialModelPos}");
+        }
 
         public bool AutoDetectMovement {
             get => _autoDetectMovement;
             set => _autoDetectMovement = value;
+        }
+
+        public bool EnableBouncyBobbing {
+            get => _enableBouncyBobbing;
+            set {
+                if (_enableBouncyBobbing != value) {
+                    _enableBouncyBobbing = value;
+                    if (!_enableBouncyBobbing && _modelTransform != null && _modelTransform != transform && _hasModelOriginalTransform) {
+                        _modelTransform.localPosition = _initialModelPos;
+                        _modelTransform.localRotation = _initialModelRot;
+                        _modelTransform.localScale = _initialModelScale;
+                    }
+                }
+            }
         }
 
         private void Awake() {
@@ -125,11 +170,11 @@ namespace MineMart.Gameplay.Common {
         /// Quét lại các component Animation / Animator trong children (hữu ích khi đổi skin/model).
         /// </summary>
         public void RefreshModel() {
-            // 1. Tìm component Animation (Legacy)
+            // 1. Tìm component Animation (Legacy) - TUYỆT ĐỐI KHÔNG destroy hay move để giữ nguyên bindings của FBX
             _animation = GetComponentInChildren<Animation>();
             if (_animation != null) {
                 DiscoverLegacyClips();
-                if (_modelTransform == null) {
+                if (_modelTransform == null && _animation.transform != transform) {
                     _modelTransform = _animation.transform;
                 }
             }
@@ -138,36 +183,17 @@ namespace MineMart.Gameplay.Common {
             _animator = GetComponentInChildren<Animator>();
             if (_animator != null) {
                 _animator.applyRootMotion = false;
-                if (_modelTransform == null) {
+                if (_modelTransform == null && _animator.transform != transform) {
                     _modelTransform = _animator.transform;
                 }
             }
 
-            // 3. Nếu _modelTransform trùng với chính transform này (GameObject chứa logic di chuyển: CharacterController hoặc NavMeshAgent):
-            // Không được nhún trực tiếp transform này vì sẽ xung đột với vị trí vật lý.
-            // Cần tìm bone gốc "Base" hoặc child visual đầu tiên bên dưới để thực hiện nhún độc lập.
+            // 3. Nếu là Worker hoặc Customer (có model container riêng nằm dưới transform)
             if (_modelTransform == null || _modelTransform == transform) {
-                Transform baseChild = FindChildRecursive(transform, "Base");
-                if (baseChild != null) {
-                    _modelTransform = baseChild;
-                } else {
-                    // Dò tìm child transform phù hợp (bỏ qua các điểm neo như CarryAnchor)
-                    for (int i = 0; i < transform.childCount; i++) {
-                        Transform child = transform.GetChild(i);
-                        string childName = child.name.ToLowerInvariant();
-                        if (!childName.Contains("anchor") && !childName.Contains("camera")) {
-                            _modelTransform = child;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // Fallback model transform nếu chưa gán
-            if ((_modelTransform == null || _modelTransform == transform) && transform.childCount > 0) {
                 for (int i = 0; i < transform.childCount; i++) {
                     Transform child = transform.GetChild(i);
-                    if (child.GetComponent<Renderer>() != null || child.GetComponentInChildren<Renderer>() != null) {
+                    string childName = child.name.ToLowerInvariant();
+                    if (childName.Contains("worker") || childName.Contains("customer") || (childName.Contains("model") && !childName.Contains("charactor"))) {
                         _modelTransform = child;
                         break;
                     }
@@ -180,12 +206,6 @@ namespace MineMart.Gameplay.Common {
                 _initialModelScale = _modelTransform.localScale;
                 _hasModelOriginalTransform = true;
 
-                // Tự động thích ứng hệ đơn vị không gian:
-                // 1) Nếu _modelTransform nằm sâu trong hierarchy của FBX (như bone Base), tọa độ local thường dùng hệ centimet
-                //    (ví dụ Base.localPosition.y = 50cm) hoặc parent có lossyScale nhỏ (ví dụ 0.01 do FBX scale import).
-                //    Khi đó 0.12 mét trong thế giới thực tương ứng với 0.12 / parentScale (hoặc x100) trong local space.
-                // 2) Nếu là Child GameObject ở không gian Unity chuẩn (như Customer):
-                //    _positionScaleFactor = 1.0f (giữ nguyên độ nảy 0.12m chuẩn).
                 if (_modelTransform.parent != null && _modelTransform.parent.lossyScale.y > 0.0001f && _modelTransform.parent.lossyScale.y < 0.2f) {
                     _positionScaleFactor = 1.0f / _modelTransform.parent.lossyScale.y;
                 } else if (_initialModelPos.y > 10.0f) {
@@ -194,7 +214,10 @@ namespace MineMart.Gameplay.Common {
                     _positionScaleFactor = 1.0f;
                 }
 
-                Debug.Log($"<color=#38BDF8>[CharacterAnimationController]</color> {name}: Visual nhún='{_modelTransform.name}', ScaleFactor={_positionScaleFactor:F1}, InitialPos={_initialModelPos}");
+                Debug.Log($"<color=#38BDF8>[CharacterAnimationController]</color> {name}: Model nhún='{_modelTransform.name}', ScaleFactor={_positionScaleFactor:F1}");
+            } else {
+                _hasModelOriginalTransform = false;
+                _positionScaleFactor = 1.0f;
             }
 
             _hasPlayedInitial = false;
@@ -411,27 +434,49 @@ namespace MineMart.Gameplay.Common {
                 float bounceY = Mathf.Abs(Mathf.Sin(_bobTimer * _bobFrequency)) * (_bobHeight * _positionScaleFactor);
 
                 // 2. Nghiêng người lắc lư nhẹ trái/phải theo nhịp 2 chân (waddle)
-                float tiltZ = Mathf.Sin(_bobTimer * (_bobFrequency * 0.5f)) * _tiltAngle;
+                float activeTiltAngle = Mathf.Max(_tiltAngle, 9.5f);
+                float tiltZ = Mathf.Sin(_bobTimer * (_bobFrequency * 0.5f)) * activeTiltAngle;
 
-                // 3. Co giãn mềm mại (Squash & Stretch khi tiếp đất)
+                // 3. Độ dịch ngang hông (sway) bù trừ để giữ chân bám sàn và đẩy thân trên lắc lư rộng như Worker
+                float swayX = Mathf.Sin(_bobTimer * (_bobFrequency * 0.5f)) * (0.07f * _positionScaleFactor);
+
+                Quaternion tiltRot = Quaternion.Euler(0f, 0f, -tiltZ);
+                Vector3 offset = new Vector3(swayX, bounceY, 0f);
+
                 float squashWave = Mathf.Sin(_bobTimer * _bobFrequency);
                 float scaleY = _initialModelScale.y * (1f - squashWave * _squashFactor);
                 float scaleX = _initialModelScale.x * (1f + squashWave * (_squashFactor * 0.5f));
                 float scaleZ = _initialModelScale.z * (1f + squashWave * (_squashFactor * 0.5f));
 
-                _modelTransform.localPosition = _initialModelPos + new Vector3(0f, bounceY, 0f);
-                _modelTransform.localRotation = _initialModelRot * Quaternion.Euler(0f, 0f, -tiltZ);
+                _modelTransform.localPosition = _initialModelPos + offset;
+                _modelTransform.localRotation = _initialModelRot * tiltRot;
                 _modelTransform.localScale = new Vector3(scaleX, scaleY, scaleZ);
+            } else if (_isMining) {
+                // Procedural Mining Chop
+                _miningAnimTimer += Time.deltaTime;
+                float swingFreq = 11f;
+                float swingWave = Mathf.Sin(_miningAnimTimer * swingFreq);
+                float chopStrength = Mathf.Max(0f, swingWave);
+
+                float pitchForward = chopStrength * 16f;
+                float dipY = -chopStrength * 0.08f * _positionScaleFactor;
+                float squashY = 1f - chopStrength * 0.09f;
+                float expandXZ = 1f + chopStrength * 0.05f;
+
+                _modelTransform.localPosition = _initialModelPos + new Vector3(0f, dipY, 0f);
+                _modelTransform.localRotation = _initialModelRot * Quaternion.Euler(pitchForward, 0f, 0f);
+                _modelTransform.localScale = new Vector3(_initialModelScale.x * expandXZ, _initialModelScale.y * squashY, _initialModelScale.z * expandXZ);
+                _bobTimer = 0f;
             } else {
-                // Hồi phục êm dịu về tư thế đứng ban đầu
                 _modelTransform.localPosition = Vector3.Lerp(_modelTransform.localPosition, _initialModelPos, Time.deltaTime * 14f);
                 _modelTransform.localRotation = Quaternion.Slerp(_modelTransform.localRotation, _initialModelRot, Time.deltaTime * 14f);
                 _modelTransform.localScale = Vector3.Lerp(_modelTransform.localScale, _initialModelScale, Time.deltaTime * 14f);
                 _bobTimer = 0f;
+                _miningAnimTimer = 0f;
             }
         }
 
-        private static Transform FindChildRecursive(Transform parent, string targetName) {
+        public static Transform FindChildRecursive(Transform parent, string targetName) {
             if (parent == null) return null;
             for (int i = 0; i < parent.childCount; i++) {
                 Transform child = parent.GetChild(i);

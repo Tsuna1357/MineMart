@@ -22,21 +22,21 @@ MonoBehaviour:
     _blockBaseValue: 6
     _baseCraftTime: 5
     _baseUpgradePrice: 2
-    _maxLevel: 100
+    _maxLevel: 75
   - _stallData: {fileID: 11400000, guid: 7eb0f2b7ec5414c4ca69b2b1a162e382, type: 2}
     _stallPrefab: {fileID: 3628066050344421151, guid: 1b07a31e697a1ae4a952ecd20361f29f, type: 3}
     _buyPrice: 100
     _blockBaseValue: 50
     _baseCraftTime: 10
     _baseUpgradePrice: 40
-    _maxLevel: 100
+    _maxLevel: 75
   - _stallData: {fileID: 11400000, guid: fbd9d544395271a408a80a3f4491e199, type: 2}
     _stallPrefab: {fileID: 3628066050344421151, guid: 759e356a23bfb2d4f8ff21b067accc6a, type: 3}
     _buyPrice: 1500
     _blockBaseValue: 900
     _baseCraftTime: 15
     _baseUpgradePrice: 450
-    _maxLevel: 100
+    _maxLevel: 75
   _upgrades:
   - _upgradeId: 0
     _displayName: Talk to friend
@@ -127,7 +127,7 @@ MonoBehaviour:
     _priceMultiplierValue: 2
     _speedBonusPercent: 0
     _miningTimeReduction: 0
-    _price: 1500
+    _price: 250
   - _upgradeId: 5
     _displayName: Print Poster
     _icon: {fileID: 0}
@@ -145,7 +145,7 @@ MonoBehaviour:
     _priceMultiplierValue: 2
     _speedBonusPercent: 0
     _miningTimeReduction: 0
-    _price: 1600
+    _price: 400
   - _upgradeId: 6
     _displayName: Better shovel
     _icon: {fileID: 0}
@@ -163,7 +163,7 @@ MonoBehaviour:
     _priceMultiplierValue: 2
     _speedBonusPercent: 0
     _miningTimeReduction: 2
-    _price: 1700
+    _price: 700
   - _upgradeId: 7
     _displayName: Better axe
     _icon: {fileID: 0}
@@ -181,7 +181,7 @@ MonoBehaviour:
     _priceMultiplierValue: 2
     _speedBonusPercent: 0
     _miningTimeReduction: 2
-    _price: 8000
+    _price: 1200
   - _upgradeId: 8
     _displayName: More flame
     _icon: {fileID: 0}
@@ -199,7 +199,7 @@ MonoBehaviour:
     _priceMultiplierValue: 2
     _speedBonusPercent: 0.15
     _miningTimeReduction: 2
-    _price: 8000
+    _price: 2300
   - _upgradeId: 9
     _displayName: Better deal
     _icon: {fileID: 0}
@@ -217,7 +217,7 @@ MonoBehaviour:
     _priceMultiplierValue: 2
     _speedBonusPercent: 0.15
     _miningTimeReduction: 2
-    _price: 9500
+    _price: 4400
   - _upgradeId: 10
     _displayName: Better Stone
     _icon: {fileID: 0}
@@ -235,7 +235,7 @@ MonoBehaviour:
     _priceMultiplierValue: 2
     _speedBonusPercent: 0.15
     _miningTimeReduction: 2
-    _price: 15000
+    _price: 8000
   - _upgradeId: 11
     _displayName: Hirer villagers (by boat)
     _icon: {fileID: 0}
@@ -253,7 +253,7 @@ MonoBehaviour:
     _priceMultiplierValue: 5
     _speedBonusPercent: 0.15
     _miningTimeReduction: 2
-    _price: 17000
+    _price: 9500
   - _upgradeId: 12
     _displayName: Craft an table
     _icon: {fileID: 0}
@@ -271,7 +271,7 @@ MonoBehaviour:
     _priceMultiplierValue: 5
     _speedBonusPercent: 0.15
     _miningTimeReduction: 2
-    _price: 22000
+    _price: 13000
   - _upgradeId: 13
     _displayName: End Game
     _icon: {fileID: 0}
@@ -289,4 +289,4 @@ MonoBehaviour:
     _priceMultiplierValue: 5
     _speedBonusPercent: 0.15
     _miningTimeReduction: 2
-    _price: 200000
+    _price: 50000

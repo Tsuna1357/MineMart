@@ -94,7 +94,7 @@ PrefabInstance:
       objectReference: {fileID: -5252816984213320552, guid: bbecbaad8d40bcb4db58ffc40aabdeb3, type: 3}
     - target: {fileID: 2223639932434330405, guid: bbecbaad8d40bcb4db58ffc40aabdeb3, type: 3}
       propertyPath: m_UpdateMode
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2223639932434330405, guid: bbecbaad8d40bcb4db58ffc40aabdeb3, type: 3}
       propertyPath: m_PlayAutomatically
@@ -171,6 +171,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: MineMart.Gameplay::MineMart.Gameplay.Player.PlayerController
   _moveSpeed: 4.5
+  _manualMoveSpeedMultiplier: 1.25
   _rotationSpeed: 45
   _autoPilotFeatureEnabled: 1
   _autoPilotIdleThreshold: 5
@@ -178,6 +179,7 @@ MonoBehaviour:
   _carryAnchor: {fileID: 2689830463129879235}
   _visualModel: {fileID: 437487261997363123}
   _interactionRadius: 0.7
+  _playerMiningSpeedMultiplier: 2
 --- !u!4 &2689830463129879235 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2651722617169414811, guid: bbecbaad8d40bcb4db58ffc40aabdeb3, type: 3}

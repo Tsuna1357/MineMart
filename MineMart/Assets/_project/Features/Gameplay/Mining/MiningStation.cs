@@ -27,6 +27,24 @@ namespace MineMart.Gameplay.Mining {
         [NonSerialized] public object OccupyingWorker;
         public bool IsOccupied => OccupyingWorker != null;
         [NonSerialized] public float SavedCraftTimer = 0f;
+
+        // Quản lý thời gian & thanh tiến trình riêng biệt cho từng slot
+        [NonSerialized] public float CurrentCraftTimer = 0f;
+        [NonSerialized] public GameObject ProgressVisualRoot;
+        [NonSerialized] public GameObject ProgressContainerCube;
+        [NonSerialized] public GameObject ProgressFillCube;
+        [NonSerialized] public GameObject CustomProgressBarInstance;
+        [NonSerialized] public Transform CustomFillTransform;
+        [NonSerialized] public Vector3 CustomFillInitialScale = Vector3.one;
+        [NonSerialized] public Vector3 CustomFillInitialLocalPos = Vector3.zero;
+        [NonSerialized] public Material ContainerMaterial;
+        [NonSerialized] public Material FillMaterial;
+
+        // Phục hồi và tạo hiệu ứng rung nảy đàn hồi (Game Feel)
+        [NonSerialized] public Vector3 InitialVisualScale = Vector3.one;
+        [NonSerialized] public Vector3 InitialVisualLocalPos = Vector3.zero;
+        [NonSerialized] public bool HasSavedVisualTransform = false;
+        [NonSerialized] public float HitWobbleCooldown = 0f;
     }
 
     /// <summary>
@@ -129,7 +147,7 @@ namespace MineMart.Gameplay.Mining {
         /// </summary>
         public void ApplyMapEconomyConfig(StallConfigOnMap config) {
             if (config == null) return;
-            if (_stationData == null && config.StallData != null) {
+            if (config.StallData != null) {
                 _stationData = config.StallData;
             }
             _buyPrice = config.BuyPrice;
@@ -184,6 +202,19 @@ namespace MineMart.Gameplay.Mining {
 
         [Tooltip("Cho phép hiển thị thanh tiến trình 3D khi có người đào")]
         [SerializeField] private bool _showProgressVisual = true;
+
+        [Header("Block Mining Feel Settings (Tốc Độ Nhún Của Stall)")]
+        [Tooltip("Tốc độ / tần số nhún của khối stall khi đang đào (mặc định 4.5: nhún chậm rãi từ từ)")]
+        [SerializeField] private float _miningWobbleSpeed = 4.5f;
+
+        [Tooltip("Độ co giãn nhún của khối stall khi đào (mặc định 0.025: nhún nhẹ nhàng)")]
+        [SerializeField] private float _miningWobbleIntensity = 0.025f;
+
+        [Tooltip("Thời gian hiệu ứng rơi nảy khối mới khi đào xong (giây - mặc định 0.75s: rơi chậm rãi từ từ)")]
+        [SerializeField] private float _blockRespawnDuration = 0.75f;
+
+        [Tooltip("Độ cao rơi của khối mới khi đào xong (mét)")]
+        [SerializeField] private float _blockRespawnDropHeight = 1.2f;
 
         [Tooltip("Sử dụng màu xanh tươi sáng rực rỡ (Bright Emerald) để dễ nhìn nhất")]
         [SerializeField] private bool _useVibrantGreenColor = true;
@@ -246,6 +277,7 @@ namespace MineMart.Gameplay.Mining {
         public float MiningProgress => GetBaseCraftTime() > 0 ? Mathf.Clamp01(_currentCraftTimer / GetBaseCraftTime()) : 0f;
 
         private double _currentProfitMultiplier = 1.0;
+        [NonSerialized] private bool _isInitializingSlots = false;
 
         // Sự kiện thông báo khi trạm lên cấp hoặc đạt mốc milestone
         public event Action<int> OnLevelChanged;
@@ -367,6 +399,7 @@ namespace MineMart.Gameplay.Mining {
                 for (int i = 0; i < _slots.Count; i++) {
                     if (_slots[i].OccupyingWorker == worker) {
                         _slots[i].OccupyingWorker = null;
+                        UpdateSlotProgressVisual(_slots[i]);
                     }
                 }
             }
@@ -408,38 +441,66 @@ namespace MineMart.Gameplay.Mining {
 
         /// <summary>
         /// Ngắt toàn bộ công nhân và người chơi đang đào khi trạm bị nhấc lên di chuyển,
-        /// đồng thời lưu lại tiến độ đào dở của từng slot để khi đặt xuống có thể tiếp tục.
+        /// đồng thời bảo lưu 100% tiến độ đào dở dang của từng slot và giữ nguyên thanh tiến trình hiển thị.
         /// </summary>
         public void InterruptAllMiners() {
-            if (Player.PlayerController.Instance != null) {
-                float saved = Player.PlayerController.Instance.CancelMiningIfTarget(this);
-                SaveTimerToWorkerSlot(Player.PlayerController.Instance, saved);
+            // 1. Bảo lưu tiến độ đào hiện tại của toàn bộ các slot (nếu đang đào dở) trước khi giải phóng thợ
+            for (int i = 0; i < _slots.Count; i++) {
+                MiningSlot slot = _slots[i];
+                if (slot != null) {
+                    if (slot.CurrentCraftTimer > 0f) {
+                        slot.SavedCraftTimer = slot.CurrentCraftTimer;
+                    } else if (slot.SavedCraftTimer > 0f) {
+                        slot.CurrentCraftTimer = slot.SavedCraftTimer;
+                    }
+                }
             }
 
+            if (_currentCraftTimer > 0f && _slots.Count > 0 && _slots[0].CurrentCraftTimer <= 0f) {
+                _slots[0].CurrentCraftTimer = _currentCraftTimer;
+                _slots[0].SavedCraftTimer = _currentCraftTimer;
+            }
+
+            // 2. Ngắt người chơi (nếu đang đào trạm này)
+            if (Player.PlayerController.Instance != null) {
+                float saved = Player.PlayerController.Instance.CancelMiningIfTarget(this);
+                if (saved > 0f) {
+                    SaveTimerToWorkerSlot(Player.PlayerController.Instance, saved);
+                }
+            }
+
+            // 3. Ngắt toàn bộ công nhân đang đào trạm này
             for (int w = 0; w < Staff.WorkerAgent.AllWorkers.Count; w++) {
                 var worker = Staff.WorkerAgent.AllWorkers[w];
                 if (worker != null) {
                     float saved = worker.CancelMiningIfTarget(this);
-                    SaveTimerToWorkerSlot(worker, saved);
+                    if (saved > 0f) {
+                        SaveTimerToWorkerSlot(worker, saved);
+                    }
                 }
             }
 
+            // 4. Giải phóng cờ chiếm giữ thợ nhưng GIỮ NGUYÊN tiến độ dở dang và cập nhật thanh tiến trình
             for (int i = 0; i < _slots.Count; i++) {
-                _slots[i].OccupyingWorker = null;
+                MiningSlot slot = _slots[i];
+                if (slot != null) {
+                    slot.OccupyingWorker = null;
+                    UpdateSlotProgressVisual(slot);
+                }
             }
+            UpdateProgressVisual();
         }
 
         private void SaveTimerToWorkerSlot(object worker, float timer) {
+            if (timer <= 0f) return; // Tuyệt đối không ghi đè giá trị 0 lên slot đang có tiến độ!
+            MiningSlot slot = GetSlotForWorker(worker);
+            if (slot != null) {
+                slot.SavedCraftTimer = timer;
+                slot.CurrentCraftTimer = timer;
+                UpdateSlotProgressVisual(slot);
+            }
             if (timer > _currentCraftTimer) {
                 _currentCraftTimer = timer;
-                UpdateProgressVisual();
-            }
-            if (worker == null || timer <= 0f) return;
-            for (int i = 0; i < _slots.Count; i++) {
-                if (_slots[i].OccupyingWorker == worker) {
-                    _slots[i].SavedCraftTimer = timer;
-                    return;
-                }
             }
         }
 
@@ -447,45 +508,207 @@ namespace MineMart.Gameplay.Mining {
         /// Lấy lại tiến độ đào dở dang đã được bảo lưu của slot này (nếu có).
         /// </summary>
         public float GetSavedCraftTimer(object worker) {
+            MiningSlot slot = GetSlotForWorker(worker);
+            if (slot != null) {
+                if (slot.SavedCraftTimer > 0f) {
+                    float t = slot.SavedCraftTimer;
+                    slot.CurrentCraftTimer = t;
+                    UpdateSlotProgressVisual(slot);
+                    return t;
+                }
+                if (slot.CurrentCraftTimer > 0f) {
+                    return slot.CurrentCraftTimer;
+                }
+            }
+
             if (_currentCraftTimer > 0f) {
                 return _currentCraftTimer;
             }
+            return 0f;
+        }
 
-            for (int i = 0; i < _slots.Count; i++) {
-                if (_slots[i].SavedCraftTimer > 0f) {
-                    float t = _slots[i].SavedCraftTimer;
-                    _slots[i].SavedCraftTimer = 0f;
-                    _currentCraftTimer = t;
-                    UpdateProgressVisual();
-                    return t;
+        /// <summary>
+        /// Lấy slot mà worker/player đang đứng làm việc.
+        /// </summary>
+        public MiningSlot GetSlotForWorker(object worker) {
+            if (worker != null) {
+                for (int i = 0; i < _slots.Count; i++) {
+                    if (_slots[i].OccupyingWorker == worker) {
+                        return _slots[i];
+                    }
                 }
             }
-            return 0f;
+            return _slots.Count > 0 ? _slots[0] : null;
+        }
+
+        /// <summary>
+        /// Lấy tiến độ đào (0 -> 1) của slot tương ứng với worker/player này.
+        /// </summary>
+        public float GetMiningProgress(object worker) {
+            MiningSlot slot = GetSlotForWorker(worker);
+            float baseTime = GetBaseCraftTime();
+            if (slot != null && baseTime > 0f) {
+                return Mathf.Clamp01(slot.CurrentCraftTimer / baseTime);
+            }
+            return MiningProgress;
         }
 
         /// <summary>
         /// Cộng dồn tiến trình khai thác của mỏ theo deltaTime và cập nhật hiển thị thanh khối Cube 3D.
         /// Trả về true nếu khối block đã hoàn tất khai thác (đạt 100% thời gian đào).
         /// </summary>
-        public bool AddMiningProgress(float deltaTime) {
-            float baseTime = GetBaseCraftTime();
-            _currentCraftTimer += deltaTime;
-            UpdateProgressVisual();
+        /// <summary>
+        /// Cộng dồn tiến trình khai thác của slot tương ứng theo deltaTime và cập nhật hiển thị thanh khối Cube 3D.
+        /// Trả về true nếu khối block đã hoàn tất khai thác (đạt 100% thời gian đào).
+        /// </summary>
+        public bool AddMiningProgress(object worker, float deltaTime) {
+            MiningSlot targetSlot = GetSlotForWorker(worker);
+            if (targetSlot == null && _slots.Count > 0) {
+                targetSlot = _slots[0];
+            }
+            if (targetSlot == null) return false;
 
-            if (_currentCraftTimer >= baseTime) {
+            float baseTime = GetBaseCraftTime();
+            targetSlot.CurrentCraftTimer += deltaTime;
+            _currentCraftTimer = targetSlot.CurrentCraftTimer;
+
+            UpdateSlotProgressVisual(targetSlot);
+            ApplyHitWobble(targetSlot);
+
+            if (targetSlot.CurrentCraftTimer >= baseTime) {
+                targetSlot.CurrentCraftTimer = 0f;
+                targetSlot.SavedCraftTimer = 0f;
                 _currentCraftTimer = 0f;
-                UpdateProgressVisual();
+                UpdateSlotProgressVisual(targetSlot);
+                TriggerBlockBreakAndRespawn(targetSlot);
                 return true;
             }
             return false;
         }
 
         /// <summary>
+        /// Fallback cho các script gọi cũ không truyền worker.
+        /// </summary>
+        public bool AddMiningProgress(float deltaTime) {
+            return AddMiningProgress(null, deltaTime);
+        }
+
+        /// <summary>
         /// Xóa sạch tiến độ đào dở dang và cập nhật lại thanh Cube.
         /// </summary>
-        public void ResetMiningProgress() {
+        public void ResetMiningProgress(object worker = null) {
+            if (worker != null) {
+                MiningSlot slot = GetSlotForWorker(worker);
+                if (slot != null) {
+                    slot.CurrentCraftTimer = 0f;
+                    slot.SavedCraftTimer = 0f;
+                    UpdateSlotProgressVisual(slot);
+                }
+            } else {
+                for (int i = 0; i < _slots.Count; i++) {
+                    _slots[i].CurrentCraftTimer = 0f;
+                    _slots[i].SavedCraftTimer = 0f;
+                    UpdateSlotProgressVisual(_slots[i]);
+                }
+            }
             _currentCraftTimer = 0f;
-            UpdateProgressVisual();
+        }
+
+        // =========================================================================
+        // BLOCK MINING FEEDBACK (RUNG LẮC KHI ĐÀO & RƠI NẢY KHI HOÀN THÀNH)
+        // =========================================================================
+
+        /// <summary>
+        /// Tìm GameObject con hiển thị model 3D khối block của Slot 0.
+        /// Ngăn chặn việc gán nhầm VisualRoot vào chính GameObject gốc (gây kéo theo toàn bộ stall con nhảy lên).
+        /// </summary>
+        public GameObject FindSlot0VisualChild() {
+            if (_visualRoot != null && _visualRoot != gameObject) {
+                return _visualRoot;
+            }
+
+            HashSet<GameObject> customVisuals = new HashSet<GameObject>();
+            if (_customSlotAnchors != null) {
+                foreach (var csa in _customSlotAnchors) {
+                    if (csa != null && csa.VisualRoot != null) {
+                        customVisuals.Add(csa.VisualRoot);
+                    }
+                }
+            }
+
+            for (int i = 0; i < transform.childCount; i++) {
+                Transform child = transform.GetChild(i);
+                GameObject childGo = child.gameObject;
+
+                if (customVisuals.Contains(childGo)) continue;
+                if (_minerAnchor != null && (child == _minerAnchor || child.IsChildOf(_minerAnchor))) continue;
+                if (child.name.StartsWith("MiningProgressVisual")) continue;
+
+                // Nếu có Renderer hoặc MeshFilter
+                if (childGo.GetComponentInChildren<Renderer>(true) != null || childGo.GetComponentInChildren<MeshFilter>(true) != null) {
+                    return childGo;
+                }
+            }
+
+            return null;
+        }
+
+        private void ApplyHitWobble(MiningSlot slot) {
+            if (slot == null || slot.VisualRoot == null) return;
+
+            // Nếu slot 0 vô tình trỏ vào chính root GameObject, đổi sang child model để không làm rung toàn bộ quầy mỏ
+            if (slot.VisualRoot == gameObject) {
+                GameObject child = FindSlot0VisualChild();
+                if (child != null) {
+                    slot.VisualRoot = child;
+                    slot.HasSavedVisualTransform = false;
+                }
+            }
+
+            if (!slot.HasSavedVisualTransform) {
+                slot.InitialVisualScale = slot.VisualRoot.transform.localScale;
+                slot.InitialVisualLocalPos = slot.VisualRoot.transform.localPosition;
+                slot.HasSavedVisualTransform = true;
+            }
+
+            slot.HitWobbleCooldown = 0.25f;
+
+            // Nhún chậm rãi, nhẹ nhàng, êm dịu (không rung giật)
+            float wobble = Mathf.Sin(Time.time * _miningWobbleSpeed) * _miningWobbleIntensity;
+
+            slot.VisualRoot.transform.localScale = new Vector3(
+                slot.InitialVisualScale.x * (1f + wobble),
+                slot.InitialVisualScale.y * (1f - wobble * 1.2f),
+                slot.InitialVisualScale.z * (1f + wobble)
+            );
+        }
+
+        private void TriggerBlockBreakAndRespawn(MiningSlot slot) {
+            if (slot == null || slot.VisualRoot == null) return;
+
+            // Đảm bảo không bao giờ bounce root GameObject (tránh kéo tất cả các stall clone nhảy theo)
+            if (slot.VisualRoot == gameObject) {
+                GameObject child = FindSlot0VisualChild();
+                if (child != null) {
+                    slot.VisualRoot = child;
+                    slot.HasSavedVisualTransform = false;
+                } else {
+                    return; // Không bounce root GameObject
+                }
+            }
+
+            if (!slot.HasSavedVisualTransform) {
+                slot.InitialVisualScale = slot.VisualRoot.transform.localScale;
+                slot.InitialVisualLocalPos = slot.VisualRoot.transform.localPosition;
+                slot.HasSavedVisualTransform = true;
+            }
+
+            // Phục hồi scale chuẩn trước khi chạy animation rơi nảy
+            slot.VisualRoot.transform.localScale = slot.InitialVisualScale;
+
+            // Hiệu ứng rơi khối block mới từ trên trời xuống chậm rãi, từ từ, êm ái
+            Vector3 targetPos = slot.InitialVisualLocalPos;
+            DropBounceEffect.PlayLocal(slot.VisualRoot.transform, targetPos, _blockRespawnDropHeight, _blockRespawnDuration);
         }
 
         // =========================================================================
@@ -493,13 +716,41 @@ namespace MineMart.Gameplay.Mining {
         // =========================================================================
 
         private void EnsureProgressVisualSetup() {
-            if (_progressVisualRoot != null) return;
+            for (int i = 0; i < _slots.Count; i++) {
+                EnsureSlotProgressVisual(_slots[i]);
+            }
+        }
 
-            // 1. Tạo Root đặt tại độ cao mong muốn
-            _progressVisualRoot = new GameObject("MiningProgressVisual");
-            _progressVisualRoot.transform.SetParent(transform, false);
-            _progressVisualRoot.transform.localPosition = new Vector3(0f, _progressVisualHeight, 0f);
-            _progressVisualRoot.transform.localRotation = Quaternion.Euler(20f, 45f, 0f);
+        private void UpdateSlotProgressBarPosition(MiningSlot slot) {
+            if (slot == null || slot.ProgressVisualRoot == null) return;
+
+            // Định vị thanh tiến trình nằm chính xác TRÊN KHỐI BLOCK (VisualRoot), không phải trên vị trí thợ đứng
+            Vector3 blockLocalPos;
+            if (slot.VisualRoot != null && slot.VisualRoot != gameObject) {
+                blockLocalPos = transform.InverseTransformPoint(slot.VisualRoot.transform.position);
+            } else {
+                GameObject slot0Child = FindSlot0VisualChild();
+                if (slot0Child != null) {
+                    blockLocalPos = transform.InverseTransformPoint(slot0Child.transform.position);
+                } else if (slot.MinerAnchor != null) {
+                    blockLocalPos = transform.InverseTransformPoint(slot.MinerAnchor.position);
+                } else {
+                    blockLocalPos = _slotSpacing * slot.SlotIndex;
+                }
+            }
+
+            slot.ProgressVisualRoot.transform.localPosition = new Vector3(blockLocalPos.x, _progressVisualHeight, blockLocalPos.z);
+        }
+
+        private void EnsureSlotProgressVisual(MiningSlot slot) {
+            if (slot == null || slot.ProgressVisualRoot != null) return;
+
+            // 1. Tạo Root đặt tại độ cao mong muốn ngay phía trên vị trí đứng đào (MinerAnchor)
+            slot.ProgressVisualRoot = new GameObject($"MiningProgressVisual_Slot_{slot.SlotIndex}");
+            slot.ProgressVisualRoot.transform.SetParent(transform, false);
+
+            UpdateSlotProgressBarPosition(slot);
+            slot.ProgressVisualRoot.transform.localRotation = Quaternion.Euler(20f, 45f, 0f);
 
             bool hasCustomPrefab = _customProgressBarPrefab != null || _customProgressFillPrefab != null || _customProgressContainerPrefab != null;
 
@@ -507,112 +758,117 @@ namespace MineMart.Gameplay.Mining {
                 _isUsingCustomVisual = true;
 
                 if (_customProgressBarPrefab != null) {
-                    _customProgressBarInstance = Instantiate(_customProgressBarPrefab, _progressVisualRoot.transform, false);
-                    _customProgressBarInstance.name = "CustomProgressBar";
-                    _customProgressBarInstance.transform.localPosition = Vector3.zero;
+                    slot.CustomProgressBarInstance = Instantiate(_customProgressBarPrefab, slot.ProgressVisualRoot.transform, false);
+                    slot.CustomProgressBarInstance.name = $"CustomProgressBar_Slot_{slot.SlotIndex}";
+                    slot.CustomProgressBarInstance.transform.localPosition = Vector3.zero;
 
-                    // Gỡ toàn bộ Collider để không vướng click
-                    Collider[] colliders = _customProgressBarInstance.GetComponentsInChildren<Collider>(true);
+                    Collider[] colliders = slot.CustomProgressBarInstance.GetComponentsInChildren<Collider>(true);
                     for (int i = 0; i < colliders.Length; i++) {
                         Destroy(colliders[i]);
                     }
 
-                    // Tự động tìm child đại diện cho phần ruột/mực Fill dâng lên
-                    _customFillTransform = FindFillChildTransform(_customProgressBarInstance.transform);
-                    if (_customFillTransform != null) {
-                        _customFillInitialScale = _customFillTransform.localScale;
-                        _customFillInitialLocalPos = _customFillTransform.localPosition;
+                    slot.CustomFillTransform = FindFillChildTransform(slot.CustomProgressBarInstance.transform);
+                    if (slot.CustomFillTransform != null) {
+                        slot.CustomFillInitialScale = slot.CustomFillTransform.localScale;
+                        slot.CustomFillInitialLocalPos = slot.CustomFillTransform.localPosition;
                     }
                 } else {
                     if (_customProgressContainerPrefab != null) {
-                        var containerInstance = Instantiate(_customProgressContainerPrefab, _progressVisualRoot.transform, false);
-                        containerInstance.name = "CustomContainer";
+                        var containerInstance = Instantiate(_customProgressContainerPrefab, slot.ProgressVisualRoot.transform, false);
+                        containerInstance.name = $"CustomContainer_Slot_{slot.SlotIndex}";
                         containerInstance.transform.localPosition = Vector3.zero;
                         Collider[] cols = containerInstance.GetComponentsInChildren<Collider>(true);
                         for (int i = 0; i < cols.Length; i++) Destroy(cols[i]);
                     }
 
                     if (_customProgressFillPrefab != null) {
-                        var fillInstance = Instantiate(_customProgressFillPrefab, _progressVisualRoot.transform, false);
-                        fillInstance.name = "CustomFill";
+                        var fillInstance = Instantiate(_customProgressFillPrefab, slot.ProgressVisualRoot.transform, false);
+                        fillInstance.name = $"CustomFill_Slot_{slot.SlotIndex}";
                         fillInstance.transform.localPosition = Vector3.zero;
                         Collider[] cols = fillInstance.GetComponentsInChildren<Collider>(true);
                         for (int i = 0; i < cols.Length; i++) Destroy(cols[i]);
 
-                        _customFillTransform = fillInstance.transform;
-                        _customFillInitialScale = _customFillTransform.localScale;
-                        _customFillInitialLocalPos = _customFillTransform.localPosition;
+                        slot.CustomFillTransform = fillInstance.transform;
+                        slot.CustomFillInitialScale = slot.CustomFillTransform.localScale;
+                        slot.CustomFillInitialLocalPos = slot.CustomFillTransform.localPosition;
                     }
                 }
 
-                _progressVisualRoot.SetActive(false);
+                slot.ProgressVisualRoot.SetActive(false);
+
+                if (slot.SlotIndex == 0) {
+                    _progressVisualRoot = slot.ProgressVisualRoot;
+                    _customProgressBarInstance = slot.CustomProgressBarInstance;
+                    _customFillTransform = slot.CustomFillTransform;
+                }
                 return;
             }
 
             _isUsingCustomVisual = false;
 
-            // 2. Tạo Shader tương thích
             Shader unlitShader = Shader.Find("Sprites/Default") 
                               ?? Shader.Find("Universal Render Pipeline/Unlit") 
                               ?? Shader.Find("Standard");
 
-            // 3. Khung Container ngoài (khối cube viền mờ trong suốt)
-            _progressContainerCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            _progressContainerCube.name = "ContainerFrame";
-            _progressContainerCube.transform.SetParent(_progressVisualRoot.transform, false);
-            _progressContainerCube.transform.localPosition = Vector3.zero;
-            _progressContainerCube.transform.localScale = Vector3.one * _progressCubeSize;
+            // 3. Khung Container ngoài
+            slot.ProgressContainerCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            slot.ProgressContainerCube.name = $"ContainerFrame_Slot_{slot.SlotIndex}";
+            slot.ProgressContainerCube.transform.SetParent(slot.ProgressVisualRoot.transform, false);
+            slot.ProgressContainerCube.transform.localPosition = Vector3.zero;
+            slot.ProgressContainerCube.transform.localScale = Vector3.one * _progressCubeSize;
 
-            // Xóa Collider để không chặn raycast click hay va chạm
-            var colContainer = _progressContainerCube.GetComponent<Collider>();
+            var colContainer = slot.ProgressContainerCube.GetComponent<Collider>();
             if (colContainer != null) Destroy(colContainer);
 
-            var mrContainer = _progressContainerCube.GetComponent<MeshRenderer>();
+            var mrContainer = slot.ProgressContainerCube.GetComponent<MeshRenderer>();
             if (mrContainer != null) {
                 mrContainer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 mrContainer.receiveShadows = false;
                 float effContainerAlpha = Mathf.Clamp01(_containerOpacity * _progressOpacity);
-                // RenderQueue 3001 để vẽ khung kính ngoài bao bọc khối ruột bên trong
-                _containerMaterial = CreateTransparentMaterial(unlitShader, new Color(0.88f, 0.96f, 1.0f, effContainerAlpha), 3001);
-                mrContainer.material = _containerMaterial;
+                slot.ContainerMaterial = CreateTransparentMaterial(unlitShader, new Color(0.88f, 0.96f, 1.0f, effContainerAlpha), 3001);
+                mrContainer.material = slot.ContainerMaterial;
             }
 
-            // 4. Khối Mực Điền Đầy (Fill Cube) dâng từ đáy lên
-            _progressFillCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            _progressFillCube.name = "ProgressFill";
-            _progressFillCube.transform.SetParent(_progressVisualRoot.transform, false);
+            // 4. Khối Mực Điền Đầy (Fill Cube)
+            slot.ProgressFillCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            slot.ProgressFillCube.name = $"ProgressFill_Slot_{slot.SlotIndex}";
+            slot.ProgressFillCube.transform.SetParent(slot.ProgressVisualRoot.transform, false);
 
-            var colFill = _progressFillCube.GetComponent<Collider>();
+            var colFill = slot.ProgressFillCube.GetComponent<Collider>();
             if (colFill != null) Destroy(colFill);
 
-            var mrFill = _progressFillCube.GetComponent<MeshRenderer>();
+            var mrFill = slot.ProgressFillCube.GetComponent<MeshRenderer>();
             if (mrFill != null) {
                 mrFill.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 mrFill.receiveShadows = false;
                 Color fillCol = GetBlockColor();
                 fillCol.a = Mathf.Clamp01(_fillOpacity * _progressOpacity);
-                // RenderQueue 3000 để vẽ khối mực bên trong trước
-                _fillMaterial = CreateTransparentMaterial(unlitShader, fillCol, 3000);
-                mrFill.material = _fillMaterial;
+                slot.FillMaterial = CreateTransparentMaterial(unlitShader, fillCol, 3000);
+                mrFill.material = slot.FillMaterial;
             }
 
-            _progressVisualRoot.SetActive(false);
+            slot.ProgressVisualRoot.SetActive(false);
+
+            if (slot.SlotIndex == 0) {
+                _progressVisualRoot = slot.ProgressVisualRoot;
+                _progressContainerCube = slot.ProgressContainerCube;
+                _progressFillCube = slot.ProgressFillCube;
+                _containerMaterial = slot.ContainerMaterial;
+                _fillMaterial = slot.FillMaterial;
+            }
         }
 
         private Transform FindFillChildTransform(Transform root) {
             if (root == null) return null;
-            // 1. Quét tìm object con có tên chứa từ khóa
             string[] keywords = new string[] { "fill", "bar", "progress", "slider", "amount", "inner" };
             Transform found = SearchTransformRecursive(root, keywords);
             if (found != null && found != root) return found;
 
-            // 2. Nếu có child và không tìm ra tên keyword, ưu tiên child có Renderer
             for (int i = 0; i < root.childCount; i++) {
                 Transform child = root.GetChild(i);
                 if (child.GetComponent<Renderer>() != null) return child;
             }
 
-            // 3. Fallback về child đầu tiên hoặc chính root
             return root.childCount > 0 ? root.GetChild(0) : root;
         }
 
@@ -634,9 +890,8 @@ namespace MineMart.Gameplay.Mining {
         private Material CreateTransparentMaterial(Shader shader, Color initialColor, int renderQueue) {
             var mat = new Material(shader);
 
-            // Cấu hình vật liệu Transparent tương thích chuẩn cả URP lẫn Built-in
-            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f); // 1 = Transparent trong URP
-            if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0f); // 0 = Alpha blend
+            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f);
+            if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0f);
             if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
             if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
@@ -657,10 +912,27 @@ namespace MineMart.Gameplay.Mining {
         }
 
         public void ApplyProgressVisualColors() {
+            for (int i = 0; i < _slots.Count; i++) {
+                MiningSlot slot = _slots[i];
+                if (slot == null) continue;
+
+                if (slot.ContainerMaterial != null) {
+                    float effectiveContainerAlpha = Mathf.Clamp01(_containerOpacity * _progressOpacity);
+                    Color containerCol = new Color(0.88f, 0.96f, 1.0f, effectiveContainerAlpha);
+                    SetMaterialColor(slot.ContainerMaterial, containerCol);
+                }
+
+                if (slot.FillMaterial != null) {
+                    float effectiveFillAlpha = Mathf.Clamp01(_fillOpacity * _progressOpacity);
+                    Color fillCol = GetBlockColor();
+                    fillCol.a = effectiveFillAlpha;
+                    SetMaterialColor(slot.FillMaterial, fillCol);
+                }
+            }
+
             if (_containerMaterial != null) {
                 float effectiveContainerAlpha = Mathf.Clamp01(_containerOpacity * _progressOpacity);
-                Color containerCol = new Color(0.88f, 0.96f, 1.0f, effectiveContainerAlpha);
-                SetMaterialColor(_containerMaterial, containerCol);
+                SetMaterialColor(_containerMaterial, new Color(0.88f, 0.96f, 1.0f, effectiveContainerAlpha));
             }
 
             if (_fillMaterial != null) {
@@ -672,89 +944,99 @@ namespace MineMart.Gameplay.Mining {
         }
 
         public void UpdateProgressVisual() {
+            for (int i = 0; i < _slots.Count; i++) {
+                UpdateSlotProgressVisual(_slots[i]);
+            }
+        }
+
+        public void UpdateSlotProgressVisual(MiningSlot slot) {
+            if (slot == null) return;
             if (!_showProgressVisual) {
-                if (_progressVisualRoot != null && _progressVisualRoot.activeSelf) {
-                    _progressVisualRoot.SetActive(false);
+                if (slot.ProgressVisualRoot != null && slot.ProgressVisualRoot.activeSelf) {
+                    slot.ProgressVisualRoot.SetActive(false);
                 }
                 return;
             }
 
-            EnsureProgressVisualSetup();
+            EnsureSlotProgressVisual(slot);
+            if (slot.ProgressVisualRoot == null) return;
+            UpdateSlotProgressBarPosition(slot);
 
-            float progress = MiningProgress;
+            float baseTime = GetBaseCraftTime();
+            float progress = baseTime > 0 ? Mathf.Clamp01(slot.CurrentCraftTimer / baseTime) : 0f;
             bool isMiningInProgress = progress > 0.001f;
-            bool isAnyoneMining = OccupiedSlotCount > 0;
+            bool isAnyoneMining = slot.IsOccupied;
 
-            // Hiển thị thanh tiến trình nếu đang có người đào HOẶC đang lưu lại tiến độ đào dở dang
             if (!isMiningInProgress && !isAnyoneMining) {
-                if (_progressVisualRoot.activeSelf) _progressVisualRoot.SetActive(false);
+                if (slot.ProgressVisualRoot.activeSelf) slot.ProgressVisualRoot.SetActive(false);
                 return;
             }
 
-            if (!_progressVisualRoot.activeSelf) {
-                _progressVisualRoot.SetActive(true);
+            if (!slot.ProgressVisualRoot.activeSelf) {
+                slot.ProgressVisualRoot.SetActive(true);
             }
 
-            // === A. TRƯỜNG HỢP MODEL TÙY CHỌN (CUSTOM MODEL PREFAB) ===
-            if (_isUsingCustomVisual) {
-                if (_customFillTransform != null) {
+            // === A. TRƯỜNG HỢP MODEL TÙY CHỌN ===
+            bool hasCustomPrefab = _customProgressBarPrefab != null || _customProgressFillPrefab != null || _customProgressContainerPrefab != null;
+            if (hasCustomPrefab) {
+                if (slot.CustomFillTransform != null) {
                     if (progress > 0.005f) {
-                        if (!_customFillTransform.gameObject.activeSelf) _customFillTransform.gameObject.SetActive(true);
+                        if (!slot.CustomFillTransform.gameObject.activeSelf) slot.CustomFillTransform.gameObject.SetActive(true);
 
                         float p = Mathf.Clamp01(progress);
                         switch (_fillDirection) {
                             case ProgressBarFillDirection.VerticalY: {
-                                float bottomY = _customFillInitialLocalPos.y - _customFillInitialScale.y * 0.5f;
-                                float curHeight = _customFillInitialScale.y * p;
-                                _customFillTransform.localPosition = new Vector3(
-                                    _customFillInitialLocalPos.x,
+                                float bottomY = slot.CustomFillInitialLocalPos.y - slot.CustomFillInitialScale.y * 0.5f;
+                                float curHeight = slot.CustomFillInitialScale.y * p;
+                                slot.CustomFillTransform.localPosition = new Vector3(
+                                    slot.CustomFillInitialLocalPos.x,
                                     bottomY + curHeight * 0.5f,
-                                    _customFillInitialLocalPos.z
+                                    slot.CustomFillInitialLocalPos.z
                                 );
-                                _customFillTransform.localScale = new Vector3(
-                                    _customFillInitialScale.x,
+                                slot.CustomFillTransform.localScale = new Vector3(
+                                    slot.CustomFillInitialScale.x,
                                     Mathf.Max(0.0001f, curHeight),
-                                    _customFillInitialScale.z
+                                    slot.CustomFillInitialScale.z
                                 );
                                 break;
                             }
                             case ProgressBarFillDirection.HorizontalX: {
-                                float leftX = _customFillInitialLocalPos.x - _customFillInitialScale.x * 0.5f;
-                                float curWidth = _customFillInitialScale.x * p;
-                                _customFillTransform.localPosition = new Vector3(
+                                float leftX = slot.CustomFillInitialLocalPos.x - slot.CustomFillInitialScale.x * 0.5f;
+                                float curWidth = slot.CustomFillInitialScale.x * p;
+                                slot.CustomFillTransform.localPosition = new Vector3(
                                     leftX + curWidth * 0.5f,
-                                    _customFillInitialLocalPos.y,
-                                    _customFillInitialLocalPos.z
+                                    slot.CustomFillInitialLocalPos.y,
+                                    slot.CustomFillInitialLocalPos.z
                                 );
-                                _customFillTransform.localScale = new Vector3(
+                                slot.CustomFillTransform.localScale = new Vector3(
                                     Mathf.Max(0.0001f, curWidth),
-                                    _customFillInitialScale.y,
-                                    _customFillInitialScale.z
+                                    slot.CustomFillInitialScale.y,
+                                    slot.CustomFillInitialScale.z
                                 );
                                 break;
                             }
                             case ProgressBarFillDirection.DepthZ: {
-                                float backZ = _customFillInitialLocalPos.z - _customFillInitialScale.z * 0.5f;
-                                float curDepth = _customFillInitialScale.z * p;
-                                _customFillTransform.localPosition = new Vector3(
-                                    _customFillInitialLocalPos.x,
-                                    _customFillInitialLocalPos.y,
+                                float backZ = slot.CustomFillInitialLocalPos.z - slot.CustomFillInitialScale.z * 0.5f;
+                                float curDepth = slot.CustomFillInitialScale.z * p;
+                                slot.CustomFillTransform.localPosition = new Vector3(
+                                    slot.CustomFillInitialLocalPos.x,
+                                    slot.CustomFillInitialLocalPos.y,
                                     backZ + curDepth * 0.5f
                                 );
-                                _customFillTransform.localScale = new Vector3(
-                                    _customFillInitialScale.x,
-                                    _customFillInitialScale.y,
+                                slot.CustomFillTransform.localScale = new Vector3(
+                                    slot.CustomFillInitialScale.x,
+                                    slot.CustomFillInitialScale.y,
                                     Mathf.Max(0.0001f, curDepth)
                                 );
                                 break;
                             }
                             case ProgressBarFillDirection.ScaleUniform: {
-                                _customFillTransform.localScale = _customFillInitialScale * p;
+                                slot.CustomFillTransform.localScale = slot.CustomFillInitialScale * p;
                                 break;
                             }
                         }
                     } else {
-                        if (_customFillTransform.gameObject.activeSelf) _customFillTransform.gameObject.SetActive(false);
+                        if (slot.CustomFillTransform.gameObject.activeSelf) slot.CustomFillTransform.gameObject.SetActive(false);
                     }
                 }
 
@@ -769,13 +1051,13 @@ namespace MineMart.Gameplay.Mining {
             float currentHeight = innerSize * Mathf.Clamp01(progress);
             float bottomYCube = -innerSize * 0.5f;
 
-            if (_progressFillCube != null) {
+            if (slot.ProgressFillCube != null) {
                 if (progress > 0.005f) {
-                    if (!_progressFillCube.activeSelf) _progressFillCube.SetActive(true);
-                    _progressFillCube.transform.localPosition = new Vector3(0f, bottomYCube + currentHeight * 0.5f, 0f);
-                    _progressFillCube.transform.localScale = new Vector3(innerSize * 0.98f, Mathf.Max(0.001f, currentHeight), innerSize * 0.98f);
+                    if (!slot.ProgressFillCube.activeSelf) slot.ProgressFillCube.SetActive(true);
+                    slot.ProgressFillCube.transform.localPosition = new Vector3(0f, bottomYCube + currentHeight * 0.5f, 0f);
+                    slot.ProgressFillCube.transform.localScale = new Vector3(innerSize * 0.98f, Mathf.Max(0.001f, currentHeight), innerSize * 0.98f);
                 } else {
-                    if (_progressFillCube.activeSelf) _progressFillCube.SetActive(false);
+                    if (slot.ProgressFillCube.activeSelf) slot.ProgressFillCube.SetActive(false);
                 }
             }
 
@@ -789,7 +1071,7 @@ namespace MineMart.Gameplay.Mining {
 
             if (ProducedBlock != null) {
                 string id = (ProducedBlock.BlockId ?? ProducedBlock.name).ToLowerInvariant();
-                if (id.Contains("dirt") || id.Contains("dat")) return new Color(0.45f, 0.92f, 0.35f); // xanh mầm tươi mát
+                if (id.Contains("dirt") || id.Contains("dat")) return new Color(0.45f, 0.92f, 0.35f);
                 if (id.Contains("stone") || id.Contains("da") || id.Contains("cobble")) return new Color(0.35f, 0.92f, 0.85f);
                 if (id.Contains("coal") || id.Contains("than")) return new Color(0.25f, 0.95f, 0.55f);
                 if (id.Contains("iron") || id.Contains("sat")) return new Color(0.9f, 0.95f, 1.0f);
@@ -806,20 +1088,50 @@ namespace MineMart.Gameplay.Mining {
 
         private Camera _mainCamera;
 
-        private void LateUpdate() {
-            if (_progressVisualRoot != null && _progressVisualRoot.activeSelf) {
-                if (_billboardToCamera) {
-                    if (_mainCamera == null) _mainCamera = Camera.main;
-                    if (_mainCamera != null) {
-                        _progressVisualRoot.transform.rotation = _mainCamera.transform.rotation;
-                    }
+        private void Update() {
+            // Hồi phục êm dịu scale của các block về kích thước gốc sau khi nhún
+            for (int i = 0; i < _slots.Count; i++) {
+                MiningSlot slot = _slots[i];
+                if (slot == null || slot.VisualRoot == null || !slot.HasSavedVisualTransform) continue;
+
+                if (slot.HitWobbleCooldown > 0f) {
+                    slot.HitWobbleCooldown -= Time.deltaTime;
                 } else {
-                    _progressVisualRoot.transform.rotation = Quaternion.Euler(20f, 45f, 0f);
+                    if (slot.VisualRoot.transform.localScale != slot.InitialVisualScale) {
+                        slot.VisualRoot.transform.localScale = Vector3.Lerp(
+                            slot.VisualRoot.transform.localScale,
+                            slot.InitialVisualScale,
+                            Time.deltaTime * 5f // Hồi phục chậm rãi, mượt mà
+                        );
+                    }
+                }
+            }
+        }
+
+        private void LateUpdate() {
+            for (int i = 0; i < _slots.Count; i++) {
+                MiningSlot slot = _slots[i];
+                if (slot != null && slot.ProgressVisualRoot != null && slot.ProgressVisualRoot.activeSelf) {
+                    if (_billboardToCamera) {
+                        if (_mainCamera == null) _mainCamera = Camera.main;
+                        if (_mainCamera != null) {
+                            slot.ProgressVisualRoot.transform.rotation = _mainCamera.transform.rotation;
+                        }
+                    } else {
+                        slot.ProgressVisualRoot.transform.rotation = Quaternion.Euler(20f, 45f, 0f);
+                    }
                 }
             }
         }
 
         private void OnDestroy() {
+            for (int i = 0; i < _slots.Count; i++) {
+                MiningSlot slot = _slots[i];
+                if (slot != null) {
+                    if (slot.ContainerMaterial != null) Destroy(slot.ContainerMaterial);
+                    if (slot.FillMaterial != null) Destroy(slot.FillMaterial);
+                }
+            }
             if (_containerMaterial != null) Destroy(_containerMaterial);
             if (_fillMaterial != null) Destroy(_fillMaterial);
         }
@@ -979,10 +1291,13 @@ namespace MineMart.Gameplay.Mining {
 #endif
 
         private void InitializeSlots() {
-            if (_minerAnchor == null) {
-                Transform foundAnchor = transform.Find("MinerAnchor");
-                if (foundAnchor != null) _minerAnchor = foundAnchor;
-            }
+            if (_isInitializingSlots) return;
+            _isInitializingSlots = true;
+            try {
+                if (_minerAnchor == null) {
+                    Transform foundAnchor = transform.Find("MinerAnchor");
+                    if (foundAnchor != null) _minerAnchor = foundAnchor;
+                }
 
             if (_visualRoot == null) {
                 _visualRoot = gameObject;
@@ -991,16 +1306,23 @@ namespace MineMart.Gameplay.Mining {
             IReadOnlyList<int> unlockLevels = GetConfiguredUnlockLevels();
 
             // Đảm bảo Slot 0 luôn tồn tại (Slot gốc mở ở Level 1)
+            GameObject slot0Visual = _visualRoot;
+            if (slot0Visual == null || slot0Visual == gameObject) {
+                GameObject childVisual = FindSlot0VisualChild();
+                if (childVisual != null) slot0Visual = childVisual;
+                else slot0Visual = gameObject;
+            }
+
             if (_slots.Count == 0) {
                 _slots.Add(new MiningSlot {
                     SlotIndex = 0,
                     UnlockLevel = 1,
                     MinerAnchor = _minerAnchor,
-                    VisualRoot = _visualRoot
+                    VisualRoot = slot0Visual
                 });
             } else {
                 if (_slots[0].MinerAnchor == null) _slots[0].MinerAnchor = _minerAnchor;
-                if (_slots[0].VisualRoot == null) _slots[0].VisualRoot = _visualRoot;
+                if (_slots[0].VisualRoot == null || _slots[0].VisualRoot == gameObject) _slots[0].VisualRoot = slot0Visual;
                 _slots[0].UnlockLevel = 1;
             }
 
@@ -1040,21 +1362,27 @@ namespace MineMart.Gameplay.Mining {
                             visual = foundVisual.gameObject;
                         } else if (_visualRoot != null) {
                             GameObject visualClone;
-                            if (_visualRoot == gameObject) {
-                                // Nếu Visual Root trỏ vào chính GameObject trạm (có MeshFilter/MeshRenderer),
-                                // tự động tạo GameObject con chứa Mesh thay vì bỏ qua do trùng gameObject.
+                            // Kiểm tra an toàn: Nếu _visualRoot trỏ vào chính nó, trỏ vào GameObject cha/tổ tiên,
+                            // hoặc chứa bất kỳ component MiningStation nào -> TUYỆT ĐỐI KHÔNG Instantiate trực tiếp
+                            // để ngăn ngừa vòng lặp đệ quy vô tận (StackOverflow/Freeze Unity)!
+                            bool isSelfOrAncestorOrHasStation = _visualRoot == gameObject 
+                                || transform.IsChildOf(_visualRoot.transform)
+                                || _visualRoot.GetComponentInChildren<MiningStation>(true) != null;
+
+                            if (isSelfOrAncestorOrHasStation) {
+                                // Tự động tạo GameObject con chứa Mesh thay vì Instantiate cả GameObject cha
                                 visualClone = new GameObject($"VisualRoot_{slotIndex + 1}");
                                 visualClone.transform.SetParent(transform, false);
                                 visualClone.transform.localPosition = _slotSpacing * slotIndex;
                                 visualClone.transform.localRotation = Quaternion.identity;
                                 visualClone.transform.localScale = Vector3.one;
 
-                                var mf = GetComponent<MeshFilter>();
+                                var mf = _visualRoot.GetComponentInChildren<MeshFilter>(true) ?? GetComponent<MeshFilter>();
                                 if (mf != null) {
                                     var cloneMf = visualClone.AddComponent<MeshFilter>();
                                     cloneMf.sharedMesh = mf.sharedMesh;
                                 }
-                                var mr = GetComponent<MeshRenderer>();
+                                var mr = _visualRoot.GetComponentInChildren<MeshRenderer>(true) ?? GetComponent<MeshRenderer>();
                                 if (mr != null) {
                                     var cloneMr = visualClone.AddComponent<MeshRenderer>();
                                     cloneMr.sharedMaterials = mr.sharedMaterials;
@@ -1064,6 +1392,12 @@ namespace MineMart.Gameplay.Mining {
                                 visualClone.name = $"VisualRoot_{slotIndex + 1}";
                                 visualClone.transform.localPosition = _visualRoot.transform.localPosition + _slotSpacing * slotIndex;
                                 visualClone.transform.localRotation = _visualRoot.transform.localRotation;
+
+                                // Dọn dẹp an toàn: nếu vô tình clone có chứa script MiningStation thì xóa ngay
+                                var stationOnClone = visualClone.GetComponentInChildren<MiningStation>(true);
+                                if (stationOnClone != null) {
+                                    DestroyImmediate(stationOnClone);
+                                }
                             }
                             visual = visualClone;
                         }
@@ -1078,6 +1412,19 @@ namespace MineMart.Gameplay.Mining {
                 } else {
                     _slots[slotIndex].UnlockLevel = reqLevel;
                 }
+            }
+
+            // Ghi nhớ scale và position ban đầu của toàn bộ VisualRoot để phục hồi sau rung lắc / rơi nảy
+            for (int i = 0; i < _slots.Count; i++) {
+                MiningSlot slot = _slots[i];
+                if (slot != null && slot.VisualRoot != null && !slot.HasSavedVisualTransform) {
+                    slot.InitialVisualScale = slot.VisualRoot.transform.localScale;
+                    slot.InitialVisualLocalPos = slot.VisualRoot.transform.localPosition;
+                    slot.HasSavedVisualTransform = true;
+                }
+            }
+            } finally {
+                _isInitializingSlots = false;
             }
         }
 
@@ -1115,7 +1462,13 @@ namespace MineMart.Gameplay.Mining {
         /// Hỗ trợ cả trường hợp mở khóa miễn phí 0 Vàng (như Quầy Đất tân thủ).
         /// </summary>
         public bool TryUnlock() {
-            if (IsUnlocked) return false;
+            if (_currentLevel > 0) {
+                RecalculateMilestoneMultipliers();
+                UpdateVisualState();
+                OnAnyStationUnlocked?.Invoke(this);
+                OnAnyStationLevelChanged?.Invoke(this);
+                return true;
+            }
 
             _currentLevel = 1;
             RecalculateMilestoneMultipliers();
@@ -1282,6 +1635,40 @@ namespace MineMart.Gameplay.Mining {
                 return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Lấy cấp độ của mốc Milestone đã đạt gần nhất (hoặc 0 nếu chưa đạt mốc nào).
+        /// </summary>
+        public int GetPreviousMilestoneLevel() {
+            var milestones = ActiveMilestones;
+            if (milestones == null || milestones.Count == 0) return 0;
+
+            int prevLevel = 0;
+            for (int i = 0; i < milestones.Count; i++) {
+                var rule = milestones[i];
+                if (rule != null && rule.TargetLevel <= _currentLevel) {
+                    if (rule.TargetLevel > prevLevel) {
+                        prevLevel = rule.TargetLevel;
+                    }
+                }
+            }
+            return prevLevel;
+        }
+
+        /// <summary>
+        /// Lấy tiến độ từ mốc trước đến mốc kế tiếp (từ 0.0f đến 1.0f) để hiển thị thanh tiến trình ngang.
+        /// </summary>
+        public float GetMilestoneProgress() {
+            if (IsMaxLevel) return 1.0f;
+            if (!TryGetNextMilestone(out var nextRule, out _)) return 1.0f;
+
+            int prevLevel = GetPreviousMilestoneLevel();
+            int span = nextRule.TargetLevel - prevLevel;
+            if (span <= 0) return 1.0f;
+
+            int currentInSegment = _currentLevel - prevLevel;
+            return Mathf.Clamp01((float)currentInSegment / span);
         }
 
         public double CalculateMilestoneMultiplierForLevel(int level) {

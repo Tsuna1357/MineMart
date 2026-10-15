@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using MineMart.Core.Events;
 using MineMart.Core.Math;
 using MineMart.Economy;
@@ -24,7 +25,16 @@ namespace MineMart.UI.Binders {
         [SerializeField] private TextMeshProUGUI _stationNameText;
         [SerializeField] private TextMeshProUGUI _levelText;
         [SerializeField] private TextMeshProUGUI _benefitText;
+        [SerializeField] private TextMeshProUGUI _blockPriceText;
         [SerializeField] private TextMeshProUGUI _costText;
+
+        [Header("Milestone Progress Bar (Horizontal)")]
+        [Tooltip("Thanh tiến trình ngang thể hiện khoảng cách tới mốc Milestone tiếp theo (Item 5 trong FutureUpdateNote)")]
+        [SerializeField] private Slider _milestoneSlider;
+        [SerializeField] private Image _milestoneFillImage;
+        [SerializeField] private RectTransform _milestoneBarContainer;
+        [SerializeField] private Color _milestoneFillColor = new Color(0.98f, 0.78f, 0.16f, 1f); // Vàng Gold rực rỡ
+        [SerializeField] private Color _milestoneBgColor = new Color(0.08f, 0.12f, 0.18f, 0.88f); // Nền xám đen bo góc
 
         [Header("Buttons & Visuals")]
         [SerializeField] private Button _upgradeButton;
@@ -45,6 +55,10 @@ namespace MineMart.UI.Binders {
         private RectTransform _rectTransform;
         private Camera _mainCamera;
         private MiningStation _currentStation;
+
+        private float _currentFill = -1f;
+        private Coroutine _fillAnimRoutine;
+        private Coroutine _barPunchRoutine;
 
         public bool IsShowing => _canvasGroup != null && _canvasGroup.alpha > 0.01f;
         public MiningStation CurrentStation => _currentStation;
@@ -105,16 +119,21 @@ namespace MineMart.UI.Binders {
                 if (_stationNameText == null && (lower.Contains("name") || lower.Contains("title") || lower.Contains("ten"))) _stationNameText = t;
                 else if (_levelText == null && (lower.Contains("level") || lower.Contains("cap"))) _levelText = t;
                 else if (_costText == null && (lower.Contains("cost") || lower.Contains("price") || lower.Contains("coin") || lower.Contains("gold") || lower.Contains("gia"))) _costText = t;
+                else if (_blockPriceText == null && (lower.Contains("sell") || lower.Contains("blockprice") || lower.Contains("giaban"))) _blockPriceText = t;
                 else if (_benefitText == null && (lower.Contains("benefit") || lower.Contains("stat") || lower.Contains("desc") || lower.Contains("info") || lower.Contains("loi"))) _benefitText = t;
             }
 
             // Fallback nếu người dùng đặt tên mặc định (ví dụ Text (TMP) (1), (2)...)
             foreach (var t in allTexts) {
-                if (t == _stationNameText || t == _levelText || t == _costText || t == _benefitText) continue;
+                if (t == _stationNameText || t == _levelText || t == _costText || t == _benefitText || t == _blockPriceText) continue;
                 if (_stationNameText == null) _stationNameText = t;
                 else if (_levelText == null) _levelText = t;
                 else if (_benefitText == null) _benefitText = t;
                 else if (_costText == null) _costText = t;
+            }
+
+            if (_blockPriceText == null && _benefitText != null) {
+                _blockPriceText = _benefitText;
             }
 
             // Tự động tìm các Nút
@@ -139,7 +158,271 @@ namespace MineMart.UI.Binders {
                     }
                 }
             }
+
+            // Tự động tìm Slider hoặc Image fill của Milestone Progress Bar
+            if (_milestoneSlider == null) {
+                _milestoneSlider = GetComponentInChildren<Slider>(true);
+                if (_milestoneSlider != null) {
+                    _milestoneBarContainer = _milestoneSlider.GetComponent<RectTransform>();
+                    if (_milestoneFillImage == null && _milestoneSlider.fillRect != null) {
+                        _milestoneFillImage = _milestoneSlider.fillRect.GetComponent<Image>();
+                    }
+                }
+            }
+
+            if (_milestoneBarContainer == null || _milestoneFillImage == null) {
+                var allImages = GetComponentsInChildren<Image>(true);
+                foreach (var img in allImages) {
+                    string lower = img.gameObject.name.ToLower();
+                    if (lower.Contains("milestone") || lower.Contains("progress") || lower.Contains("fillbar")) {
+                        if (img.gameObject.name.Equals("Fill", StringComparison.OrdinalIgnoreCase)) {
+                            _milestoneFillImage = img;
+                            _milestoneBarContainer = img.transform.parent as RectTransform;
+                            break;
+                        } else if (_milestoneBarContainer == null) {
+                            _milestoneBarContainer = img.rectTransform;
+                        }
+                    }
+                }
+            }
         }
+
+        public void SetupSliderOnContainer(GameObject barRoot) {
+            if (barRoot == null) return;
+
+            var barRect = barRoot.GetComponent<RectTransform>();
+            _milestoneBarContainer = barRect;
+
+            // 1. Đảm bảo Background Image
+            var bgImg = barRoot.GetComponent<Image>();
+            if (bgImg == null) {
+                bgImg = barRoot.AddComponent<Image>();
+                bgImg.color = _milestoneBgColor;
+            } else if (bgImg.color != Color.white) {
+                _milestoneBgColor = bgImg.color;
+            }
+
+            // 2. Đảm bảo component Slider
+            var slider = barRoot.GetComponent<Slider>();
+            if (slider == null) {
+                slider = barRoot.AddComponent<Slider>();
+            }
+
+            slider.direction = Slider.Direction.LeftToRight;
+            slider.transition = Selectable.Transition.None;
+            slider.interactable = false;
+            var nav = slider.navigation;
+            nav.mode = Navigation.Mode.None;
+            slider.navigation = nav;
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+
+            // 3. Tìm hoặc tạo Fill
+            RectTransform fillRect = null;
+            Image fillImg = _milestoneFillImage;
+
+            if (fillImg == null) {
+                var fillTr = barRoot.transform.Find("Fill");
+                if (fillTr == null) {
+                    fillTr = barRoot.transform.Find("Fill Area/Fill");
+                }
+                if (fillTr != null) {
+                    fillImg = fillTr.GetComponent<Image>();
+                    fillRect = fillTr as RectTransform;
+                }
+            } else {
+                fillRect = fillImg.rectTransform;
+            }
+
+            if (fillImg == null) {
+                GameObject fillGo = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+                fillGo.transform.SetParent(barRoot.transform, false);
+#if UNITY_EDITOR
+                if (!Application.isPlaying) {
+                    UnityEditor.Undo.RegisterCreatedObjectUndo(fillGo, "Create Fill Image");
+                }
+#endif
+                fillRect = fillGo.GetComponent<RectTransform>();
+                fillImg = fillGo.GetComponent<Image>();
+                fillImg.color = _milestoneFillColor;
+            } else if (fillImg.color != Color.white) {
+                _milestoneFillColor = fillImg.color;
+            }
+
+            // Cấu hình Fill RectTransform:
+            // Dùng Image.Type.Simple để tránh triệt để lỗi mesh của Unity UI khi sprite null
+            fillImg.type = Image.Type.Simple;
+            fillRect.anchorMin = new Vector2(0f, 0f);
+            fillRect.anchorMax = new Vector2(0f, 1f);
+            fillRect.offsetMin = Vector2.zero;
+            fillRect.offsetMax = Vector2.zero;
+
+            slider.fillRect = fillRect;
+            slider.targetGraphic = fillImg;
+
+            _milestoneSlider = slider;
+            _milestoneFillImage = fillImg;
+        }
+
+        public void ApplyConfiguredColors() {
+            if (_milestoneFillImage != null) {
+                _milestoneFillImage.color = _milestoneFillColor;
+            }
+            if (_milestoneBarContainer != null) {
+                var bg = _milestoneBarContainer.GetComponent<Image>();
+                if (bg != null) {
+                    bg.color = _milestoneBgColor;
+                }
+            }
+        }
+
+#if UNITY_EDITOR
+        private void OnValidate() {
+            ApplyConfiguredColors();
+        }
+#endif
+
+        private void EnsureMilestoneProgressBar() {
+            if (_milestoneSlider != null && _milestoneFillImage != null && _milestoneBarContainer != null) return;
+
+            // 1. Tìm Slider
+            if (_milestoneSlider == null) {
+                _milestoneSlider = GetComponentInChildren<Slider>(true);
+            }
+
+            if (_milestoneSlider != null) {
+                _milestoneBarContainer = _milestoneSlider.GetComponent<RectTransform>();
+                if (_milestoneFillImage == null && _milestoneSlider.fillRect != null) {
+                    _milestoneFillImage = _milestoneSlider.fillRect.GetComponent<Image>();
+                }
+                return;
+            }
+
+            // 2. Nếu đã có Container trong Scene (ví dụ Milestone_ProgressBar) nhưng chưa có Slider
+            if (_milestoneBarContainer != null) {
+                SetupSliderOnContainer(_milestoneBarContainer.gameObject);
+                return;
+            }
+
+            // Tìm theo tên
+            var foundTr = transform.Find("Milestone_ProgressBar");
+            if (foundTr == null) {
+                var allTr = GetComponentsInChildren<Transform>(true);
+                foreach (var tr in allTr) {
+                    if (tr.gameObject.name.ToLower().Contains("milestone")) {
+                        foundTr = tr;
+                        break;
+                    }
+                }
+            }
+
+            if (foundTr != null) {
+                SetupSliderOnContainer(foundTr.gameObject);
+                return;
+            }
+
+            // 3. Tự động tạo thanh tiến trình ngang hiện đại nếu trong Scene chưa có sẵn
+            Transform hostParent = transform;
+            if (_levelText != null && _levelText.transform.parent != null) {
+                hostParent = _levelText.transform.parent;
+            }
+
+            GameObject barRoot = new GameObject("Milestone_ProgressBar", typeof(RectTransform), typeof(Image));
+            barRoot.transform.SetParent(hostParent, false);
+
+            var barRect = barRoot.GetComponent<RectTransform>();
+            _milestoneBarContainer = barRect;
+
+            var le = barRoot.AddComponent<LayoutElement>();
+            le.minHeight = 8f;
+            le.preferredHeight = 10f;
+            le.flexibleWidth = 1f;
+
+            var priceTmp = _blockPriceText != null ? _blockPriceText : _benefitText;
+            if (priceTmp != null) {
+                barRect.SetSiblingIndex(priceTmp.transform.GetSiblingIndex() + 1);
+                barRect.anchoredPosition = priceTmp.rectTransform.anchoredPosition + new Vector2(0f, -22f);
+                float width = Mathf.Max(180f, priceTmp.rectTransform.sizeDelta.x);
+                barRect.sizeDelta = new Vector2(width, 10f);
+            } else if (_levelText != null) {
+                barRect.SetSiblingIndex(_levelText.transform.GetSiblingIndex() + 1);
+                barRect.anchoredPosition = _levelText.rectTransform.anchoredPosition + new Vector2(0f, -20f);
+                barRect.sizeDelta = new Vector2(200f, 10f);
+            } else {
+                barRect.anchoredPosition = Vector2.zero;
+                barRect.sizeDelta = new Vector2(200f, 10f);
+            }
+
+            SetupSliderOnContainer(barRoot);
+        }
+
+#if UNITY_EDITOR
+        [ContextMenu("Tạo / Đồng Bộ Thanh Tiến Trình (Milestone Bar) trong Scene")]
+        public void CreateMilestoneBarInEditor() {
+            // 1. Tìm xem trong Scene / Bubble đã có Milestone_ProgressBar hay chưa
+            Transform existingBar = null;
+            if (_milestoneBarContainer != null) {
+                existingBar = _milestoneBarContainer;
+            } else {
+                var found = transform.Find("Milestone_ProgressBar");
+                if (found == null) {
+                    var allTransforms = GetComponentsInChildren<Transform>(true);
+                    foreach (var tr in allTransforms) {
+                        if (tr.gameObject.name.ToLower().Contains("milestone")) {
+                            existingBar = tr;
+                            break;
+                        }
+                    }
+                } else {
+                    existingBar = found;
+                }
+            }
+
+            GameObject barRoot;
+            if (existingBar != null) {
+                barRoot = existingBar.gameObject;
+                UnityEditor.Undo.RecordObject(barRoot, "Sync Milestone Slider");
+            } else {
+                Transform hostParent = transform;
+                if (_levelText != null && _levelText.transform.parent != null) {
+                    hostParent = _levelText.transform.parent;
+                }
+
+                barRoot = new GameObject("Milestone_ProgressBar", typeof(RectTransform), typeof(Image));
+                barRoot.transform.SetParent(hostParent, false);
+                UnityEditor.Undo.RegisterCreatedObjectUndo(barRoot, "Create Milestone Progress Bar");
+
+                var le = barRoot.AddComponent<LayoutElement>();
+                le.minHeight = 8f;
+                le.preferredHeight = 10f;
+                le.flexibleWidth = 1f;
+
+                var barRect = barRoot.GetComponent<RectTransform>();
+                var priceTmp = _blockPriceText != null ? _blockPriceText : _benefitText;
+                if (priceTmp != null) {
+                    barRect.SetSiblingIndex(priceTmp.transform.GetSiblingIndex() + 1);
+                    barRect.anchoredPosition = priceTmp.rectTransform.anchoredPosition + new Vector2(0f, -22f);
+                    float width = Mathf.Max(180f, priceTmp.rectTransform.sizeDelta.x);
+                    barRect.sizeDelta = new Vector2(width, 10f);
+                } else if (_levelText != null) {
+                    barRect.SetSiblingIndex(_levelText.transform.GetSiblingIndex() + 1);
+                    barRect.anchoredPosition = _levelText.rectTransform.anchoredPosition + new Vector2(0f, -20f);
+                    barRect.sizeDelta = new Vector2(200f, 10f);
+                } else {
+                    barRect.anchoredPosition = Vector2.zero;
+                    barRect.sizeDelta = new Vector2(200f, 10f);
+                }
+            }
+
+            SetupSliderOnContainer(barRoot);
+            ApplyConfiguredColors();
+
+            UnityEditor.EditorUtility.SetDirty(this);
+            UnityEditor.Selection.activeGameObject = barRoot;
+            UnityEditor.EditorGUIUtility.PingObject(barRoot);
+            Debug.Log("<color=#10B981>[StationUpgradeBubble]</color> Đã tạo / đồng bộ Slider cho 'Milestone_ProgressBar'! Slot 'Milestone Slider' đã được liên kết tự động.");
+        }
+#endif
 
         private void OnEnable() {
             WorkstationPlacementController.OnStationTapped += HandleStationTapped;
@@ -200,7 +483,7 @@ namespace MineMart.UI.Binders {
             if (_mainCamera == null) {
                 _mainCamera = Camera.main;
                 if (_mainCamera == null) {
-                    _mainCamera = FindFirstObjectByType<Camera>();
+                    _mainCamera = FindAnyObjectByType<Camera>();
                     if (_mainCamera == null) return;
                 }
             }
@@ -272,6 +555,7 @@ namespace MineMart.UI.Binders {
             }
 
             _currentStation = station;
+            _currentFill = -1f; // Đánh dấu để cập nhật tức thì giá trị thanh tiến trình của mỏ mới
 
             if (!gameObject.activeSelf) {
                 gameObject.SetActive(true);
@@ -287,8 +571,9 @@ namespace MineMart.UI.Binders {
             _canvasGroup.blocksRaycasts = true;
 
             transform.SetAsLastSibling();
+            ApplyConfiguredColors();
             UpdateScreenPosition();
-            RefreshUI();
+            RefreshUI(instantProgressBar: true);
             PunchScaleEffect();
 
             Debug.Log($"<color=#10B981>[StationUpgradeBubble]</color> Đã mở bong bóng cho: {station.name}");
@@ -299,6 +584,16 @@ namespace MineMart.UI.Binders {
         /// </summary>
         public void Hide() {
             _currentStation = null;
+            _currentFill = -1f;
+            if (_fillAnimRoutine != null) {
+                StopCoroutine(_fillAnimRoutine);
+                _fillAnimRoutine = null;
+            }
+            if (_barPunchRoutine != null) {
+                StopCoroutine(_barPunchRoutine);
+                _barPunchRoutine = null;
+            }
+
             if (_canvasGroup != null) {
                 _canvasGroup.alpha = 0f;
                 _canvasGroup.interactable = false;
@@ -350,11 +645,12 @@ namespace MineMart.UI.Binders {
                 if (SaveManager.Instance != null) {
                     SaveManager.Instance.SaveGame();
                 }
-                RefreshUI();
+                RefreshUI(instantProgressBar: false);
                 PunchScaleEffect();
 
                 // Kiểm tra nếu vừa chạm mốc Milestone đột phá doanh thu
                 if (_currentStation.CurrentProfitMultiplier > _currentStation.CalculateMilestoneMultiplierForLevel(oldLevel)) {
+                    PunchMilestoneBar();
                     Debug.Log($"<color=#F59E0B>[Milestone]</color> 🏆 Quầy {_currentStation.name} vừa đạt mốc Cấp {_currentStation.CurrentLevel}! Hệ số nhân doanh thu: x{_currentStation.CurrentProfitMultiplier:F0}");
                 } else {
                     Debug.Log($"<color=#10B981>[Upgrade]</color> Nâng cấp thành công {_currentStation.name} lên Cấp {_currentStation.CurrentLevel}!");
@@ -364,46 +660,38 @@ namespace MineMart.UI.Binders {
             }
         }
 
-        private void RefreshUI() {
+        private void RefreshUI(bool instantProgressBar = false) {
             if (_currentStation == null) return;
 
-            // Tên quầy
+            // 1. Tên quầy
             if (_stationNameText != null) {
                 string stallName = _currentStation.StationData != null ? _currentStation.StationData.StallName : _currentStation.gameObject.name;
                 _stationNameText.text = stallName.ToUpper();
             }
 
-            // Cấp độ
+            // 2. Cấp độ: Chỉ hiển thị cấp hiện tại (theo Item 5 trong FutureUpdateNote)
             if (_levelText != null) {
                 if (_currentStation.IsMaxLevel) {
                     _levelText.text = $"CẤP {_currentStation.CurrentLevel} (TỐI ĐA)";
                 } else {
-                    _levelText.text = $"CẤP {_currentStation.CurrentLevel} -> {_currentStation.CurrentLevel + 1}";
+                    _levelText.text = $"CẤP {_currentStation.CurrentLevel}";
                 }
             }
 
-            // Thông tin lợi ích nâng cấp kèm mốc Milestone
-            if (_benefitText != null) {
-                if (_currentStation.IsMaxLevel) {
-                    _benefitText.text = $"Giá: {_currentStation.GetFinalSellPrice():F0} Vàng | Thợ: {_currentStation.MaxSlots} Slot";
-                } else {
-                    double currPrice = _currentStation.GetFinalSellPrice();
-                    double nextPrice = _currentStation.GetPriceAtLevel(_currentStation.CurrentLevel + 1);
-
-                    string milestoneInfo = "";
-                    if (_currentStation.TryGetNextMilestone(out var nextRule, out int levelsLeft)) {
-                        if (levelsLeft == 1) {
-                            milestoneInfo = $" [Mốc Lv {nextRule.TargetLevel}: x{nextRule.ProfitMultiplier:F0}!]";
-                        } else {
-                            milestoneInfo = $" [Mốc Lv {nextRule.TargetLevel}: -{levelsLeft}]";
-                        }
-                    }
-
-                    _benefitText.text = $"Giá: {currPrice:F0} -> {nextPrice:F0} Vàng{milestoneInfo} | Thợ: {_currentStation.MaxSlots} Slot";
+            // 3. Hiển thị giá tiền bán của block (gọn gàng, chính xác theo cấp mỏ & map)
+            var priceTmp = _blockPriceText != null ? _blockPriceText : _benefitText;
+            if (priceTmp != null) {
+                if (!priceTmp.gameObject.activeSelf) {
+                    priceTmp.gameObject.SetActive(true);
                 }
+                double sellPrice = _currentStation.GetFinalSellPrice();
+                priceTmp.text = $"Giá bán: {NumberFormatter.Format(sellPrice)} Vàng";
             }
 
-            // Chi phí
+            // 4. Cập nhật thanh tiến trình ngang mốc Milestone
+            UpdateProgressBar(instantProgressBar);
+
+            // 5. Chi phí nâng cấp
             if (_costText != null) {
                 if (_currentStation.IsMaxLevel) {
                     _costText.text = "MAX";
@@ -413,6 +701,112 @@ namespace MineMart.UI.Binders {
             }
 
             RefreshAffordability();
+        }
+
+        private void SetProgressBarFill(float fill) {
+            fill = Mathf.Clamp01(fill);
+            _currentFill = fill;
+
+            if (_milestoneFillImage != null) {
+                _milestoneFillImage.color = _milestoneFillColor;
+
+                if (_milestoneFillImage.sprite != null) {
+                    if (_milestoneFillImage.type != Image.Type.Filled) {
+                        _milestoneFillImage.type = Image.Type.Filled;
+                        _milestoneFillImage.fillMethod = Image.FillMethod.Horizontal;
+                        _milestoneFillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
+                    }
+                    _milestoneFillImage.fillAmount = fill;
+                } else {
+                    // Không có sprite: DÙNG Image.Type.Simple VÀ CO DÃN BẰNG RectTransform.anchorMax
+                    // Tránh triệt để bug của Unity UI khi Image.Type.Filled không có Sprite sẽ vẽ 100% hình chữ nhật
+                    _milestoneFillImage.type = Image.Type.Simple;
+                    RectTransform fillRt = _milestoneFillImage.rectTransform;
+                    fillRt.anchorMin = new Vector2(0f, 0f);
+                    fillRt.anchorMax = new Vector2(fill, 1f);
+                    fillRt.offsetMin = Vector2.zero;
+                    fillRt.offsetMax = Vector2.zero;
+                }
+            }
+
+            if (_milestoneSlider != null) {
+                _milestoneSlider.minValue = 0f;
+                _milestoneSlider.maxValue = 1f;
+                _milestoneSlider.value = fill;
+            }
+        }
+
+        private void UpdateProgressBar(bool instant) {
+            if (_currentStation == null) return;
+            EnsureMilestoneProgressBar();
+
+            float targetFill = _currentStation.GetMilestoneProgress();
+
+            if (instant || _currentFill < 0f) {
+                if (_fillAnimRoutine != null) {
+                    StopCoroutine(_fillAnimRoutine);
+                    _fillAnimRoutine = null;
+                }
+                SetProgressBarFill(targetFill);
+            } else {
+                if (_fillAnimRoutine != null) {
+                    StopCoroutine(_fillAnimRoutine);
+                }
+                _fillAnimRoutine = StartCoroutine(AnimateProgressFillRoutine(_currentFill, targetFill));
+            }
+        }
+
+        private IEnumerator AnimateProgressFillRoutine(float fromFill, float toFill) {
+            float duration = 0.22f;
+            float elapsed = 0f;
+
+            // Nếu vừa vượt mốc Milestone (toFill bé hơn fromFill do sang chặng mốc mới bắt đầu lại từ 0):
+            // Cho thanh chạy đầy 1.0f trước, nháy nhẹ rồi mới reset từ 0.0f lên toFill
+            if (toFill < fromFill && fromFill > 0.7f) {
+                while (elapsed < duration * 0.5f) {
+                    elapsed += Time.unscaledDeltaTime;
+                    float t = Mathf.Clamp01(elapsed / (duration * 0.5f));
+                    SetProgressBarFill(Mathf.Lerp(fromFill, 1.0f, t));
+                    yield return null;
+                }
+                SetProgressBarFill(1.0f);
+                PunchMilestoneBar();
+                yield return new WaitForSecondsRealtime(0.06f);
+                fromFill = 0f;
+                elapsed = 0f;
+            }
+
+            while (elapsed < duration) {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float smoothT = Mathf.Sin(t * Mathf.PI * 0.5f);
+                SetProgressBarFill(Mathf.Lerp(fromFill, toFill, smoothT));
+                yield return null;
+            }
+
+            SetProgressBarFill(toFill);
+            _fillAnimRoutine = null;
+        }
+
+        private void PunchMilestoneBar() {
+            if (_milestoneBarContainer != null) {
+                if (_barPunchRoutine != null) StopCoroutine(_barPunchRoutine);
+                _barPunchRoutine = StartCoroutine(PunchBarRoutine(_milestoneBarContainer));
+            }
+        }
+
+        private IEnumerator PunchBarRoutine(RectTransform target) {
+            float dur = 0.18f;
+            float el = 0f;
+            while (el < dur) {
+                el += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(el / dur);
+                float s = 1.0f + Mathf.Sin(t * Mathf.PI) * 0.18f;
+                if (target != null) target.localScale = Vector3.one * s;
+                yield return null;
+            }
+            if (target != null) target.localScale = Vector3.one;
+            _barPunchRoutine = null;
         }
 
         private void RefreshAffordability() {

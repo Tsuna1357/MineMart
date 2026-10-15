@@ -204,10 +204,10 @@ namespace MineMart.Gameplay.Staff {
                     _agent.ResetPath();
                 }
                 _state = WorkerState.Idle;
+                _interruptedStation = station;
+                _savedCraftTimer = saved;
             }
 
-            _interruptedStation = station;
-            _savedCraftTimer = saved;
             return saved;
         }
 
@@ -293,6 +293,44 @@ namespace MineMart.Gameplay.Staff {
         // 1. TÌM VIỆC LÀM (IDLE)
         // ==========================================
         private void UpdateIdle() {
+            // Tự phục hồi: Nếu trên tay vẫn còn đang cầm quặng (do đơn hàng trước đó đã bị người chơi
+            // hoặc khách khác thanh toán xong), chủ động tìm khách/bàn khác hoặc cất lên quầy trung chuyển
+            if (_carriedBlockData != null) {
+                TableSlot tableSlot = FindTableSlotNeedingBlock(_carriedBlockData);
+                if (tableSlot != null) {
+                    _targetTableSlot = tableSlot;
+                    _targetCustomerSlot = null;
+                    _state = WorkerState.WalkingToCustomerCounter;
+                    SetDestinationSafe(tableSlot.ServerAnchor.position);
+                    return;
+                }
+
+                CustomerSlot customerSlot = FindCustomerNeedingBlock(_carriedBlockData);
+                if (customerSlot != null) {
+                    _targetCustomerSlot = customerSlot;
+                    _targetTableSlot = null;
+                    _state = WorkerState.WalkingToCustomerCounter;
+                    SetDestinationSafe(customerSlot.ServerAnchor.position);
+                    return;
+                }
+
+                CheckoutCounter counter = FindAvailableCheckoutCounter();
+                if (counter != null && !counter.IsFull) {
+                    _targetCheckoutCounter = counter;
+                    _state = WorkerState.WalkingToCheckoutCounter;
+                    CounterSlot slot = counter.GetSlotAtPlacePosition(counter.transform.position, 100f);
+                    SetDestinationSafe(slot != null ? slot.PlaceAnchor.position : counter.transform.position);
+                    return;
+                }
+
+                // Không còn khách nào cần và không còn chỗ chứa -> giải phóng quặng để không bị kẹt tay vĩnh viễn
+                if (_carriedBlockInstance != null) {
+                    Destroy(_carriedBlockInstance);
+                    _carriedBlockInstance = null;
+                }
+                _carriedBlockData = null;
+            }
+
             // Tạp vụ / Thợ Bán: Ưu tiên số 1 là ra nhận Order nếu có khách đang vẫy tay
             if (_role == WorkerRole.Runner || _role == WorkerRole.DirectSeller) {
                 // Ưu tiên 1A: Khách vẫy tay tại Bàn ăn
@@ -465,15 +503,26 @@ namespace MineMart.Gameplay.Staff {
                 return;
             }
 
-            if (!_agent.pathPending && (!_agent.hasPath || _agent.remainingDistance <= _agent.stoppingDistance)) {
+            if (!_agent.pathPending && (!_agent.hasPath || _agent.remainingDistance <= Mathf.Max(_agent.stoppingDistance, 0.4f))) {
                 Transform slotAnchor = _targetMiningStation.GetMinerAnchorFor(this);
-                if (slotAnchor != null && Vector3.Distance(transform.position, slotAnchor.position) > 1.2f) {
+                float dist2D = slotAnchor != null ? Vector2.Distance(
+                    new Vector2(transform.position.x, transform.position.z),
+                    new Vector2(slotAnchor.position.x, slotAnchor.position.z)
+                ) : 0f;
+
+                if (slotAnchor != null && dist2D > 2.0f) {
                     SetDestinationSafe(slotAnchor.position);
                     return;
                 }
 
                 _state = WorkerState.Mining;
-                _timer = _targetMiningStation != null ? _targetMiningStation.CurrentCraftTimer : 0f;
+                float savedTime = _targetMiningStation != null ? _targetMiningStation.GetSavedCraftTimer(this) : 0f;
+                if (savedTime <= 0f && _targetMiningStation != null) {
+                    var mySlot = _targetMiningStation.GetSlotForWorker(this);
+                    if (mySlot != null && mySlot.CurrentCraftTimer > 0f) savedTime = mySlot.CurrentCraftTimer;
+                    else savedTime = _targetMiningStation.CurrentCraftTimer;
+                }
+                _timer = savedTime;
                 _savedCraftTimer = 0f;
                 _interruptedStation = null;
 
@@ -486,8 +535,16 @@ namespace MineMart.Gameplay.Staff {
         }
 
         private void UpdateMining() {
-            if (_targetMiningStation == null || _targetMiningStation.IsBeingDragged ||
-                Vector3.Distance(transform.position, _targetMiningStation.transform.position) > 2.5f) {
+            Transform slotAnchor = _targetMiningStation != null ? _targetMiningStation.GetMinerAnchorFor(this) : null;
+            float dist2D = slotAnchor != null ? Vector2.Distance(
+                new Vector2(transform.position.x, transform.position.z),
+                new Vector2(slotAnchor.position.x, slotAnchor.position.z)
+            ) : (_targetMiningStation != null ? Vector2.Distance(
+                new Vector2(transform.position.x, transform.position.z),
+                new Vector2(_targetMiningStation.transform.position.x, _targetMiningStation.transform.position.z)
+            ) : 999f);
+
+            if (_targetMiningStation == null || _targetMiningStation.IsBeingDragged || dist2D > 3.0f) {
                 if (_targetMiningStation != null) {
                     _targetMiningStation.ReleaseSlot(this);
                     if (_activeTicket != null) {
@@ -501,8 +558,9 @@ namespace MineMart.Gameplay.Staff {
                 return;
             }
 
-            bool completed = _targetMiningStation.AddMiningProgress(Time.deltaTime);
-            _timer = _targetMiningStation.CurrentCraftTimer;
+            bool completed = _targetMiningStation.AddMiningProgress(this, Time.deltaTime);
+            var mySlot = _targetMiningStation.GetSlotForWorker(this);
+            _timer = mySlot != null ? mySlot.CurrentCraftTimer : _targetMiningStation.CurrentCraftTimer;
 
             if (completed) {
                 // Spawn cục quặng ảo cầm trên tay
@@ -510,6 +568,7 @@ namespace MineMart.Gameplay.Staff {
                 if (_targetMiningStation.ProducedBlock.Prefab3D != null) {
                     _carriedBlockInstance = Instantiate(_targetMiningStation.ProducedBlock.Prefab3D, _carryAnchor);
                     _carriedBlockInstance.transform.localPosition = Vector3.zero;
+                    CarriedBlockPriceBadge.Attach(_carriedBlockInstance, _carriedBlockData);
                 }
 
                 if (_activeTicket != null) {
@@ -566,6 +625,21 @@ namespace MineMart.Gameplay.Staff {
                         _targetCustomerSlot = FindCustomerNeedingBlock(_carriedBlockData);
                         if (_targetCustomerSlot != null) {
                             SetDestinationSafe(_targetCustomerSlot.ServerAnchor.position);
+                        } else {
+                            // Fallback: Tìm bất kỳ khách nào đang đợi hoặc cất tạm lên quầy trung chuyển
+                            CustomerSlot firstSlot = FindAnyCustomerSlot();
+                            if (firstSlot != null) {
+                                _targetCustomerSlot = firstSlot;
+                                SetDestinationSafe(firstSlot.ServerAnchor.position);
+                            } else {
+                                CheckoutCounter counter = FindAvailableCheckoutCounter();
+                                if (counter != null && !counter.IsFull) {
+                                    _targetCheckoutCounter = counter;
+                                    _state = WorkerState.WalkingToCheckoutCounter;
+                                    CounterSlot slot = counter.GetSlotAtPlacePosition(counter.transform.position, 100f);
+                                    SetDestinationSafe(slot != null ? slot.PlaceAnchor.position : counter.transform.position);
+                                }
+                            }
                         }
                     }
                 }
@@ -580,6 +654,7 @@ namespace MineMart.Gameplay.Staff {
                 if (_targetCheckoutCounter != null && !_targetCheckoutCounter.IsFull) {
                     // Lắp gạch vào bàn, PHẢI truyền blockData để bàn biết nó là khối gì!
                     if (_targetCheckoutCounter.TryPlaceBlock(_carriedBlockInstance, _carriedBlockData, out Vector3 targetPos)) {
+                        CarriedBlockPriceBadge.Detach(_carriedBlockInstance);
                         _carriedBlockInstance.transform.SetParent(null); // Gỡ parent để không bị méo scale
                         _carriedBlockInstance.transform.position = targetPos;
                         _carriedBlockInstance.transform.rotation = _targetCheckoutCounter.transform.rotation;
@@ -599,6 +674,7 @@ namespace MineMart.Gameplay.Staff {
             // Liên tục check xem bàn có chỗ trống chưa
             if (_targetCheckoutCounter != null && !_targetCheckoutCounter.IsFull) {
                 if (_targetCheckoutCounter.TryPlaceBlock(_carriedBlockInstance, _carriedBlockData, out Vector3 targetPos)) {
+                    CarriedBlockPriceBadge.Detach(_carriedBlockInstance);
                     _carriedBlockInstance.transform.SetParent(null); // Gỡ parent để không bị méo scale
                     _carriedBlockInstance.transform.position = targetPos;
                     _carriedBlockInstance.transform.rotation = _targetCheckoutCounter.transform.rotation;
@@ -625,6 +701,7 @@ namespace MineMart.Gameplay.Staff {
                         _carriedBlockInstance.transform.SetParent(_carryAnchor);
                         _carriedBlockInstance.transform.localPosition = Vector3.zero;
                         _carriedBlockInstance.transform.localRotation = Quaternion.identity;
+                        CarriedBlockPriceBadge.Attach(_carriedBlockInstance, _carriedBlockData);
 
                         // Lấy xong thì đi giao cho khách
                         _state = WorkerState.WalkingToCustomerCounter;
@@ -688,6 +765,42 @@ namespace MineMart.Gameplay.Staff {
                         _carriedBlockData = null;
                     }
                 }
+            }
+
+            // Xử lý an toàn: Nếu việc giao hàng không thành công (khách đã rời đi hoặc người chơi đã giao trước đó)
+            if (_carriedBlockData != null) {
+                TableSlot altTable = FindTableSlotNeedingBlock(_carriedBlockData);
+                if (altTable != null) {
+                    _targetTableSlot = altTable;
+                    _targetCustomerSlot = null;
+                    _state = WorkerState.WalkingToCustomerCounter;
+                    SetDestinationSafe(altTable.ServerAnchor.position);
+                    return;
+                }
+
+                CustomerSlot altCustomer = FindCustomerNeedingBlock(_carriedBlockData);
+                if (altCustomer != null) {
+                    _targetCustomerSlot = altCustomer;
+                    _targetTableSlot = null;
+                    _state = WorkerState.WalkingToCustomerCounter;
+                    SetDestinationSafe(altCustomer.ServerAnchor.position);
+                    return;
+                }
+
+                CheckoutCounter table = FindAvailableCheckoutCounter();
+                if (table != null && !table.IsFull) {
+                    _targetCheckoutCounter = table;
+                    _state = WorkerState.WalkingToCheckoutCounter;
+                    CounterSlot slot = table.GetSlotAtPlacePosition(table.transform.position, 100f);
+                    SetDestinationSafe(slot != null ? slot.PlaceAnchor.position : table.transform.position);
+                    return;
+                }
+
+                if (_carriedBlockInstance != null) {
+                    Destroy(_carriedBlockInstance);
+                    _carriedBlockInstance = null;
+                }
+                _carriedBlockData = null;
             }
 
             _targetTableSlot = null;

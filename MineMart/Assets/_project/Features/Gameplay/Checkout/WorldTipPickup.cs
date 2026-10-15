@@ -19,8 +19,11 @@ namespace MineMart.Gameplay.Checkout {
         [Tooltip("Số tiền vàng người chơi nhận được khi nhặt tip")]
         [SerializeField] private double _tipAmount = 10;
 
-        [Tooltip("Khoảng cách tối đa để nhân vật tự động hút tiền tip vào người (mét) - Chỉ kích hoạt ngoài AI mode")]
-        [SerializeField] private float _pickupMagnetRadius = 1.85f;
+        [Tooltip("Khoảng cách tối đa để nhân vật tự động hút tiền tip vào người (mét)")]
+        [SerializeField] private float _pickupMagnetRadius = 0.85f;
+
+        [Tooltip("Thời gian chờ trước khi cho phép tự động hút (giây) để tiền tip nằm yên trên bàn cho người chơi thấy")]
+        [SerializeField] private float _pickupDelay = 1.0f;
 
         [Tooltip("Tốc độ bay hút về phía người chơi")]
         [SerializeField] private float _flySpeed = 12f;
@@ -47,16 +50,20 @@ namespace MineMart.Gameplay.Checkout {
         public bool IsCollected => _isCollected;
 
         private Camera _mainCamera;
+        private float _spawnTime;
 
         private void Awake() {
+            _spawnTime = Time.time;
             _collider = GetComponent<Collider>();
             if (_collider != null) {
                 _collider.isTrigger = true;
             }
             if (_visualHolder == null) {
-                _visualHolder = transform;
+                var found = transform.Find("VisualHolder");
+                if (found != null) _visualHolder = found;
+                else _visualHolder = transform;
             }
-            _initialLocalPos = _visualHolder.localPosition;
+            _initialLocalPos = (_visualHolder != transform) ? Vector3.zero : _visualHolder.localPosition;
             _mainCamera = Camera.main;
         }
 
@@ -68,8 +75,12 @@ namespace MineMart.Gameplay.Checkout {
         /// <summary>
         /// Khởi tạo số tiền tip và visual tùy biến (nếu có).
         /// </summary>
-        public void Initialize(double amount) {
+        public void Initialize(double amount, Transform visualHolder = null) {
             _tipAmount = amount;
+            if (visualHolder != null) {
+                _visualHolder = visualHolder;
+                _initialLocalPos = Vector3.zero;
+            }
         }
 
         private IEnumerator SpawnPopRoutine() {
@@ -93,17 +104,23 @@ namespace MineMart.Gameplay.Checkout {
 
             // 1. Hiệu ứng xoay tròn và bập bồng tại chỗ
             if (!_isFlyingToPlayer && _visualHolder != null) {
-                _visualHolder.Rotate(Vector3.up, _rotateSpeed * Time.deltaTime, Space.World);
+                _visualHolder.Rotate(Vector3.up, _rotateSpeed * Time.deltaTime, Space.Self);
                 float bobOffset = Mathf.Sin(Time.time * _bobFrequency) * _bobAmplitude;
-                _visualHolder.localPosition = _initialLocalPos + new Vector3(0f, bobOffset, 0f);
+                if (_visualHolder != transform) {
+                    _visualHolder.localPosition = new Vector3(0f, bobOffset, 0f);
+                } else {
+                    _visualHolder.localPosition = _initialLocalPos + new Vector3(0f, bobOffset, 0f);
+                }
             }
 
-            // 2. Cách 1: Tự động hút về người chơi khi đến gần (CHỈ KÍCH HOẠT KHI NGƯỜI CHƠI TỰ ĐIỀU KHIỂN TAY, TẮT KHI Ở CHẾ ĐỘ AI)
-            if (PlayerController.Instance != null && !PlayerController.Instance.IsAutoPiloting) {
-                float distSqr = (PlayerController.Instance.transform.position - transform.position).sqrMagnitude;
-                if (distSqr <= _pickupMagnetRadius * _pickupMagnetRadius) {
-                    Collect();
-                    return;
+            // 2. Cách 1: Tự động hút về người chơi khi đến gần (CHỈ sau khi hết _pickupDelay, và CHỈ khi không ở chế độ AI)
+            if (Time.time >= _spawnTime + _pickupDelay) {
+                if (PlayerController.Instance != null && !PlayerController.Instance.IsAutoPiloting) {
+                    float distSqr = (PlayerController.Instance.transform.position - transform.position).sqrMagnitude;
+                    if (distSqr <= _pickupMagnetRadius * _pickupMagnetRadius) {
+                        Collect();
+                        return;
+                    }
                 }
             }
 
@@ -173,6 +190,7 @@ namespace MineMart.Gameplay.Checkout {
 
         private void OnTriggerEnter(Collider other) {
             if (_isCollected) return;
+            if (Time.time < _spawnTime + _pickupDelay) return;
 
             if (other.CompareTag("Player") || other.GetComponent<PlayerController>() != null) {
                 // Chỉ cho phép hút tự động khi người chơi đang tự điều khiển bằng tay
@@ -222,18 +240,36 @@ namespace MineMart.Gameplay.Checkout {
                 EconomyManager.Instance.AddGold(_tipAmount);
             }
 
-            // Hiệu ứng các hạt vàng tỏa ra nhỏ nhẹ
-            TipCoinBurstEffect.Play(transform.position, null, 4);
+            // Hiệu ứng số tiền bay bổng (+$$$) màu xanh ngọc (bỏ TipCoinBurstEffect để không bay hạt bừa bãi)
+            FloatingCashText.Spawn(transform.position, _tipAmount, prefix: "+$", textColor: new Color(0.2f, 1.0f, 0.45f, 1f));
 
             Destroy(gameObject);
+        }
+
+        public void AddTipAmount(double extraAmount) {
+            _tipAmount += extraAmount;
+            _spawnTime = Time.time;
+            StartCoroutine(SpawnPopRoutine());
         }
 
         /// <summary>
         /// Tạo một đối tượng tiền Tip trong Scene. Nếu chưa có Prefab, tự động tạo Model Fallback 3D có thể tùy chỉnh màu sắc.
         /// </summary>
-        public static WorldTipPickup CreateTipInstance(Vector3 spawnPosition, double tipAmount, GameObject customPrefab = null, Color? customColor = null) {
+        public static WorldTipPickup CreateTipInstance(Vector3 spawnPosition, double tipAmount, GameObject customPrefab = null, Color? customColor = null, Transform parentAnchor = null) {
+            var existingTips = FindObjectsByType<WorldTipPickup>(FindObjectsInactive.Exclude);
+            for (int i = 0; i < existingTips.Length; i++) {
+                var existing = existingTips[i];
+                if (existing != null && !existing.IsCollected && Vector3.Distance(existing.transform.position, spawnPosition) < 0.5f) {
+                    existing.AddTipAmount(tipAmount);
+                    return existing;
+                }
+            }
             if (customPrefab != null) {
-                GameObject instance = Instantiate(customPrefab, spawnPosition, Quaternion.identity);
+                GameObject instance = Instantiate(customPrefab, spawnPosition, Quaternion.identity, parentAnchor);
+                if (parentAnchor != null) {
+                    instance.transform.localPosition = Vector3.zero;
+                    instance.transform.localRotation = Quaternion.identity;
+                }
                 var pickup = instance.GetComponent<WorldTipPickup>();
                 if (pickup == null) pickup = instance.AddComponent<WorldTipPickup>();
                 pickup.Initialize(tipAmount);
@@ -242,7 +278,13 @@ namespace MineMart.Gameplay.Checkout {
 
             // Tạo model Tip Fallback 3D (Đồng xu nổi khối kèm biểu tượng kim cương ở tâm, tùy chỉnh màu sắc linh hoạt)
             GameObject tipRoot = new GameObject("WorldTip_" + (int)tipAmount);
-            tipRoot.transform.position = spawnPosition;
+            if (parentAnchor != null) {
+                tipRoot.transform.SetParent(parentAnchor, false);
+                tipRoot.transform.localPosition = Vector3.zero;
+                tipRoot.transform.localRotation = Quaternion.identity;
+            } else {
+                tipRoot.transform.position = spawnPosition;
+            }
 
             var boxCol = tipRoot.AddComponent<BoxCollider>();
             boxCol.isTrigger = true;
@@ -250,6 +292,8 @@ namespace MineMart.Gameplay.Checkout {
 
             GameObject visualHolder = new GameObject("VisualHolder");
             visualHolder.transform.SetParent(tipRoot.transform, false);
+            visualHolder.transform.localPosition = Vector3.zero;
+            visualHolder.transform.localRotation = Quaternion.identity;
 
             Color baseColor = customColor.HasValue ? customColor.Value : new Color(1.0f, 0.85f, 0.15f, 1.0f); // Mặc định vàng gold ánh kim
             Shader shader = Shader.Find("Universal Render Pipeline/Lit") 
@@ -287,8 +331,7 @@ namespace MineMart.Gameplay.Checkout {
             if (gemRenderer != null) gemRenderer.material = gemMat;
 
             var tipComp = tipRoot.AddComponent<WorldTipPickup>();
-            tipComp._visualHolder = visualHolder.transform;
-            tipComp.Initialize(tipAmount);
+            tipComp.Initialize(tipAmount, visualHolder.transform);
 
             return tipComp;
         }

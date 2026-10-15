@@ -26,6 +26,10 @@ namespace MineMart.Gameplay.Tables {
         [Tooltip("Điểm neo nơi nhân viên đứng phục vụ")]
         [SerializeField] private Transform _serverAnchor;
 
+        [Header("Tip Anchor")]
+        [Tooltip("Điểm neo trên bàn nơi tiền tip xuất hiện")]
+        [SerializeField] private Transform _tipAnchor;
+
         [Header("Tip Gold Particle Effect (Hiệu Ứng Hạt Vàng Tỏa Ra)")]
         [Tooltip("Prefab model tùy biến cho các hạt vàng tỏa ra tại bàn khi giao block cho khách (nếu các slot con không gán riêng, sẽ dùng prefab này)")]
         [SerializeField] private GameObject _tipParticlePrefab;
@@ -38,6 +42,7 @@ namespace MineMart.Gameplay.Tables {
         public IReadOnlyList<TableSlot> Slots => _slots;
         public int SlotCount => _slots != null ? _slots.Length : 0;
         public OrderDeliveredEventChannelSO OrderDeliveredChannel => _orderDeliveredChannel;
+        public Transform TipAnchor => _tipAnchor;
 
         public Transform CustomerAnchor {
             get {
@@ -126,10 +131,31 @@ namespace MineMart.Gameplay.Tables {
                 _slots = new TableSlot[] { defaultSlot };
             }
 
-            // Đăng ký sự kiện chuyển tiếp từ các slot
+            // Tự động tìm TipAnchor trên bàn nếu chưa gán
+            if (_tipAnchor == null) {
+                Transform found = transform.Find("Tip");
+                if (found == null && transform.parent != null) found = transform.parent.Find("Tip");
+                if (found == null) {
+                    var allTr = GetComponentsInChildren<Transform>(true);
+                    foreach (var tr in allTr) {
+                        if (tr.name.Equals("Tip", StringComparison.OrdinalIgnoreCase)) {
+                            found = tr;
+                            break;
+                        }
+                    }
+                }
+                if (found != null) _tipAnchor = found;
+            }
+
+            // Đăng ký sự kiện chuyển tiếp từ các slot và đồng bộ TipAnchor
             for (int i = 0; i < _slots.Length; i++) {
                 TableSlot slot = _slots[i];
                 if (slot != null) {
+                    slot.AutoDiscoverAnchors();
+                    if (_tipAnchor != null && (slot.TipAnchor == null || slot.TipAnchor == slot.transform)) {
+                        slot.SetTipAnchor(_tipAnchor);
+                    }
+
                     slot.OnOrderPlaced -= ForwardOrderPlaced;
                     slot.OnOrderPlaced += ForwardOrderPlaced;
 

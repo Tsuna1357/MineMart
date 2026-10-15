@@ -52,6 +52,11 @@ MonoBehaviour:
   _serverAnchor: {fileID: 7421366876497164789}
   _tipAnchor: {fileID: 77878409120419936}
   _lookAtAnchor: {fileID: 1711200842273968650}
+  _tipParticlePrefab: {fileID: 0}
+  _tipParticleCount: 6
+  _tipChanceStat: {fileID: 0}
+  _worldTipPrefab: {fileID: 0}
+  _fallbackTipColor: {r: 1, g: 0.85, b: 0.15, a: 1}
   _bubbleHeight: 1.75
   _block3DScale: 0.35
   _showBackgroundPlate: 1
@@ -143,6 +148,11 @@ MonoBehaviour:
   _serverAnchor: {fileID: 8596451254908609262}
   _tipAnchor: {fileID: 6177938420238521772}
   _lookAtAnchor: {fileID: 8887932348249150582}
+  _tipParticlePrefab: {fileID: 0}
+  _tipParticleCount: 6
+  _tipChanceStat: {fileID: 0}
+  _worldTipPrefab: {fileID: 0}
+  _fallbackTipColor: {r: 1, g: 0.85, b: 0.15, a: 1}
   _bubbleHeight: 1.75
   _block3DScale: 0.35
   _showBackgroundPlate: 1
@@ -175,13 +185,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1036894360081088307}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
   m_LocalPosition: {x: -2, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4705229617543582585}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
 --- !u!1 &1122653838907574991
 GameObject:
   m_ObjectHideFlags: 0
@@ -265,6 +275,11 @@ MonoBehaviour:
   _serverAnchor: {fileID: 3158892757455790294}
   _tipAnchor: {fileID: 389912566519925614}
   _lookAtAnchor: {fileID: 339856782045318113}
+  _tipParticlePrefab: {fileID: 0}
+  _tipParticleCount: 6
+  _tipChanceStat: {fileID: 0}
+  _worldTipPrefab: {fileID: 0}
+  _fallbackTipColor: {r: 1, g: 0.85, b: 0.15, a: 1}
   _bubbleHeight: 1.75
   _block3DScale: 0.35
   _showBackgroundPlate: 1
@@ -297,13 +312,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1780808427814145999}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
   m_LocalPosition: {x: -1, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1474696555207065414}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
 --- !u!1 &1885534418870104545
 GameObject:
   m_ObjectHideFlags: 0
@@ -328,13 +343,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1885534418870104545}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
   m_LocalPosition: {x: -1, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2102243156391274356}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
 --- !u!1 &1990331617527130966
 GameObject:
   m_ObjectHideFlags: 0
@@ -427,6 +442,7 @@ MonoBehaviour:
   - {fileID: 3294472769810863330}
   _customerAnchor: {fileID: 0}
   _serverAnchor: {fileID: 0}
+  _tipParticlePrefab: {fileID: 0}
   _orderDeliveredChannel: {fileID: 11400000, guid: 727a8e3a42634e5390d77014b0282837, type: 2}
 --- !u!1 &2756682015726195455
 GameObject:
@@ -542,6 +558,11 @@ MonoBehaviour:
   _serverAnchor: {fileID: 8511118857705169959}
   _tipAnchor: {fileID: 1977837194268311498}
   _lookAtAnchor: {fileID: 530767295122387674}
+  _tipParticlePrefab: {fileID: 0}
+  _tipParticleCount: 6
+  _tipChanceStat: {fileID: 0}
+  _worldTipPrefab: {fileID: 0}
+  _fallbackTipColor: {r: 1, g: 0.85, b: 0.15, a: 1}
   _bubbleHeight: 1.75
   _block3DScale: 0.35
   _showBackgroundPlate: 1
@@ -574,13 +595,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3686992150411879028}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
   m_LocalPosition: {x: -3, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4256958235768308508}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
 --- !u!1 &3875945715123701050
 GameObject:
   m_ObjectHideFlags: 0
@@ -819,6 +840,11 @@ MonoBehaviour:
   _serverAnchor: {fileID: 5191017538502348177}
   _tipAnchor: {fileID: 5872460168066220082}
   _lookAtAnchor: {fileID: 3703484232223917425}
+  _tipParticlePrefab: {fileID: 0}
+  _tipParticleCount: 6
+  _tipChanceStat: {fileID: 0}
+  _worldTipPrefab: {fileID: 0}
+  _fallbackTipColor: {r: 1, g: 0.85, b: 0.15, a: 1}
   _bubbleHeight: 1.75
   _block3DScale: 0.35
   _showBackgroundPlate: 1
@@ -882,13 +908,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6764525852518842068}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
   m_LocalPosition: {x: -3, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6199905106513165179}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
 --- !u!1 &7185651978993702335
 GameObject:
   m_ObjectHideFlags: 0
@@ -941,6 +967,11 @@ MonoBehaviour:
   _serverAnchor: {fileID: 8919295782862137798}
   _tipAnchor: {fileID: 220614949937087857}
   _lookAtAnchor: {fileID: 1482094062884688639}
+  _tipParticlePrefab: {fileID: 0}
+  _tipParticleCount: 6
+  _tipChanceStat: {fileID: 0}
+  _worldTipPrefab: {fileID: 0}
+  _fallbackTipColor: {r: 1, g: 0.85, b: 0.15, a: 1}
   _bubbleHeight: 1.75
   _block3DScale: 0.35
   _showBackgroundPlate: 1
@@ -1212,13 +1243,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9193674717004324310}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
   m_LocalPosition: {x: -2, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3050964108551512995}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
 --- !u!1001 &2217044606321493058
 PrefabInstance:
   m_ObjectHideFlags: 0
