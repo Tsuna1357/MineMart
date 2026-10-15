@@ -12,7 +12,7 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: DefaultCompany
+  companyName: Miyuki Studio
   productName: MineMart
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
@@ -149,7 +149,7 @@ PlayerSettings:
   loadStoreDebugModeEnabled: 0
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
-  bundleVersion: 1.00.04
+  bundleVersion: 1.00.05
   preloadedAssets:
   - {fileID: -944628639613478452, guid: 289c1b55c9541489481df5cc06664110, type: 3}
   metroInputSource: 0
@@ -303,39 +303,51 @@ PlayerSettings:
   - m_BuildTarget: 
     m_Icons:
     - serializedVersion: 2
-      m_Icon: {fileID: 2800000, guid: 378e708075913d440a3e87e64c04661c, type: 3}
+      m_Icon: {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
       m_Width: 128
       m_Height: 128
       m_Kind: 0
   m_BuildTargetPlatformIcons:
   - m_BuildTarget: Android
     m_Icons:
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
+      - {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
       m_Width: 432
       m_Height: 432
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
+      - {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
       m_Width: 324
       m_Height: 324
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
+      - {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
       m_Width: 216
       m_Height: 216
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
+      - {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
       m_Width: 162
       m_Height: 162
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
+      - {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
       m_Width: 108
       m_Height: 108
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
+      - {fileID: 2800000, guid: 8fffc8eef1914c24f896412032cd0e38, type: 3}
       m_Width: 81
       m_Height: 81
       m_Kind: 2

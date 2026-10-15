@@ -237,3 +237,25 @@ cac loi sau:
 - Đồng bộ lại kịch bản nói [docs/KichBan_ThuyetTrinh_MineMart.md](file:///g:/Projects/Project_1/docs/KichBan_ThuyetTrinh_MineMart.md) cho khớp 100% với bố cục Slide 4 mới.
 - Xuất lại ảnh xem trước [docs/Img/Slides/Slide4.jpg](file:///g:/Projects/Project_1/docs/Img/Slides/Slide4.jpg).
 ---
+
+## [2026-10-16 01:21] — Slide Asset Cleanup: Preserving Final Presentation Deck & Poster
+**Yêu cầu (Prompt):** gioì thì dọn dẹp những gì sinh ra để tạo slide đi, bao gồm cả ảnh lẫn slide cũ (giữ lại slide mới nhất, poster).
+**Tóm tắt (Summary):**
+- Đã dọn dẹp sạch sẽ toàn bộ các file tạm sinh ra trong quá trình làm slide:
+  1. Xóa script sinh tự động `docs/generate_pitch_deck.py`.
+  2. Xóa các ảnh chụp màn hình tạm trong `docs/Img/` (`AI1 (1-3).png`, `blockbench_img.png`, `FPT-poly.png`, `ingame.png`).
+  3. Xóa thư mục ảnh xuất slide cũ `docs/Img/Slides/`.
+- Bảo toàn nguyên vẹn 100%:
+  1. File PowerPoint hoàn chỉnh mới nhất [docs/MineMart_Pitch_Deck.pptx](file:///g:/Projects/Project_1/docs/MineMart_Pitch_Deck.pptx) (chứa sẵn toàn bộ ảnh nhúng bên trong).
+  2. Poster chính thức [docs/MineMart_Poster_A2.png](file:///g:/Projects/Project_1/docs/MineMart_Poster_A2.png).
+  3. Icon chính thức [docs/MineMart_Icon.jpg](file:///g:/Projects/Project_1/docs/MineMart_Icon.jpg).
+  4. File kịch bản đọc liền tay [docs/KichBan_ThuyetTrinh_MineMart.md](file:///g:/Projects/Project_1/docs/KichBan_ThuyetTrinh_MineMart.md).
+---
+
+## [2026-10-16 01:41] — Unity Configuration: Apply Official App Icon to ProjectSettings
+**Yêu cầu (Prompt):** làm luôn cho em đi (cài icon cho game).
+**Tóm tắt (Summary):**
+- Cập nhật trực tiếp `ProjectSettings/ProjectSettings.asset`, thay thế toàn bộ 13 vị trí GUID icon cũ sang icon chính thức [Assets/_project/Arts/Textures/MineMart_Icon.jpg](file:///g:/Projects/Project_1/MineMart/Assets/_project/Arts/Textures/MineMart_Icon.jpg) (GUID `8fffc8eef1914c24f896412032cd0e38`).
+- Thiết lập đồng bộ cả Default Icon lẫn toàn bộ các độ phân giải Adaptive Icon của Android (432x432, 324x324, 216x216, 162x162, 108x108, 81x81).
+- Xác minh kiểm tra 0 GUID cũ tồn tại, 13/13 vị trí đã nhận icon Chibi Voxel mới nhất.
+---
